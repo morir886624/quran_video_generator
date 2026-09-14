@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Quran Video Studio</string>
+    <string name="title_activity_main">Quran Video Studio</string>
+    <string name="package_name">com.quran.videomaker</string>
+    <string name="custom_url_scheme">com.quran.videomaker</string>
+</resources>

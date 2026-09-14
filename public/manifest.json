@@ -1,0 +1,17 @@
+{
+  "name": "Quran.com Video Studio",
+  "short_name": "QuranVideo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B1329",
+  "theme_color": "#0B1329",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
+

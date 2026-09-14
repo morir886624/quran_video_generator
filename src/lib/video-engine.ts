@@ -1,0 +1,454 @@
+import { AspectRatio, BackgroundPresetId, Chapter, Verse, VideoConfig } from '@/types/quran';
+import { BACKGROUND_PRESETS } from './constants';
+import { cleanTranslationText } from './quran-api';
+
+export interface Particle {
+  x: number;
+  y: number;
+  size: number;
+  speedY: number;
+  speedX: number;
+  opacity: number;
+  pulseSpeed: number;
+  angle: number;
+}
+
+export function createParticles(count: number, width: number, height: number): Particle[] {
+  const particles: Particle[] = [];
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      size: Math.random() * 2.8 + 0.8,
+      speedY: (Math.random() - 0.4) * 0.4,
+      speedX: (Math.random() - 0.5) * 0.3,
+      opacity: Math.random() * 0.7 + 0.3,
+      pulseSpeed: Math.random() * 0.03 + 0.01,
+      angle: Math.random() * Math.PI * 2,
+    });
+  }
+  return particles;
+}
+
+export function getCanvasDimensions(aspectRatio: AspectRatio, targetWidth = 1080): { width: number; height: number } {
+  switch (aspectRatio) {
+    case '9:16':
+      return { width: targetWidth, height: Math.round((targetWidth * 16) / 9) }; // e.g. 1080 x 1920
+    case '1:1':
+      return { width: targetWidth, height: targetWidth }; // 1080 x 1080
+    case '16:9':
+      return { width: targetWidth, height: Math.round((targetWidth * 9) / 16) }; // 1920 x 1080
+    default:
+      return { width: 1080, height: 1920 };
+  }
+}
+
+/**
+ * Wraps text into lines that fit within a maximum width on a 2D canvas context
+ */
+export function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (let n = 0; n < words.length; n++) {
+    const testLine = currentLine ? `${currentLine} ${words[n]}` : words[n];
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && n > 0) {
+      lines.push(currentLine);
+      currentLine = words[n];
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+  return lines;
+}
+
+/**
+ * Renders an animated frame to the canvas
+ */
+export function renderVideoFrame({
+  ctx,
+  width,
+  height,
+  config,
+  chapter,
+  currentVerse,
+  verseProgress = 0,
+  particles,
+  time = 0,
+  customMediaElement,
+}: {
+  ctx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  config: VideoConfig;
+  chapter: Chapter | null;
+  currentVerse: Verse | null;
+  verseProgress?: number; // 0 to 1
+  particles: Particle[];
+  time?: number;
+  customMediaElement?: HTMLVideoElement | HTMLImageElement | null;
+}) {
+  ctx.save();
+  ctx.clearRect(0, 0, width, height);
+
+  const preset =
+    BACKGROUND_PRESETS.find((p) => p.id === config.backgroundPreset) ||
+    BACKGROUND_PRESETS[0];
+
+  // 1. Draw Background
+  if (customMediaElement) {
+    try {
+      ctx.drawImage(customMediaElement, 0, 0, width, height);
+    } catch {
+      drawPresetBackground(ctx, width, height, preset, time);
+    }
+  } else {
+    drawPresetBackground(ctx, width, height, preset, time);
+  }
+
+  // 2. Draw Particles / Motion Effects
+  drawParticles(ctx, width, height, particles, preset.id, time);
+
+  // 3. Dark Overlay Vignette for Contrast & Readability
+  drawOverlayVignette(ctx, width, height, config.overlayOpacity);
+
+  // 4. Draw Center Verse Card & Calligraphy
+  if (currentVerse) {
+    drawCenterVerse(
+      ctx,
+      width,
+      height,
+      currentVerse,
+      chapter,
+      config,
+      verseProgress,
+      preset.accentColor
+    );
+  }
+
+  // 5. Draw Decorative Islamic Border & Footer
+  drawIslamicAccents(ctx, width, height, preset.accentColor, verseProgress);
+
+  ctx.restore();
+}
+
+function drawPresetBackground(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  preset: (typeof BACKGROUND_PRESETS)[0],
+  time: number
+) {
+  const gradient = ctx.createRadialGradient(
+    width / 2 + Math.sin(time * 0.0005) * 80,
+    height * 0.45 + Math.cos(time * 0.0006) * 60,
+    width * 0.1,
+    width / 2,
+    height / 2,
+    height * 0.75
+  );
+
+  gradient.addColorStop(0, preset.gradientColors[1]);
+  gradient.addColorStop(0.65, preset.gradientColors[0]);
+  gradient.addColorStop(1, preset.gradientColors[2]);
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+}
+
+function drawParticles(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  particles: Particle[],
+  presetId: BackgroundPresetId,
+  time: number
+) {
+  ctx.save();
+  for (const p of particles) {
+    p.y += p.speedY;
+    p.x += p.speedX;
+    p.angle += p.pulseSpeed;
+
+    // Wrap around screen
+    if (p.y < 0) p.y = height;
+    if (p.y > height) p.y = 0;
+    if (p.x < 0) p.x = width;
+    if (p.x > width) p.x = 0;
+
+    const currentOpacity =
+      p.opacity * (0.6 + 0.4 * Math.sin(p.angle + time * 0.002));
+
+    if (presetId === 'emerald') {
+      // Islamic 8-point geometric star motes
+      ctx.strokeStyle = `rgba(16, 185, 129, ${currentOpacity * 0.5})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const s = p.size * 2.2;
+      ctx.strokeRect(p.x - s / 2, p.y - s / 2, s, s);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(Math.PI / 4);
+      ctx.strokeRect(-s / 2, -s / 2, s, s);
+      ctx.restore();
+    } else if (presetId === 'rain') {
+      // Falling raindrops
+      ctx.fillStyle = `rgba(6, 182, 212, ${currentOpacity * 0.65})`;
+      ctx.fillRect(p.x, p.y, 1.5, p.size * 6);
+    } else if (presetId === 'gold') {
+      // Warm glowing golden dust
+      ctx.fillStyle = `rgba(245, 158, 11, ${currentOpacity * 0.8})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Cosmic stars
+      ctx.fillStyle = `rgba(255, 255, 255, ${currentOpacity})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawOverlayVignette(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  opacity: number
+) {
+  // Vignette gradient from edges to center
+  const vignette = ctx.createRadialGradient(
+    width / 2,
+    height / 2,
+    width * 0.25,
+    width / 2,
+    height / 2,
+    height * 0.65
+  );
+  vignette.addColorStop(0, `rgba(0, 0, 0, ${opacity * 0.35})`);
+  vignette.addColorStop(0.7, `rgba(0, 0, 0, ${opacity * 0.75})`);
+  vignette.addColorStop(1, `rgba(0, 0, 0, ${Math.min(opacity * 1.25, 0.95)})`);
+
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, width, height);
+}
+
+function drawCenterVerse(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  verse: Verse,
+  chapter: Chapter | null,
+  config: VideoConfig,
+  progress: number,
+  accentColor: string
+) {
+  ctx.save();
+
+  // Subtle breathing float animation
+  const floatOffset = Math.sin(progress * Math.PI) * 8;
+  const centerY = height * 0.48 + floatOffset;
+
+  // 1. Top Surah & Ayah Badge Pill
+  if (config.showSurahBadge && chapter) {
+    const badgeY = height * 0.16;
+    const badgeText = `${chapter.name_simple} • Ayah ${verse.verse_number}`;
+    const arabicBadge = chapter.name_arabic;
+
+    ctx.font = '500 24px "Plus Jakarta Sans", system-ui, sans-serif';
+    const textWidth = ctx.measureText(badgeText).width;
+    const pillWidth = Math.max(textWidth + 70, 260);
+    const pillHeight = 44;
+    const pillX = (width - pillWidth) / 2;
+
+    // Badge container pill
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(pillX, badgeY - pillHeight / 2, pillWidth, pillHeight, 22);
+    ctx.fill();
+    ctx.stroke();
+
+    // Emerald indicator dot
+    ctx.fillStyle = accentColor;
+    ctx.beginPath();
+    ctx.arc(pillX + 22, badgeY, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Badge English text
+    ctx.fillStyle = '#E2E8F0';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(badgeText, pillX + 38, badgeY);
+
+    // Arabic chapter title above badge
+    ctx.font = '700 32px "Amiri Quran", "Amiri", serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(254, 240, 138, 0.9)';
+    ctx.fillText(arabicBadge, width / 2, badgeY - 42);
+  }
+
+  // 2. Center Arabic Verse Calligraphy
+  const paddingX = width * 0.1;
+  const maxContentWidth = width - paddingX * 2;
+
+  // Format Arabic text with Ayah end glyph ۝
+  const arabicText = config.showAyahNumber
+    ? `${verse.text_uthmani} ۝${toArabicDigits(verse.verse_number)}`
+    : verse.text_uthmani;
+
+  const arabicFontSize = config.arabicFontSize || 38;
+  ctx.font = `600 ${arabicFontSize}px "${config.arabicFontFamily || 'Amiri Quran'}", "Amiri", serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const arabicLines = wrapText(ctx, arabicText, maxContentWidth);
+  const arabicLineHeight = arabicFontSize * 1.75;
+  const totalArabicHeight = arabicLines.length * arabicLineHeight;
+
+  // 3. Translation Subtitle (English or chosen translation)
+  let translationLines: string[] = [];
+  const translationFontSize = config.translationFontSize || 20;
+  let totalTranslationHeight = 0;
+
+  if (config.showTranslation && verse.translations && verse.translations[0]) {
+    const rawTranslation = verse.translations[0].text;
+    const cleanText = cleanTranslationText(rawTranslation);
+
+    ctx.font = `400 ${translationFontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
+    translationLines = wrapText(ctx, cleanText, maxContentWidth * 0.92);
+    const translationLineHeight = translationFontSize * 1.6;
+    totalTranslationHeight = translationLines.length * translationLineHeight + 35;
+  }
+
+  // Calculate starting Y for balanced center positioning
+  const totalBlockHeight = totalArabicHeight + totalTranslationHeight;
+  let startArabicY = centerY - totalBlockHeight / 2 + arabicLineHeight / 2;
+
+  // If text is very long, push it up gracefully
+  if (startArabicY < height * 0.24) {
+    startArabicY = height * 0.24;
+  }
+
+  // Draw Central Soft Backdrop Card for ultimate mobile readability
+  const cardPadY = 40;
+  const cardPadX = 30;
+  const cardHeight = totalBlockHeight + cardPadY * 2;
+  const cardWidth = maxContentWidth + cardPadX * 2;
+  const cardX = (width - cardWidth) / 2;
+  const cardY = startArabicY - arabicLineHeight / 2 - cardPadY;
+
+  ctx.fillStyle = 'rgba(10, 15, 30, 0.45)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardWidth, cardHeight, 28);
+  ctx.fill();
+  ctx.stroke();
+
+  // Glow Effect behind Arabic text
+  if (config.glowEffect) {
+    ctx.shadowColor = accentColor;
+    ctx.shadowBlur = 24;
+  }
+
+  // Draw Arabic Calligraphy Lines
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `600 ${arabicFontSize}px "${config.arabicFontFamily || 'Amiri Quran'}", "Amiri", serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  arabicLines.forEach((line, idx) => {
+    const lineY = startArabicY + idx * arabicLineHeight;
+    ctx.fillText(line, width / 2, lineY);
+  });
+
+  // Reset shadow for translation
+  ctx.shadowBlur = 0;
+
+  // Draw Translation Subtitle Lines
+  if (translationLines.length > 0) {
+    const startTransY =
+      startArabicY + (arabicLines.length - 0.5) * arabicLineHeight + 30;
+
+    // Subtle divider line
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(width / 2 - 50, startTransY - 14);
+    ctx.lineTo(width / 2 + 50, startTransY - 14);
+    ctx.stroke();
+
+    ctx.font = `400 ${translationFontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
+    ctx.fillStyle = '#CBD5E1'; // Slate 300
+    const transLineHeight = translationFontSize * 1.55;
+
+    translationLines.forEach((tLine, tIdx) => {
+      ctx.fillText(tLine, width / 2, startTransY + tIdx * transLineHeight);
+    });
+  }
+
+  ctx.restore();
+}
+
+function drawIslamicAccents(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  accentColor: string,
+  progress: number
+) {
+  ctx.save();
+
+  // Bottom Sleek Progress Bar
+  const barHeight = 4;
+  const barY = height - barHeight - 12;
+  const barMargin = width * 0.08;
+  const barWidth = width - barMargin * 2;
+
+  // Background track
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.beginPath();
+  ctx.roundRect(barMargin, barY, barWidth, barHeight, barHeight / 2);
+  ctx.fill();
+
+  // Progress fill
+  const currentProgressWidth = Math.max(barWidth * Math.min(progress, 1), 6);
+  ctx.fillStyle = accentColor;
+  ctx.beginPath();
+  ctx.roundRect(barMargin, barY, currentProgressWidth, barHeight, barHeight / 2);
+  ctx.fill();
+
+  // Subtle watermark / branding at bottom: "Quran.com"
+  ctx.font = '500 18px "Plus Jakarta Sans", system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.fillText('Quran.com Video Studio', width / 2, barY - 14);
+
+  ctx.restore();
+}
+
+/**
+ * Converts Western digits to Eastern Arabic numerals (e.g. 1 -> ١)
+ */
+function toArabicDigits(num: number): string {
+  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  return num
+    .toString()
+    .split('')
+    .map((d) => arabicDigits[parseInt(d, 10)] || d)
+    .join('');
+}

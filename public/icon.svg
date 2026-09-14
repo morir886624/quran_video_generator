@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="quranGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="#0B1329"/>
+  <path d="M120 140 C120 120, 140 100, 160 100 L352 100 C372 100, 392 120, 392 140 L392 372 C392 392, 372 412, 352 412 L160 412 C140 412, 120 392, 120 372 Z" fill="url(#quranGrad)"/>
+  <path d="M256 120 L256 392" stroke="#FEF08A" stroke-width="8" stroke-dasharray="12 12"/>
+  <circle cx="256" cy="256" r="48" fill="none" stroke="#FEF08A" stroke-width="8"/>
+  <circle cx="256" cy="256" r="16" fill="#FEF08A"/>
+</svg>
+
