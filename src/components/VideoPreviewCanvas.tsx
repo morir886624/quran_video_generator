@@ -9,6 +9,11 @@ import {
   renderVideoFrame,
 } from '@/lib/video-engine';
 import {
+  StitchedAudioPlayer,
+  stitchAudioBuffers,
+  VerseTimeSegment,
+} from '@/lib/audio-stitcher';
+import {
   Play,
   Pause,
   SkipBack,
@@ -16,7 +21,8 @@ import {
   RotateCcw,
   Volume2,
   VolumeX,
-  Maximize2,
+  Loader2,
+  Radio,
 } from 'lucide-react';
 
 interface VideoPreviewCanvasProps {
@@ -35,20 +41,23 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   onActiveVerseChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playerRef = useRef<StitchedAudioPlayer | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const animFrameIdRef = useRef<number | null>(null);
   const customMediaElRef = useRef<HTMLVideoElement | HTMLImageElement | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isStitchingAudio, setIsStitchingAudio] = useState(false);
   const [currentAyahIndex, setCurrentAyahIndex] = useState(0);
   const [verseProgress, setVerseProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [totalDuration, setTotalDuration] = useState(0);
+  const [segments, setSegments] = useState<VerseTimeSegment[]>([]);
   const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState(1);
 
   const currentVerse = verses[currentAyahIndex] || verses[0] || null;
 
-  // Initialize particles when config/aspect ratio changes
+  // Initialize particles when config or aspect ratio changes
   useEffect(() => {
     const { width, height } = getCanvasDimensions(config.aspectRatio, 1080);
     particlesRef.current = createParticles(45, width, height);
@@ -84,116 +93,109 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
   }, [currentVerse, currentAyahIndex, onActiveVerseChange]);
 
-  // Audio setup and transitions
-  const playAyahAt = useCallback(
-    (index: number) => {
-      if (index < 0 || index >= verses.length) return;
-      setCurrentAyahIndex(index);
-      setVerseProgress(0);
+  // Initialize and stitch audio whenever selected verses or audioUrls change
+  useEffect(() => {
+    if (audioUrls.length === 0 || verses.length === 0) return;
 
-      const audioUrl = audioUrls[index];
-      if (!audioRef.current) {
-        audioRef.current = new Audio();
+    let isCancelled = false;
+    setIsStitchingAudio(true);
+
+    if (!playerRef.current) {
+      playerRef.current = new StitchedAudioPlayer();
+    }
+    const player = playerRef.current;
+
+    player.onTimeUpdate = (cur, total, activeIdx, vProg) => {
+      if (!isCancelled) {
+        setCurrentTime(cur);
+        setTotalDuration(total);
+        setCurrentAyahIndex(activeIdx);
+        setVerseProgress(vProg);
       }
+    };
 
-      const audio = audioRef.current;
-      audio.crossOrigin = 'anonymous';
-      audio.src = audioUrl || '';
-      audio.muted = isMuted;
-      audio.volume = volume;
-
-      audio.play().then(() => {
-        setIsPlaying(true);
-      }).catch((e) => {
-        console.warn('Playback error / Autoplay blocked:', e);
+    player.onEnded = () => {
+      if (!isCancelled) {
         setIsPlaying(false);
+      }
+    };
+
+    const verseKeys = verses.map((v) => v.verse_key);
+
+    stitchAudioBuffers(audioUrls, verseKeys, player.getContext())
+      .then((stitchedResult) => {
+        if (!isCancelled) {
+          player.setStitchedAudio(stitchedResult);
+          setSegments(stitchedResult.segments);
+          setTotalDuration(stitchedResult.totalDuration);
+          setIsStitchingAudio(false);
+        }
+      })
+      .catch((err) => {
+        if (!isCancelled) {
+          console.warn('Audio stitch warning:', err);
+          setIsStitchingAudio(false);
+        }
       });
-    },
-    [audioUrls, isMuted, verses.length, volume]
-  );
-
-  const togglePlay = useCallback(() => {
-    if (verses.length === 0) return;
-
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-    }
-    const audio = audioRef.current;
-
-    if (isPlaying) {
-      audio.pause();
-      setIsPlaying(false);
-    } else {
-      if (!audio.src || audio.ended) {
-        playAyahAt(currentAyahIndex);
-      } else {
-        audio.play().then(() => setIsPlaying(true)).catch(() => {});
-      }
-    }
-  }, [currentAyahIndex, isPlaying, playAyahAt, verses.length]);
-
-  const handleNext = useCallback(() => {
-    if (currentAyahIndex < verses.length - 1) {
-      playAyahAt(currentAyahIndex + 1);
-    } else {
-      // Loop to beginning
-      playAyahAt(0);
-    }
-  }, [currentAyahIndex, playAyahAt, verses.length]);
-
-  const handlePrev = useCallback(() => {
-    if (currentAyahIndex > 0) {
-      playAyahAt(currentAyahIndex - 1);
-    } else {
-      playAyahAt(0);
-    }
-  }, [currentAyahIndex, playAyahAt]);
-
-  const handleRestart = useCallback(() => {
-    playAyahAt(0);
-  }, [playAyahAt]);
-
-  // Handle audio timeupdate and ended
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const handleTimeUpdate = () => {
-      if (audio.duration && !isNaN(audio.duration) && audio.duration > 0) {
-        setVerseProgress(audio.currentTime / audio.duration);
-      }
-    };
-
-    const handleEnded = () => {
-      if (currentAyahIndex < verses.length - 1) {
-        playAyahAt(currentAyahIndex + 1);
-      } else {
-        setIsPlaying(false);
-        setVerseProgress(1);
-      }
-    };
-
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleEnded);
 
     return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', handleEnded);
+      isCancelled = true;
     };
-  }, [currentAyahIndex, playAyahAt, verses.length]);
+  }, [audioUrls, verses]);
 
-  // Clean up audio on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
+      if (playerRef.current) {
+        playerRef.current.destroy();
       }
       if (animFrameIdRef.current) {
         cancelAnimationFrame(animFrameIdRef.current);
       }
     };
   }, []);
+
+  const togglePlay = useCallback(() => {
+    if (!playerRef.current || isStitchingAudio) return;
+    const player = playerRef.current;
+
+    if (isPlaying) {
+      player.pause();
+      setIsPlaying(false);
+    } else {
+      player.play();
+      setIsPlaying(true);
+    }
+  }, [isPlaying, isStitchingAudio]);
+
+  const handleNext = useCallback(() => {
+    if (!playerRef.current) return;
+    if (currentAyahIndex < verses.length - 1) {
+      playerRef.current.seekToVerseIndex(currentAyahIndex + 1);
+    } else {
+      playerRef.current.seek(0);
+    }
+  }, [currentAyahIndex, verses.length]);
+
+  const handlePrev = useCallback(() => {
+    if (!playerRef.current) return;
+    if (currentAyahIndex > 0) {
+      playerRef.current.seekToVerseIndex(currentAyahIndex - 1);
+    } else {
+      playerRef.current.seek(0);
+    }
+  }, [currentAyahIndex]);
+
+  const handleRestart = useCallback(() => {
+    if (!playerRef.current) return;
+    playerRef.current.seek(0);
+  }, []);
+
+  const handleScrubberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!playerRef.current || totalDuration === 0) return;
+    const seekTime = (parseFloat(e.target.value) / 100) * totalDuration;
+    playerRef.current.seek(seekTime);
+  };
 
   // Main Canvas Render Loop
   useEffect(() => {
@@ -235,7 +237,12 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     };
   }, [config, chapter, currentVerse, verseProgress]);
 
-  // Aspect ratio styling for responsive mobile container
+  const formatSeconds = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
   const getContainerAspectStyle = () => {
     switch (config.aspectRatio) {
       case '9:16':
@@ -249,7 +256,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
   return (
     <div className="flex flex-col items-center justify-center w-full">
-      {/* Video Container Shell with Phone frame feel */}
+      {/* Video Container Shell */}
       <div
         className={`relative overflow-hidden rounded-3xl bg-black border-2 border-slate-800 shadow-2xl shadow-black/90 mx-auto flex items-center justify-center transition-all ${getContainerAspectStyle()}`}
       >
@@ -259,8 +266,18 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
           onClick={togglePlay}
         />
 
-        {/* Floating Play Overlay Indicator on Pause */}
-        {!isPlaying && (
+        {/* Loading / Audio Stitching Indicator */}
+        {isStitchingAudio && (
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-emerald-400">
+            <Loader2 className="w-8 h-8 animate-spin" />
+            <span className="text-xs font-semibold text-white">
+              Stitching continuous audio...
+            </span>
+          </div>
+        )}
+
+        {/* Floating Play Button on Pause */}
+        {!isPlaying && !isStitchingAudio && (
           <button
             onClick={togglePlay}
             className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-emerald-500/80 hover:bg-emerald-500 backdrop-blur-md text-white flex items-center justify-center shadow-xl shadow-emerald-950/60 transition-transform active:scale-90"
@@ -270,29 +287,37 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
           </button>
         )}
 
-        {/* Current Ayah Pill Indicator at Bottom Corner */}
-        <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[11px] font-semibold text-white/90">
-          Ayah {currentAyahIndex + 1} of {verses.length}
+        {/* Seamless Continuous Sound Badge */}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[11px] font-semibold text-white">
+          <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
+          <span>Ayah {currentAyahIndex + 1} of {verses.length}</span>
         </div>
       </div>
 
       {/* Modern Studio Playback Controls Bar */}
-      <div className="w-full max-w-sm sm:max-w-md mt-4 p-3 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col gap-2.5 shadow-lg">
-        {/* Scrubber track */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 h-2 bg-slate-800 rounded-full overflow-hidden cursor-pointer">
-            <div
-              className="h-full bg-emerald-500 rounded-full transition-all duration-100"
-              style={{ width: `${verseProgress * 100}%` }}
-            />
+      <div className="w-full max-w-sm sm:max-w-md mt-4 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col gap-2.5 shadow-lg">
+        {/* Continuous Scrubber Track */}
+        <div className="space-y-1">
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="0.1"
+            value={totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0}
+            onChange={handleScrubberChange}
+            className="w-full accent-emerald-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+          />
+          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+            <span>{formatSeconds(currentTime)}</span>
+            <span className="text-emerald-400 font-semibold text-[10px] tracking-wide uppercase">
+              Gapless Continuous Sound
+            </span>
+            <span>{formatSeconds(totalDuration)}</span>
           </div>
-          <span className="text-[11px] font-mono text-slate-400 w-9 text-right">
-            {Math.round(verseProgress * 100)}%
-          </span>
         </div>
 
         {/* Control Buttons */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-1">
             <button
               onClick={handleRestart}
@@ -306,7 +331,9 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
               onClick={() => {
                 const nextMuted = !isMuted;
                 setIsMuted(nextMuted);
-                if (audioRef.current) audioRef.current.muted = nextMuted;
+                if (playerRef.current) {
+                  playerRef.current.setVolume(nextMuted ? 0 : 1);
+                }
               }}
               className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               title={isMuted ? 'Unmute' : 'Mute'}
@@ -332,7 +359,8 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
             <button
               onClick={togglePlay}
-              className="p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-950/50 transition-all active:scale-95"
+              disabled={isStitchingAudio}
+              className="p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-950/50 transition-all active:scale-95 disabled:opacity-50"
               title={isPlaying ? 'Pause' : 'Play'}
             >
               {isPlaying ? (
@@ -351,7 +379,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
             </button>
           </div>
 
-          {/* Right: Ayah Counter badge */}
+          {/* Right: Ayah Key Badge */}
           <div className="text-right">
             <span className="text-xs font-bold text-emerald-400">
               {currentVerse?.verse_key || ''}
@@ -362,4 +390,3 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     </div>
   );
 };
-

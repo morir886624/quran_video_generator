@@ -1,5 +1,6 @@
 import { Chapter, Verse, VideoConfig } from '@/types/quran';
 import { createParticles, getCanvasDimensions, renderVideoFrame } from './video-engine';
+import { stitchAudioBuffers, StitchedAudioResult } from './audio-stitcher';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
 
@@ -31,7 +32,7 @@ export function getSupportedMimeType(): string {
 }
 
 /**
- * Exports the selected verses with recitation audio into a video blob
+ * Exports selected verses into a video file with 100% seamless, stitched audio
  */
 export async function exportVideo({
   verses,
@@ -62,18 +63,36 @@ export async function exportVideo({
 
   const particles = createParticles(45, width, height);
 
-  // Setup Web Audio context for mixing audio into video
+  // 1. Setup Audio Context
   const AudioContextClass =
     window.AudioContext ||
     (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   const audioCtx = new AudioContextClass();
   const dest = audioCtx.createMediaStreamDestination();
 
-  // Setup MediaStream & MediaRecorder
+  // 2. Stitch all ayah audio into ONE continuous master AudioBuffer
+  onProgress?.({
+    percent: 5,
+    currentAyahIndex: 1,
+    totalAyahs: verses.length,
+    status: 'Stitching recitation audio into seamless track...',
+  });
+
+  const verseKeys = verses.map((v) => v.verse_key);
+  let stitchedResult: StitchedAudioResult;
+
+  try {
+    stitchedResult = await stitchAudioBuffers(audioUrls, verseKeys, audioCtx);
+  } catch (err) {
+    console.error('Audio stitching error, falling back:', err);
+    throw new Error('Failed to download and stitch recitation audio. Please check network.');
+  }
+
+  const { stitchedBuffer, segments, totalDuration } = stitchedResult;
+
+  // 3. Setup MediaRecorder with canvas stream + stitched audio
   const fps = config.fps || 30;
   const canvasStream = canvas.captureStream(fps);
-
-  // Add audio track to canvas stream
   const combinedStream = new MediaStream([
     ...canvasStream.getVideoTracks(),
     ...dest.stream.getAudioTracks(),
@@ -85,7 +104,7 @@ export async function exportVideo({
 
   const recorder = new MediaRecorder(combinedStream, {
     mimeType,
-    videoBitsPerSecond: 6_000_000, // 6 Mbps high quality
+    videoBitsPerSecond: 6_000_000,
   });
 
   const recordedChunks: Blob[] = [];
@@ -97,7 +116,7 @@ export async function exportVideo({
 
   recorder.start(100);
 
-  // Load custom media if any
+  // 4. Load custom media if any
   let customMediaElement: HTMLImageElement | HTMLVideoElement | null = null;
   if (config.customMediaUrl) {
     if (config.customMediaType === 'video') {
@@ -120,91 +139,87 @@ export async function exportVideo({
     }
   }
 
-  // Sequential rendering through each Ayah with audio playback
-  const totalAyahs = verses.length;
+  // 5. Connect and start seamless master audio buffer source
+  const sourceNode = audioCtx.createBufferSource();
+  sourceNode.buffer = stitchedBuffer;
+  sourceNode.connect(dest);
 
-  for (let i = 0; i < totalAyahs; i++) {
-    const verse = verses[i];
-    const audioUrl = audioUrls[i];
+  await audioCtx.resume();
+  sourceNode.start(0);
 
-    onProgress?.({
-      percent: Math.round((i / totalAyahs) * 100),
-      currentAyahIndex: i + 1,
-      totalAyahs,
-      status: `Rendering Ayah ${verse.verse_number}...`,
-    });
+  const startPerfTime = performance.now();
+  const startAudioTime = audioCtx.currentTime;
 
-    // Play Ayah audio through Web Audio API
-    await new Promise<void>((resolveAyah) => {
-      const audioEl = new Audio();
-      audioEl.crossOrigin = 'anonymous';
-      audioEl.src = audioUrl;
+  // 6. Continuous Render Loop synchronized to master audio timeline
+  await new Promise<void>((resolveExport) => {
+    let animId: number;
 
-      // Pipe into audio context
-      const source = audioCtx.createMediaElementSource(audioEl);
-      source.connect(dest);
-      // Connect to destination only (so device doesn't play aloud loudly while exporting)
-      // If user wants preview, separate preview player is used
+    const renderLoop = (now: number) => {
+      const audioElapsed = audioCtx.currentTime - startAudioTime;
+      const t = Math.min(audioElapsed, totalDuration);
 
-      let animationFrameId: number;
-      let startTime = performance.now();
+      // Find active verse segment
+      let activeIndex = 0;
+      let verseProgress = 0;
 
-      const renderLoop = (timestamp: number) => {
-        const elapsed = timestamp - startTime;
-        const durationMs = (audioEl.duration && !isNaN(audioEl.duration))
-          ? audioEl.duration * 1000
-          : 5000;
-        const verseProgress = Math.min(elapsed / durationMs, 1);
-
-        renderVideoFrame({
-          ctx,
-          width,
-          height,
-          config,
-          chapter,
-          currentVerse: verse,
-          verseProgress,
-          particles,
-          time: timestamp,
-          customMediaElement,
-        });
-
-        if (!audioEl.ended && elapsed < durationMs + 800) {
-          animationFrameId = requestAnimationFrame(renderLoop);
-        } else {
-          resolveAyah();
+      for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        if (t >= seg.startTime && t < seg.endTime) {
+          activeIndex = i;
+          verseProgress = (t - seg.startTime) / seg.duration;
+          break;
         }
-      };
+      }
 
-      audioEl.onloadedmetadata = () => {
-        startTime = performance.now();
-        audioEl.play().catch(() => {});
-        animationFrameId = requestAnimationFrame(renderLoop);
-      };
+      if (t >= totalDuration && segments.length > 0) {
+        activeIndex = segments.length - 1;
+        verseProgress = 1;
+      }
 
-      audioEl.onended = () => {
-        cancelAnimationFrame(animationFrameId);
-        resolveAyah();
-      };
+      const currentVerse = verses[activeIndex] || verses[0];
 
-      audioEl.onerror = () => {
-        // Fallback: timer if audio fails to load
-        setTimeout(() => {
-          cancelAnimationFrame(animationFrameId);
-          resolveAyah();
-        }, 4000);
-      };
-    });
-  }
+      // Draw frame
+      renderVideoFrame({
+        ctx,
+        width,
+        height,
+        config,
+        chapter,
+        currentVerse,
+        verseProgress,
+        particles,
+        time: now - startPerfTime,
+        customMediaElement,
+      });
+
+      // Progress reporting
+      const percent = Math.min(96, Math.round((t / totalDuration) * 90) + 6);
+      onProgress?.({
+        percent,
+        currentAyahIndex: activeIndex + 1,
+        totalAyahs: verses.length,
+        status: `Rendering Ayah ${currentVerse.verse_number} (continuous audio)...`,
+      });
+
+      if (audioElapsed < totalDuration + 0.3) {
+        animId = requestAnimationFrame(renderLoop);
+      } else {
+        cancelAnimationFrame(animId);
+        resolveExport();
+      }
+    };
+
+    animId = requestAnimationFrame(renderLoop);
+  });
 
   onProgress?.({
     percent: 100,
-    currentAyahIndex: totalAyahs,
-    totalAyahs,
+    currentAyahIndex: verses.length,
+    totalAyahs: verses.length,
     status: 'Finalizing video file...',
   });
 
-  // Stop recorder and produce final blob
+  // Stop recorder
   const finalBlob = await new Promise<Blob>((resolve) => {
     recorder.onstop = () => {
       const blob = new Blob(recordedChunks, { type: mimeType });
@@ -214,6 +229,8 @@ export async function exportVideo({
   });
 
   try {
+    sourceNode.stop();
+    sourceNode.disconnect();
     await audioCtx.close();
   } catch {}
 
@@ -228,7 +245,6 @@ export async function exportVideo({
  * Triggers native mobile share or downloads video to device
  */
 export async function shareOrDownloadVideo(url: string, filename: string, blob?: Blob) {
-  // If native Capacitor platform (Android or iOS)
   if (Capacitor.isNativePlatform()) {
     try {
       await Share.share({
@@ -238,12 +254,9 @@ export async function shareOrDownloadVideo(url: string, filename: string, blob?:
         dialogTitle: 'Share Quran Reel',
       });
       return;
-    } catch {
-      // Fallback to web link
-    }
+    } catch {}
   }
 
-  // If Web Share API with files is supported
   if (blob && navigator.share && navigator.canShare) {
     const file = new File([blob], filename, { type: blob.type });
     if (navigator.canShare({ files: [file] })) {
@@ -254,13 +267,11 @@ export async function shareOrDownloadVideo(url: string, filename: string, blob?:
           text: 'Created with Quran.com Video Studio',
         });
         return;
-      } catch {
-        // User cancelled or share failed, fallback to download
-      }
+      } catch {}
     }
   }
 
-  // Fallback: standard browser download
+  // Fallback download
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
@@ -268,4 +279,3 @@ export async function shareOrDownloadVideo(url: string, filename: string, blob?:
   a.click();
   document.body.removeChild(a);
 }
-

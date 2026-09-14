@@ -93,3 +93,31 @@ export interface VideoConfig {
   fps: 30 | 60;
 }
 
+export interface Tafsir {
+  id: number;
+  resource_id: number;
+  text: string;
+  verse_key: string;
+}
+
+export interface ChapterInfo {
+  id: number;
+  chapter_id: number;
+  language_name: string;
+  short_text: string;
+  text: string;
+  source: string;
+}
+
+export interface TranslationResource {
+  id: number;
+  name: string;
+  author_name: string;
+  slug: string;
+  language_name: string;
+  translated_name: {
+    name: string;
+    language_name: string;
+  };
+}
+

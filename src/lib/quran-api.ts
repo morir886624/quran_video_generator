@@ -137,3 +137,80 @@ export async function fetchAudioFiles(
   }
 }
 
+/**
+ * Fetches Tafsir (exegesis) for a specific verse (default: 169 - Ibn Kathir)
+ */
+export async function fetchTafsir(
+  verseKey: string,
+  tafsirId = 169
+): Promise<{ text: string; resourceName: string }> {
+  try {
+    const res = await fetch(`${BASE_URL}/tafsirs/${tafsirId}/by_ayah/${verseKey}`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch tafsir: ${res.statusText}`);
+    }
+    const data = await res.json();
+    return {
+      text: data.tafsir?.text || 'No tafsir available for this verse.',
+      resourceName: data.tafsir?.resource_name || 'Tafsir Ibn Kathir',
+    };
+  } catch (err) {
+    console.error(`Error fetching tafsir for ${verseKey}:`, err);
+    throw err;
+  }
+}
+
+/**
+ * Fetches historical background and revelation context for a Surah
+ */
+export async function fetchChapterInfo(
+  chapterId: number,
+  language = 'en'
+): Promise<{ text: string; shortText: string; source: string }> {
+  try {
+    const res = await fetch(`${BASE_URL}/chapters/${chapterId}/info?language=${language}`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch chapter info: ${res.statusText}`);
+    }
+    const data = await res.json();
+    const info = data.chapter_info;
+    return {
+      text: info?.text || '',
+      shortText: info?.short_text || '',
+      source: info?.source || 'Quran.com',
+    };
+  } catch (err) {
+    console.error(`Error fetching chapter info for ${chapterId}:`, err);
+    throw err;
+  }
+}
+
+/**
+ * Fetches available translations supported by Quran.com
+ */
+export async function fetchAvailableTranslations(): Promise<
+  Array<{ id: number; name: string; author_name: string; language_name: string }>
+> {
+  try {
+    const res = await fetch(`${BASE_URL}/resources/translations`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch translations: ${res.statusText}`);
+    }
+    const data = await res.json();
+    return data.translations || [];
+  } catch (err) {
+    console.error('Error fetching available translations:', err);
+    // Return curated fallback translations
+    return [
+      { id: 20, name: 'Saheeh International', author_name: 'Saheeh International', language_name: 'english' },
+      { id: 131, name: 'The Clear Quran', author_name: 'Dr. Mustafa Khattab', language_name: 'english' },
+      { id: 85, name: 'M.A.S. Abdel Haleem', author_name: 'Abdel Haleem', language_name: 'english' },
+      { id: 136, name: 'Muhammad Hamidullah', author_name: 'Hamidullah', language_name: 'french' },
+      { id: 97, name: 'Tafhim commentary', author_name: 'Maududi', language_name: 'urdu' },
+      { id: 86, name: 'Muhammad Isa Garcia', author_name: 'Isa Garcia', language_name: 'spanish' },
+      { id: 33, name: 'Indonesian Ministry of Religious Affairs', author_name: 'Kemenag', language_name: 'indonesian' },
+      { id: 77, name: 'Diyanet Isleri', author_name: 'Diyanet', language_name: 'turkish' },
+    ];
+  }
+}
+

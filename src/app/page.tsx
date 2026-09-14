@@ -11,6 +11,9 @@ import { SurahDrawer } from '@/components/SurahDrawer';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { ReciterModal } from '@/components/ReciterModal';
 import { SettingsModal } from '@/components/SettingsModal';
+import { TafsirModal } from '@/components/TafsirModal';
+import { SurahInfoModal } from '@/components/SurahInfoModal';
+import { TranslationSelectorModal } from '@/components/TranslationSelectorModal';
 import { Loader2 } from 'lucide-react';
 
 export default function Home() {
@@ -26,10 +29,19 @@ export default function Home() {
   const [chapterAudioMap, setChapterAudioMap] = useState<Record<string, string>>({});
   const [videoConfig, setVideoConfig] = useState<VideoConfig>(DEFAULT_VIDEO_CONFIG);
 
+  const [selectedTranslationId, setSelectedTranslationId] = useState<number>(20);
+  const [selectedTranslationName, setSelectedTranslationName] = useState<string>('Saheeh International');
+
+  // Modals
   const [activeTab, setActiveTab] = useState<'reader' | 'studio' | 'reciters'>('studio');
   const [isSurahDrawerOpen, setIsSurahDrawerOpen] = useState<boolean>(false);
   const [isRecitersModalOpen, setIsRecitersModalOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isTafsirOpen, setIsTafsirOpen] = useState<boolean>(false);
+  const [activeTafsirVerseKey, setActiveTafsirVerseKey] = useState<string | null>(null);
+  const [activeTafsirArabic, setActiveTafsirArabic] = useState<string>('');
+  const [isSurahInfoOpen, setIsSurahInfoOpen] = useState<boolean>(false);
+  const [isTranslationModalOpen, setIsTranslationModalOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   const [isLoadingVerses, setIsLoadingVerses] = useState<boolean>(true);
@@ -47,12 +59,13 @@ export default function Home() {
       .catch((err) => console.error('Failed to load chapters:', err));
   }, []);
 
-  // 2. Load Verses when Chapter Changes
+  // 2. Load Verses when Chapter or Translation Changes
   const loadChapterData = useCallback(
-    async (chapterId: number, startAyah?: number, endAyah?: number) => {
+    async (chapterId: number, startAyah?: number, endAyah?: number, transId?: number) => {
       setIsLoadingVerses(true);
+      const activeTransId = transId || selectedTranslationId;
       try {
-        const fetchedVerses = await fetchVerses(chapterId);
+        const fetchedVerses = await fetchVerses(chapterId, undefined, undefined, activeTransId);
         setVerses(fetchedVerses);
         setCurrentChapterId(chapterId);
 
@@ -62,7 +75,7 @@ export default function Home() {
           setCurrentChapter(chap);
         }
 
-        // Set initial selected range
+        // Set initial selected range if specified or new chapter
         const s = startAyah || 1;
         const e = endAyah || Math.min(fetchedVerses.length, 5);
         const initialKeys = new Set<string>();
@@ -84,7 +97,7 @@ export default function Home() {
         setIsLoadingVerses(false);
       }
     },
-    [chapters, currentReciter.id]
+    [chapters, currentReciter.id, selectedTranslationId]
   );
 
   useEffect(() => {
@@ -150,7 +163,7 @@ export default function Home() {
     [currentChapterId]
   );
 
-  // Play single ayah audio in reader
+  // Single ayah playback inside reader
   const handlePlayAyahAudio = useCallback(
     (verseKey: string) => {
       if (activePlayingKey === verseKey) {
@@ -177,6 +190,18 @@ export default function Home() {
     },
     [activePlayingKey, chapterAudioMap, singleAyahAudio]
   );
+
+  const handleOpenTafsir = (verseKey: string, arabicText: string) => {
+    setActiveTafsirVerseKey(verseKey);
+    setActiveTafsirArabic(arabicText);
+    setIsTafsirOpen(true);
+  };
+
+  const handleSelectTranslation = (id: number, name: string) => {
+    setSelectedTranslationId(id);
+    setSelectedTranslationName(name);
+    loadChapterData(currentChapterId, undefined, undefined, id);
+  };
 
   const handleToggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
@@ -216,6 +241,10 @@ export default function Home() {
                 onGoToStudio={() => setActiveTab('studio')}
                 activePlayingKey={activePlayingKey}
                 onPlayAyahAudio={handlePlayAyahAudio}
+                onOpenTafsir={handleOpenTafsir}
+                onOpenSurahInfo={() => setIsSurahInfoOpen(true)}
+                onOpenTranslations={() => setIsTranslationModalOpen(true)}
+                currentTranslationName={selectedTranslationName}
               />
             )}
 
@@ -266,6 +295,29 @@ export default function Home() {
         onClose={() => setIsRecitersModalOpen(false)}
         selectedReciterId={currentReciter.id}
         onSelectReciter={(r) => setCurrentReciter(r)}
+      />
+
+      {/* Tafsir Ibn Kathir Modal */}
+      <TafsirModal
+        isOpen={isTafsirOpen}
+        onClose={() => setIsTafsirOpen(false)}
+        verseKey={activeTafsirVerseKey}
+        verseTextArabic={activeTafsirArabic}
+      />
+
+      {/* Surah Info Modal */}
+      <SurahInfoModal
+        isOpen={isSurahInfoOpen}
+        onClose={() => setIsSurahInfoOpen(false)}
+        chapter={currentChapter}
+      />
+
+      {/* Translation Selector Modal */}
+      <TranslationSelectorModal
+        isOpen={isTranslationModalOpen}
+        onClose={() => setIsTranslationModalOpen(false)}
+        selectedTranslationId={selectedTranslationId}
+        onSelectTranslation={handleSelectTranslation}
       />
 
       {/* App Settings Modal */}

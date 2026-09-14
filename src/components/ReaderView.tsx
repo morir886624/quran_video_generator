@@ -13,6 +13,10 @@ import {
   Copy,
   Check,
   Sparkles,
+  BookOpen,
+  Info,
+  Languages,
+  Layers,
 } from 'lucide-react';
 
 interface ReaderViewProps {
@@ -24,6 +28,10 @@ interface ReaderViewProps {
   onGoToStudio: () => void;
   activePlayingKey: string | null;
   onPlayAyahAudio: (verseKey: string) => void;
+  onOpenTafsir: (verseKey: string, arabicText: string) => void;
+  onOpenSurahInfo: () => void;
+  onOpenTranslations: () => void;
+  currentTranslationName: string;
 }
 
 export const ReaderView: React.FC<ReaderViewProps> = ({
@@ -35,12 +43,17 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   onGoToStudio,
   activePlayingKey,
   onPlayAyahAudio,
+  onOpenTafsir,
+  onOpenSurahInfo,
+  onOpenTranslations,
+  currentTranslationName,
 }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [rangeStart, setRangeStart] = useState<number>(1);
   const [rangeEnd, setRangeEnd] = useState<number>(
     Math.min(chapter.verses_count, 5)
   );
+  const [showWordByWord, setShowWordByWord] = useState<boolean>(false);
 
   const handleCopy = (verse: Verse) => {
     const text = `${verse.text_uthmani}\n${cleanTranslationText(verse.translations?.[0]?.text || '')}\n(Surah ${chapter.name_simple} ${verse.verse_key})`;
@@ -57,6 +70,39 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 py-4 pb-32">
       {/* Decorative Surah Banner */}
       <SurahBanner chapter={chapter} />
+
+      {/* Surah Action Shortcuts Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4 p-3 rounded-2xl bg-slate-900/60 border border-slate-800">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenSurahInfo}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700/80 transition-all"
+          >
+            <Info className="w-3.5 h-3.5 text-emerald-400" />
+            <span>About Surah</span>
+          </button>
+
+          <button
+            onClick={onOpenTranslations}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700/80 transition-all"
+          >
+            <Languages className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="truncate max-w-[140px]">{currentTranslationName}</span>
+          </button>
+        </div>
+
+        <button
+          onClick={() => setShowWordByWord(!showWordByWord)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+            showWordByWord
+              ? 'bg-emerald-950/60 border-emerald-500/60 text-emerald-300'
+              : 'bg-slate-800/80 hover:bg-slate-700 text-slate-400 border-slate-700/80'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>Word-by-Word</span>
+        </button>
+      </div>
 
       {/* Quick Range Selection Bar */}
       <div className="mb-6 p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
@@ -156,6 +202,15 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                       <Copy className="w-3.5 h-3.5" />
                     )}
                   </button>
+
+                  {/* Tafsir Ibn Kathir button */}
+                  <button
+                    onClick={() => onOpenTafsir(verse.verse_key, verse.text_uthmani)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-800/70 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-colors"
+                  >
+                    <BookOpen className="w-3 h-3 text-emerald-400" />
+                    <span>Tafsir</span>
+                  </button>
                 </div>
 
                 {/* "Select for Video" Toggle Button */}
@@ -188,6 +243,28 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                   ۝{verse.verse_number}
                 </span>
               </div>
+
+              {/* Optional Word-by-Word Breakdown Display */}
+              {showWordByWord && verse.words && verse.words.length > 0 && (
+                <div className="flex flex-wrap flex-row-reverse gap-2 p-3 rounded-xl bg-slate-950/60 border border-slate-800 mb-4">
+                  {verse.words.map((w) => (
+                    <div
+                      key={w.id}
+                      className="flex flex-col items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/60 text-center min-w-[50px]"
+                    >
+                      <span className="font-quran text-lg text-amber-200 font-bold">
+                        {w.text}
+                      </span>
+                      <span className="text-[10px] text-emerald-400 font-mono">
+                        {w.transliteration?.text || ''}
+                      </span>
+                      <span className="text-[10px] text-slate-300">
+                        {w.translation?.text || ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* English Translation */}
               <div className="text-left text-sm sm:text-base text-slate-300 leading-relaxed font-normal select-text">
@@ -226,4 +303,3 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     </div>
   );
 };
-

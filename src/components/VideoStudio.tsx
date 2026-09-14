@@ -179,6 +179,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         audioUrls={audioUrls}
         chapter={chapter}
         config={config}
+        reciter={currentReciter}
       />
 
       {/* Reciter Modal */}
