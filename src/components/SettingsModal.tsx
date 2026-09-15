@@ -82,9 +82,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 text-center">
+        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 text-center space-y-1">
           <p className="text-[11px] text-slate-500 flex items-center justify-center gap-1">
             Built with respect for the Holy Quran
+          </p>
+          <p>
+            <a
+              href="/privacy.html"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+            >
+              Privacy Policy
+            </a>
           </p>
         </div>
       </div>

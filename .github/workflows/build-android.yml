@@ -1,0 +1,114 @@
+name: Build Android App Bundle & APK
+
+on:
+  workflow_dispatch: # Allows manual trigger with 1-click in GitHub Actions tab
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build & Package Android App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Install NPM Dependencies
+        run: npm ci
+
+      - name: Build Next.js Static Export
+        run: npm run build
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Setup Android Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          mkdir -p android/app
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Decoding release keystore from GitHub Secrets..."
+            echo "$KEYSTORE_BASE64" | base64 --decode > android/app/quran-release-key.jks
+            cat <<EOF > android/key.properties
+          storeFile=app/quran-release-key.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+          else
+            echo "No ANDROID_KEYSTORE_BASE64 secret found. Generating temporary CI signing keystore for testing..."
+            keytool -genkeypair -v \
+              -keystore android/app/quran-release-key.jks \
+              -alias quran-key \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass testpassword123 \
+              -keypass testpassword123 \
+              -dname "CN=Quran Video Studio, OU=Dev, O=Quran, L=Unknown, S=Unknown, C=US"
+            cat <<EOF > android/key.properties
+          storeFile=app/quran-release-key.jks
+          storePassword=testpassword123
+          keyAlias=quran-key
+          keyPassword=testpassword123
+          EOF
+          fi
+
+      - name: Make Gradlew Executable
+        run: chmod +x android/gradlew
+
+      - name: Build Android App Bundle (.aab for Google Play)
+        run: |
+          cd android
+          ./gradlew bundleRelease
+
+      - name: Build Android APK (.apk for direct testing)
+        run: |
+          cd android
+          ./gradlew assembleRelease
+
+      - name: Upload Android App Bundle (AAB)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Quran-Video-Studio-Release-AAB
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 30
+
+      - name: Upload Test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Quran-Video-Studio-Release-APK
+          path: android/app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: Create GitHub Release (On Release Tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            android/app/build/outputs/bundle/release/*.aab
+            android/app/build/outputs/apk/release/*.apk
+          draft: false
+          prerelease: false
+          generate_release_notes: true

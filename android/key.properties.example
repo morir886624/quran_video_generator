@@ -1,0 +1,8 @@
+# Android Release Keystore Configuration Example
+# Copy this file to "android/key.properties" and fill in your actual values.
+# NEVER commit "key.properties" or your keystore file to version control!
+
+storeFile=app/quran-release-key.jks
+storePassword=YourKeystorePasswordHere
+keyAlias=quran-key
+keyPassword=YourKeyPasswordHere
