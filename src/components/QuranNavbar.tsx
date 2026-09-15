@@ -3,6 +3,7 @@
 import React from 'react';
 import { Chapter } from '@/types/quran';
 import { BookOpen, ChevronDown, Video, Sun, Moon } from 'lucide-react';
+import { QuranLogo } from './QuranLogo';
 
 interface QuranNavbarProps {
   currentChapter: Chapter | null;
@@ -26,21 +27,20 @@ export const QuranNavbar: React.FC<QuranNavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 dark:bg-[#0B1329]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 transition-colors safe-top">
       <div className="max-w-7xl mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-        {/* Left: Quran.com Logo */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-950/20 dark:shadow-emerald-950/40">
-            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+        {/* Left: Quran Video Studio Logo */}
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 cursor-pointer select-none">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/25 dark:border-emerald-500/30 flex items-center justify-center p-1 shadow-md shadow-emerald-950/10 dark:shadow-emerald-950/30">
+            <QuranLogo variant="icon" className="w-full h-full" />
           </div>
           <div className="hidden sm:flex flex-col">
-            <div className="flex items-center gap-1 font-bold text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">
-              <span>Quran</span>
-              <span className="text-emerald-600 dark:text-emerald-400">.com</span>
-              <span className="ml-1 text-[10px] uppercase font-extrabold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-500/30">
-                Video
+            <div className="flex items-center gap-1 font-extrabold text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">
+              <span>Quran Video</span>
+              <span className="ml-1 text-[10px] tracking-wider uppercase font-extrabold px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:bg-amber-400/20 dark:text-amber-300 border border-amber-500/30">
+                Studio
               </span>
             </div>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400">
-              Shorts &amp; Reels Studio
+            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+              Shorts &amp; Reels Creator
             </span>
           </div>
         </div>

@@ -1,14 +1,86 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="quranGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#059669"/>
-      <stop offset="100%" stop-color="#10B981"/>
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#0E5E4E" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#0B1329" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#D97706"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="128" fill="#0B1329"/>
-  <path d="M120 140 C120 120, 140 100, 160 100 L352 100 C372 100, 392 120, 392 140 L392 372 C392 392, 372 412, 352 412 L160 412 C140 412, 120 392, 120 372 Z" fill="url(#quranGrad)"/>
-  <path d="M256 120 L256 392" stroke="#FEF08A" stroke-width="8" stroke-dasharray="12 12"/>
-  <circle cx="256" cy="256" r="48" fill="none" stroke="#FEF08A" stroke-width="8"/>
-  <circle cx="256" cy="256" r="16" fill="#FEF08A"/>
-</svg>
 
+  <!-- App Icon Background -->
+  <rect width="512" height="512" rx="112" fill="#0B1329"/>
+  <rect width="512" height="512" rx="112" fill="url(#bgGlow)"/>
+  <rect x="6" y="6" width="500" height="500" rx="106" fill="none" stroke="#10B981" stroke-width="3" stroke-opacity="0.25"/>
+
+  <!-- Quran Video Studio Official Emblem -->
+  <g transform="translate(256, 256) scale(0.86) translate(-340, -261)">
+    <!-- 8-pointed Rub el Hizb geometry -->
+    <polygon
+      points="340,66 535,261 340,456 145,261"
+      fill="none"
+      stroke="#10B981"
+      stroke-width="6"
+      stroke-linejoin="round"
+      stroke-opacity="0.9"
+    />
+    <rect
+      x="210"
+      y="131"
+      width="260"
+      height="260"
+      fill="none"
+      stroke="#10B981"
+      stroke-width="6"
+      stroke-linejoin="round"
+      stroke-opacity="0.9"
+    />
+
+    <!-- Rosette Petals -->
+    <path
+      d="M486.51,242.52
+      Q495,261 498.2,282.62
+      Q501.4,304.24 482.57,318.34
+      Q463.73,332.44 456.67,351.52
+      Q449.6,370.6 436.58,388.17
+      Q423.56,405.73 400.27,402.38
+      Q376.97,399.02 358.49,407.51
+      Q340,416 318.38,419.2
+      Q296.76,422.4 282.66,403.57
+      Q268.56,384.73 249.48,377.67
+      Q230.4,370.6 212.84,357.58
+      Q195.27,344.56 198.63,321.27
+      Q201.98,297.97 193.49,279.49
+      Q185,261 181.8,239.38
+      Q178.6,217.76 197.44,203.66
+      Q216.27,189.56 223.34,170.48
+      Q230.4,151.4 243.42,133.84
+      Q256.44,116.27 279.74,119.63
+      Q303.03,122.98 321.52,114.49
+      Q340,106 361.62,102.8
+      Q383.24,99.6 397.34,118.44
+      Q411.44,137.27 430.52,144.34
+      Q449.6,151.4 467.17,164.42
+      Q484.73,177.44 481.38,200.74
+      Q478.02,224.03 486.51,242.52 Z"
+      fill="none"
+      stroke="#34D399"
+      stroke-width="6"
+      stroke-linejoin="round"
+      stroke-linecap="round"
+    />
+
+    <!-- Rehal Quran Stand -->
+    <path d="M215,351 L410,441" fill="none" stroke="#10B981" stroke-width="7" stroke-linecap="round"/>
+    <path d="M465,351 L270,441" fill="none" stroke="#10B981" stroke-width="7" stroke-linecap="round"/>
+
+    <!-- Open Book Pages -->
+    <path d="M215,196 Q285,166 340,226 L340,351 L215,351 Z" fill="none" stroke="#6EE7B7" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M465,196 Q395,166 340,226 L340,351 L465,351 Z" fill="none" stroke="#6EE7B7" stroke-width="8" stroke-linejoin="round"/>
+
+    <!-- Golden Video Play Triangle -->
+    <polygon points="312,236 312,306 372,271" fill="url(#goldGrad)" />
+  </g>
+</svg>

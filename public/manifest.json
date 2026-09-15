@@ -1,5 +1,5 @@
 {
-  "name": "Quran.com Video Studio",
+  "name": "Quran Video Studio",
   "short_name": "QuranVideo",
   "start_url": "/",
   "display": "standalone",
@@ -9,9 +9,14 @@
   "icons": [
     {
       "src": "/icon.svg",
+      "sizes": "512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/main_logo.svg",
       "sizes": "any",
       "type": "image/svg+xml"
     }
   ]
 }
-

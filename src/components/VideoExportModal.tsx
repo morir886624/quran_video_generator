@@ -5,7 +5,8 @@ import { Chapter, Reciter, Verse, VideoConfig } from '@/types/quran';
 import {
   exportVideo,
   ExportProgress,
-  shareOrDownloadVideo,
+  saveVideoToDevice,
+  shareVideo,
 } from '@/lib/video-recorder';
 import { cleanTranslationText, fetchPersianTafsirSurah } from '@/lib/quran-api';
 import {
@@ -68,6 +69,9 @@ export const VideoExportModal: React.FC<VideoExportModalProps> = ({
   const [copiedPersian, setCopiedPersian] = useState(false);
   const [copiedTitle, setCopiedTitle] = useState(false);
   const [copiedDesc, setCopiedDesc] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [statusFeedback, setStatusFeedback] = useState<string | null>(null);
   const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
 
   useEffect(() => {
@@ -157,9 +161,42 @@ Generated via Quran.com Video Studio
 
   if (!isOpen) return null;
 
-  const handleDownload = () => {
-    if (!exportResult) return;
-    shareOrDownloadVideo(exportResult.url, exportResult.filename, exportResult.blob);
+  const handleSave = async () => {
+    if (!exportResult || isSaving) return;
+    setIsSaving(true);
+    setStatusFeedback(null);
+    try {
+      const res = await saveVideoToDevice({
+        url: exportResult.url,
+        filename: exportResult.filename,
+        blob: exportResult.blob,
+      });
+      setStatusFeedback(res.message);
+      setTimeout(() => setStatusFeedback(null), 4500);
+    } catch (err: any) {
+      setStatusFeedback(err?.message || 'Failed to save video');
+      setTimeout(() => setStatusFeedback(null), 4500);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!exportResult || isSharing) return;
+    setIsSharing(true);
+    try {
+      await shareVideo({
+        url: exportResult.url,
+        filename: exportResult.filename,
+        blob: exportResult.blob,
+        title: youtubeTitle,
+        text: `${chapter?.name_simple || 'Quran'} (${rangeStr}) - Recited by ${reciterName}`,
+      });
+    } catch (err: any) {
+      console.warn('Share error:', err);
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   const copyToClipboard = (text: string, setSuccess: (val: boolean) => void) => {
@@ -243,11 +280,16 @@ Generated via Quran.com Video Studio
 
               <div className="flex-1 w-full space-y-2.5">
                 <button
-                  onClick={handleDownload}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-xl shadow-emerald-950/20 dark:shadow-emerald-950/50 transition-all active:scale-95"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-xl shadow-emerald-950/20 dark:shadow-emerald-950/50 transition-all active:scale-95 disabled:opacity-80"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Download Video (MP4)</span>
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  <span>{isSaving ? 'Saving Video...' : 'Save / Download Video (MP4)'}</span>
                 </button>
 
                 <div className="flex gap-2">
@@ -263,13 +305,24 @@ Generated via Quran.com Video Studio
                   </a>
 
                   <button
-                    onClick={handleDownload}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-all"
+                    onClick={handleShare}
+                    disabled={isSharing}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-all disabled:opacity-80"
                   >
-                    <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <span>Share Sheet</span>
+                    {isSharing ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+                    ) : (
+                      <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    )}
+                    <span>{isSharing ? 'Preparing...' : 'Share Sheet'}</span>
                   </button>
                 </div>
+
+                {statusFeedback && (
+                  <div className="text-center text-xs font-medium text-emerald-600 dark:text-emerald-400 animate-in fade-in py-1">
+                    {statusFeedback}
+                  </div>
+                )}
               </div>
             </div>
 
