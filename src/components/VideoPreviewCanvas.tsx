@@ -105,6 +105,9 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
     const player = playerRef.current;
 
+    const verseKeys = verses.map((v) => v.verse_key);
+    player.setFallbackAudio(audioUrls, verseKeys);
+
     player.onTimeUpdate = (cur, total, activeIdx, vProg) => {
       if (!isCancelled) {
         setCurrentTime(cur);
@@ -120,8 +123,6 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       }
     };
 
-    const verseKeys = verses.map((v) => v.verse_key);
-
     stitchAudioBuffers(audioUrls, verseKeys, player.getContext())
       .then((stitchedResult) => {
         if (!isCancelled) {
@@ -133,7 +134,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       })
       .catch((err) => {
         if (!isCancelled) {
-          console.warn('Audio stitch warning:', err);
+          console.warn('Audio stitch warning (continuing with HTML5 streaming):', err);
           setIsStitchingAudio(false);
         }
       });
@@ -155,18 +156,18 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     };
   }, []);
 
-  const togglePlay = useCallback(() => {
-    if (!playerRef.current || isStitchingAudio) return;
+  const togglePlay = useCallback(async () => {
+    if (!playerRef.current) return;
     const player = playerRef.current;
 
     if (isPlaying) {
       player.pause();
       setIsPlaying(false);
     } else {
-      player.play();
       setIsPlaying(true);
+      await player.play();
     }
-  }, [isPlaying, isStitchingAudio]);
+  }, [isPlaying]);
 
   const handleNext = useCallback(() => {
     if (!playerRef.current) return;
@@ -266,21 +267,19 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
           onClick={togglePlay}
         />
 
-        {/* Loading / Audio Stitching Indicator */}
+        {/* Loading / Audio Stitching Badge */}
         {isStitchingAudio && (
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-emerald-400">
-            <Loader2 className="w-8 h-8 animate-spin" />
-            <span className="text-xs font-semibold text-white">
-              Stitching continuous audio...
-            </span>
+          <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-semibold text-emerald-400 shadow-md">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            <span>Optimizing audio...</span>
           </div>
         )}
 
         {/* Floating Play Button on Pause */}
-        {!isPlaying && !isStitchingAudio && (
+        {!isPlaying && (
           <button
             onClick={togglePlay}
-            className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-emerald-500/80 hover:bg-emerald-500 backdrop-blur-md text-white flex items-center justify-center shadow-xl shadow-emerald-950/60 transition-transform active:scale-90"
+            className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-emerald-500/80 hover:bg-emerald-500 backdrop-blur-md text-white flex items-center justify-center shadow-xl shadow-emerald-950/60 transition-transform active:scale-90 z-10"
             title="Play Video"
           >
             <Play className="w-7 h-7 fill-current ml-1" />
@@ -359,8 +358,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
             <button
               onClick={togglePlay}
-              disabled={isStitchingAudio}
-              className="p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-950/50 transition-all active:scale-95 disabled:opacity-50"
+              className="p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-950/50 transition-all active:scale-95"
               title={isPlaying ? 'Pause' : 'Play'}
             >
               {isPlaying ? (
