@@ -44,6 +44,24 @@ export default function Home() {
   const [isTranslationModalOpen, setIsTranslationModalOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
+  // Load theme preference from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem('quran_theme') as 'dark' | 'light' | null;
+      if (savedTheme) {
+        setTheme(savedTheme);
+        if (savedTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      }
+    } catch (e) {
+      console.error('Failed to load theme:', e);
+    }
+  }, []);
+
   const [isLoadingVerses, setIsLoadingVerses] = useState<boolean>(true);
   const [activePlayingKey, setActivePlayingKey] = useState<string | null>(null);
   const [singleAyahAudio, setSingleAyahAudio] = useState<HTMLAudioElement | null>(null);
@@ -206,11 +224,19 @@ export default function Home() {
   const handleToggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
+    try {
+      localStorage.setItem('quran_theme', nextTheme);
+    } catch (e) {}
+    if (nextTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
     document.documentElement.setAttribute('data-theme', nextTheme);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0B1329] text-slate-100">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0B1329] text-slate-900 dark:text-slate-100 transition-colors duration-200">
       {/* Quran.com Mobile Top Navbar */}
       <QuranNavbar
         currentChapter={currentChapter}
@@ -218,6 +244,8 @@ export default function Home() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         selectedVersesCount={selectedVerseKeys.size}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       {/* Main Content Area */}
