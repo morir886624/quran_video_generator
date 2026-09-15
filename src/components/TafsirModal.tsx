@@ -122,3 +122,4 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
     </div>
   );
 };
+

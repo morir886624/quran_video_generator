@@ -119,3 +119,4 @@ export const SurahInfoModal: React.FC<SurahInfoModalProps> = ({
     </div>
   );
 };
+
