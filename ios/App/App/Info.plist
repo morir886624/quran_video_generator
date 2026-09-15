@@ -66,5 +66,7 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Quran Video Studio needs access to your photo library to save your generated Quran recitation videos.</string>
 </dict>
 </plist>
