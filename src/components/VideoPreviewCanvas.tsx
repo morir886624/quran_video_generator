@@ -149,6 +149,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     return () => {
       if (playerRef.current) {
         playerRef.current.destroy();
+        playerRef.current = null;
       }
       if (animFrameIdRef.current) {
         cancelAnimationFrame(animFrameIdRef.current);
@@ -259,7 +260,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     <div className="flex flex-col items-center justify-center w-full">
       {/* Video Container Shell */}
       <div
-        className={`relative overflow-hidden rounded-3xl bg-black border-2 border-slate-800 shadow-2xl shadow-black/90 mx-auto flex items-center justify-center transition-all ${getContainerAspectStyle()}`}
+        className={`relative overflow-hidden rounded-3xl bg-black border-2 border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-300/40 dark:shadow-2xl dark:shadow-black/90 mx-auto flex items-center justify-center transition-all ${getContainerAspectStyle()}`}
       >
         <canvas
           ref={canvasRef}
@@ -294,7 +295,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       </div>
 
       {/* Modern Studio Playback Controls Bar */}
-      <div className="w-full max-w-sm sm:max-w-md mt-4 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col gap-2.5 shadow-lg">
+      <div className="w-full max-w-sm sm:max-w-md mt-4 p-3.5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 flex flex-col gap-2.5 shadow-md dark:shadow-lg transition-colors">
         {/* Continuous Scrubber Track */}
         <div className="space-y-1">
           <input
@@ -304,11 +305,11 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
             step="0.1"
             value={totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0}
             onChange={handleScrubberChange}
-            className="w-full accent-emerald-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+            className="w-full accent-emerald-500 bg-slate-200 dark:bg-slate-800 h-2 rounded-lg cursor-pointer transition-colors"
           />
-          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+          <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400">
             <span>{formatSeconds(currentTime)}</span>
-            <span className="text-emerald-400 font-semibold text-[10px] tracking-wide uppercase">
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[10px] tracking-wide uppercase">
               Gapless Continuous Sound
             </span>
             <span>{formatSeconds(totalDuration)}</span>
@@ -320,7 +321,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
           <div className="flex items-center gap-1">
             <button
               onClick={handleRestart}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
               title="Restart"
             >
               <RotateCcw className="w-4 h-4" />
@@ -334,11 +335,11 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
                   playerRef.current.setVolume(nextMuted ? 0 : 1);
                 }
               }}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
               title={isMuted ? 'Unmute' : 'Mute'}
             >
               {isMuted ? (
-                <VolumeX className="w-4 h-4 text-rose-400" />
+                <VolumeX className="w-4 h-4 text-rose-500 dark:text-rose-400" />
               ) : (
                 <Volume2 className="w-4 h-4" />
               )}
@@ -350,7 +351,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
             <button
               onClick={handlePrev}
               disabled={currentAyahIndex === 0}
-              className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 transition-colors"
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800 disabled:opacity-30 transition-colors"
               title="Previous Ayah"
             >
               <SkipBack className="w-4 h-4" />
@@ -358,7 +359,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
             <button
               onClick={togglePlay}
-              className="p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-950/50 transition-all active:scale-95"
+              className="p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-950/30 dark:shadow-emerald-950/50 transition-all active:scale-95"
               title={isPlaying ? 'Pause' : 'Play'}
             >
               {isPlaying ? (
@@ -370,7 +371,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
             <button
               onClick={handleNext}
-              className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
               title="Next Ayah"
             >
               <SkipForward className="w-4 h-4" />
@@ -379,7 +380,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
           {/* Right: Ayah Key Badge */}
           <div className="text-right">
-            <span className="text-xs font-bold text-emerald-400">
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
               {currentVerse?.verse_key || ''}
             </span>
           </div>
