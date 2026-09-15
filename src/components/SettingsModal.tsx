@@ -20,16 +20,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="relative w-full max-w-md bg-[#0F172A] border border-slate-700/80 rounded-3xl shadow-2xl p-6 flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-md bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-700/80 rounded-3xl shadow-2xl p-6 flex flex-col overflow-hidden transition-colors">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2">
-            <Info className="w-5 h-5 text-emerald-400" />
-            <h3 className="font-bold text-lg text-white">App Settings</h3>
+            <Info className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="font-bold text-lg text-slate-900 dark:text-white">App Settings</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white"
+            className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -37,54 +37,64 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <div className="py-4 space-y-4">
           {/* Theme Option */}
-          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-900 border border-slate-800">
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
               {theme === 'dark' ? (
                 <Moon className="w-4 h-4 text-emerald-400" />
               ) : (
-                <Sun className="w-4 h-4 text-amber-400" />
+                <Sun className="w-4 h-4 text-amber-500" />
               )}
-              <span className="text-sm font-semibold text-white">
+              <span className="text-sm font-semibold text-slate-900 dark:text-white">
                 Appearance Theme
               </span>
             </div>
             <button
               onClick={onToggleTheme}
-              className="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-300 hover:text-white border border-slate-700"
+              className="px-3 py-1 rounded-full text-xs font-bold bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 text-slate-800 dark:text-slate-300 dark:hover:text-white border border-slate-300 dark:border-slate-700 transition-all active:scale-95"
             >
               {theme === 'dark' ? 'Dark Navy' : 'Light Slate'}
             </button>
           </div>
 
           {/* Mobile Information */}
-          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2 text-xs text-slate-300">
-            <div className="flex items-center gap-2 font-bold text-emerald-400">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-2 text-xs text-slate-700 dark:text-slate-300">
+            <div className="flex items-center gap-2 font-bold text-emerald-600 dark:text-emerald-400">
               <Smartphone className="w-4 h-4" />
               <span>Mobile Platforms Ready</span>
             </div>
-            <p className="text-slate-400 leading-relaxed">
+            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
               Configured with <strong>Capacitor</strong> for native Android &amp; iOS deployment. Videos exported in 9:16 vertical ratio are ready for TikTok, Reels, YouTube Shorts, and WhatsApp Status.
             </p>
           </div>
 
           {/* Quran.com API Attribution */}
-          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2 text-xs text-slate-300">
-            <div className="flex items-center justify-between font-bold text-white">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-2 text-xs text-slate-700 dark:text-slate-300">
+            <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white">
               <span>Data &amp; Audio Source</span>
-              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+              <span className="text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
                 v4 REST API
               </span>
             </div>
-            <p className="text-slate-400 leading-relaxed">
+            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
               Powered by the official <strong>Quran.com API</strong> and CDN audio streaming. No heavy audio downloads or private keys needed.
             </p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="pt-3 border-t border-slate-800 text-center">
+        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 text-center space-y-1">
           <p className="text-[11px] text-slate-500 flex items-center justify-center gap-1">
             Built with respect for the Holy Quran
+          </p>
+          <p>
+            <a
+              href="/privacy.html"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+            >
+              Privacy Policy
+            </a>
           </p>
         </div>
       </div>

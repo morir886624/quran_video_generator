@@ -1,5 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Amiri:ital,wght@0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Scheherazade+New:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Amiri:ital,wght@0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Scheherazade+New:wght@400;600;700&family=Vazirmatn:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: #0B1329;
@@ -42,6 +45,11 @@ body {
   line-height: 2.1;
 }
 
+.font-persian {
+  font-family: 'Vazirmatn', 'Amiri', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.8;
+}
+
 /* Ayah end glyph styling */
 .ayah-symbol {
   display: inline-flex;
@@ -63,14 +71,17 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.6);
+}
+.dark ::-webkit-scrollbar-track {
   background: rgba(11, 19, 41, 0.5);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.4);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.6);
+  background: rgba(16, 185, 129, 0.7);
 }
 
 /* Safe Area Inset Support for Mobile Devices (iPhone notch & Android nav bar) */

@@ -17,15 +17,15 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   onOpenSettings,
 }) => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0B1329]/95 backdrop-blur-lg border-t border-slate-800/90 safe-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#0B1329]/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800/90 transition-colors safe-bottom">
       <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-around">
         {/* Reader Tab */}
         <button
           onClick={() => setActiveTab('reader')}
           className={`flex flex-col items-center justify-center gap-1 w-16 transition-all active:scale-95 ${
             activeTab === 'reader'
-              ? 'text-emerald-400 font-bold'
-              : 'text-slate-400 hover:text-slate-200 font-medium'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 font-medium'
           }`}
         >
           <div
@@ -43,15 +43,15 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
           onClick={() => setActiveTab('studio')}
           className={`relative flex flex-col items-center justify-center gap-1 w-20 transition-all active:scale-95 ${
             activeTab === 'studio'
-              ? 'text-emerald-400 font-bold'
-              : 'text-slate-400 hover:text-slate-200 font-medium'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 font-medium'
           }`}
         >
           <div
             className={`relative p-2 rounded-2xl transition-all shadow-lg ${
               activeTab === 'studio'
-                ? 'bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-emerald-950/60'
-                : 'bg-slate-800 text-slate-300'
+                ? 'bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-emerald-950/30 dark:shadow-emerald-950/60'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
             }`}
           >
             <Video className="w-5 h-5" />
@@ -69,8 +69,8 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
           onClick={() => setActiveTab('reciters')}
           className={`flex flex-col items-center justify-center gap-1 w-16 transition-all active:scale-95 ${
             activeTab === 'reciters'
-              ? 'text-emerald-400 font-bold'
-              : 'text-slate-400 hover:text-slate-200 font-medium'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 font-medium'
           }`}
         >
           <div
@@ -86,7 +86,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
         {/* Settings Tab */}
         <button
           onClick={onOpenSettings}
-          className="flex flex-col items-center justify-center gap-1 w-16 text-slate-400 hover:text-slate-200 transition-all active:scale-95"
+          className="flex flex-col items-center justify-center gap-1 w-16 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-all active:scale-95"
         >
           <div className="p-1 rounded-xl">
             <Settings className="w-5 h-5" />

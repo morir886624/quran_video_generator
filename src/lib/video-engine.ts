@@ -82,9 +82,11 @@ export function renderVideoFrame({
   chapter,
   currentVerse,
   verseProgress = 0,
+  totalProgress,
   particles,
   time = 0,
   customMediaElement,
+  persianTafsirText,
 }: {
   ctx: CanvasRenderingContext2D;
   width: number;
@@ -93,9 +95,11 @@ export function renderVideoFrame({
   chapter: Chapter | null;
   currentVerse: Verse | null;
   verseProgress?: number; // 0 to 1
+  totalProgress?: number; // 0 to 1 across whole video
   particles: Particle[];
   time?: number;
   customMediaElement?: HTMLVideoElement | HTMLImageElement | null;
+  persianTafsirText?: string;
 }) {
   ctx.save();
   ctx.clearRect(0, 0, width, height);
@@ -131,12 +135,21 @@ export function renderVideoFrame({
       chapter,
       config,
       verseProgress,
-      preset.accentColor
+      preset.accentColor,
+      persianTafsirText || currentVerse.persianTafsir
     );
   }
 
   // 5. Draw Decorative Islamic Border & Footer
-  drawIslamicAccents(ctx, width, height, preset.accentColor, verseProgress);
+  drawIslamicAccents(
+    ctx,
+    width,
+    height,
+    config,
+    preset.accentColor,
+    verseProgress,
+    totalProgress
+  );
 
   ctx.restore();
 }
@@ -252,7 +265,8 @@ function drawCenterVerse(
   chapter: Chapter | null,
   config: VideoConfig,
   progress: number,
-  accentColor: string
+  accentColor: string,
+  persianTafsirText?: string
 ) {
   ctx.save();
 
@@ -266,10 +280,11 @@ function drawCenterVerse(
     const badgeText = `${chapter.name_simple} • Ayah ${verse.verse_number}`;
     const arabicBadge = chapter.name_arabic;
 
-    ctx.font = '500 24px "Plus Jakarta Sans", system-ui, sans-serif';
+    const badgeSize = config.badgeFontSize || 24;
+    ctx.font = `500 ${badgeSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
     const textWidth = ctx.measureText(badgeText).width;
     const pillWidth = Math.max(textWidth + 70, 260);
-    const pillHeight = 44;
+    const pillHeight = Math.max(badgeSize * 1.8, 44);
     const pillX = (width - pillWidth) / 2;
 
     // Badge container pill
@@ -277,7 +292,7 @@ function drawCenterVerse(
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.roundRect(pillX, badgeY - pillHeight / 2, pillWidth, pillHeight, 22);
+    ctx.roundRect(pillX, badgeY - pillHeight / 2, pillWidth, pillHeight, pillHeight / 2);
     ctx.fill();
     ctx.stroke();
 
@@ -288,20 +303,21 @@ function drawCenterVerse(
     ctx.fill();
 
     // Badge English text
-    ctx.fillStyle = '#E2E8F0';
+    ctx.fillStyle = config.badgeTextColor || '#E2E8F0';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(badgeText, pillX + 38, badgeY);
 
     // Arabic chapter title above badge
-    ctx.font = '700 32px "Amiri Quran", "Amiri", serif';
+    const surahTitleSize = config.surahTitleFontSize || 32;
+    ctx.font = `700 ${surahTitleSize}px "Amiri Quran", "Amiri", serif`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(254, 240, 138, 0.9)';
-    ctx.fillText(arabicBadge, width / 2, badgeY - 42);
+    ctx.fillStyle = config.surahTitleColor || 'rgba(254, 240, 138, 0.9)';
+    ctx.fillText(arabicBadge, width / 2, badgeY - pillHeight / 2 - 20);
   }
 
   // 2. Center Arabic Verse Calligraphy
-  const paddingX = width * 0.1;
+  const paddingX = width * 0.08;
   const maxContentWidth = width - paddingX * 2;
 
   // Format Arabic text with Ayah end glyph ۝
@@ -315,42 +331,66 @@ function drawCenterVerse(
   ctx.textBaseline = 'middle';
 
   const arabicLines = wrapText(ctx, arabicText, maxContentWidth);
-  const arabicLineHeight = arabicFontSize * 1.75;
+  const arabicLineHeight = arabicFontSize * 1.7;
   const totalArabicHeight = arabicLines.length * arabicLineHeight;
 
-  // 3. Translation Subtitle (English or chosen translation)
-  let translationLines: string[] = [];
+  // 3. Prepare English Translation Subtitle
+  let englishLines: string[] = [];
   const translationFontSize = config.translationFontSize || 20;
-  let totalTranslationHeight = 0;
+  const englishLineHeight = translationFontSize * 1.5;
+  let totalEnglishHeight = 0;
 
   if (config.showTranslation && verse.translations && verse.translations[0]) {
     const rawTranslation = verse.translations[0].text;
     const cleanText = cleanTranslationText(rawTranslation);
 
     ctx.font = `400 ${translationFontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
-    translationLines = wrapText(ctx, cleanText, maxContentWidth * 0.92);
-    const translationLineHeight = translationFontSize * 1.6;
-    totalTranslationHeight = translationLines.length * translationLineHeight + 35;
+    englishLines = wrapText(ctx, cleanText, maxContentWidth * 0.92);
+    if (englishLines.length > 0) {
+      totalEnglishHeight = englishLines.length * englishLineHeight;
+    }
   }
 
+  // 4. Prepare Persian Tafsir Subtitle
+  let persianLines: string[] = [];
+  const persianFontSize = config.persianFontSize || 17;
+  const persianLineHeight = persianFontSize * 1.6;
+  let totalPersianHeight = 0;
+  const activePersianText = persianTafsirText || verse.persianTafsir || '';
+
+  if (config.showPersianTafsir && activePersianText) {
+    ctx.font = `400 ${persianFontSize}px "Vazirmatn", "Amiri", "Plus Jakarta Sans", system-ui, sans-serif`;
+    persianLines = wrapText(ctx, activePersianText, maxContentWidth * 0.92);
+    if (persianLines.length > 0) {
+      totalPersianHeight = persianLines.length * persianLineHeight;
+    }
+  }
+
+  const hasEnglish = englishLines.length > 0;
+  const hasPersian = persianLines.length > 0;
+  const hasSubtitles = hasEnglish || hasPersian;
+  const gapBetweenSubtitles = hasEnglish && hasPersian ? 26 : 0;
+  const subtitleSpacing = hasSubtitles ? 28 : 0;
+  const totalSubtitleHeight = totalEnglishHeight + totalPersianHeight + gapBetweenSubtitles;
+
   // Calculate starting Y for balanced center positioning
-  const totalBlockHeight = totalArabicHeight + totalTranslationHeight;
+  const totalBlockHeight = totalArabicHeight + subtitleSpacing + totalSubtitleHeight;
   let startArabicY = centerY - totalBlockHeight / 2 + arabicLineHeight / 2;
 
-  // If text is very long, push it up gracefully
-  if (startArabicY < height * 0.24) {
-    startArabicY = height * 0.24;
+  // If text is tall, push it up gracefully
+  if (startArabicY < height * 0.19) {
+    startArabicY = height * 0.19;
   }
 
   // Draw Central Soft Backdrop Card for ultimate mobile readability
-  const cardPadY = 40;
-  const cardPadX = 30;
+  const cardPadY = 36;
+  const cardPadX = 24;
   const cardHeight = totalBlockHeight + cardPadY * 2;
   const cardWidth = maxContentWidth + cardPadX * 2;
   const cardX = (width - cardWidth) / 2;
   const cardY = startArabicY - arabicLineHeight / 2 - cardPadY;
 
-  ctx.fillStyle = 'rgba(10, 15, 30, 0.45)';
+  ctx.fillStyle = 'rgba(10, 15, 30, 0.48)';
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -365,7 +405,7 @@ function drawCenterVerse(
   }
 
   // Draw Arabic Calligraphy Lines
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = config.arabicTextColor || '#FFFFFF';
   ctx.font = `600 ${arabicFontSize}px "${config.arabicFontFamily || 'Amiri Quran'}", "Amiri", serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -375,29 +415,68 @@ function drawCenterVerse(
     ctx.fillText(line, width / 2, lineY);
   });
 
-  // Reset shadow for translation
+  // Reset shadow for subtitles
   ctx.shadowBlur = 0;
 
-  // Draw Translation Subtitle Lines
-  if (translationLines.length > 0) {
-    const startTransY =
-      startArabicY + (arabicLines.length - 0.5) * arabicLineHeight + 30;
+  // Draw Subtitles (English and/or Persian based on position)
+  if (hasSubtitles) {
+    let currentY =
+      startArabicY + (arabicLines.length - 0.5) * arabicLineHeight + subtitleSpacing;
 
-    // Subtle divider line
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(width / 2 - 50, startTransY - 14);
-    ctx.lineTo(width / 2 + 50, startTransY - 14);
-    ctx.stroke();
+    const drawDivider = (yPos: number) => {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(width / 2 - 50, yPos);
+      ctx.lineTo(width / 2 + 50, yPos);
+      ctx.stroke();
+    };
 
-    ctx.font = `400 ${translationFontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
-    ctx.fillStyle = '#CBD5E1'; // Slate 300
-    const transLineHeight = translationFontSize * 1.55;
+    // Draw top divider after Arabic calligraphy
+    drawDivider(currentY - 14);
 
-    translationLines.forEach((tLine, tIdx) => {
-      ctx.fillText(tLine, width / 2, startTransY + tIdx * transLineHeight);
-    });
+    // Draw English Subtitle function
+    const drawEnglishBlock = () => {
+      ctx.font = `400 ${translationFontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
+      ctx.fillStyle = config.translationTextColor || '#CBD5E1';
+      ctx.textAlign = 'center';
+      englishLines.forEach((tLine, tIdx) => {
+        ctx.fillText(tLine, width / 2, currentY + tIdx * englishLineHeight);
+      });
+      currentY += totalEnglishHeight;
+    };
+
+    // Draw Persian Tafsir Subtitle function
+    const drawPersianBlock = () => {
+      ctx.font = `400 ${persianFontSize}px "Vazirmatn", "Amiri", "Plus Jakarta Sans", system-ui, sans-serif`;
+      ctx.fillStyle = config.persianTextColor || '#FDE68A';
+      ctx.textAlign = 'center';
+      persianLines.forEach((pLine, pIdx) => {
+        ctx.fillText(pLine, width / 2, currentY + pIdx * persianLineHeight);
+      });
+      currentY += totalPersianHeight;
+    };
+
+    // Ordering logic based on config.persianTafsirPosition ('under' or 'above')
+    if (hasEnglish && hasPersian) {
+      if (config.persianTafsirPosition === 'above') {
+        // Persian ABOVE English
+        drawPersianBlock();
+        drawDivider(currentY + 12);
+        currentY += gapBetweenSubtitles;
+        drawEnglishBlock();
+      } else {
+        // Persian UNDER English (default)
+        drawEnglishBlock();
+        drawDivider(currentY + 12);
+        currentY += gapBetweenSubtitles;
+        drawPersianBlock();
+      }
+    } else if (hasPersian) {
+      drawPersianBlock();
+    } else if (hasEnglish) {
+      drawEnglishBlock();
+    }
   }
 
   ctx.restore();
@@ -407,36 +486,50 @@ function drawIslamicAccents(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
+  config: VideoConfig,
   accentColor: string,
-  progress: number
+  verseProgress: number,
+  totalProgress?: number
 ) {
   ctx.save();
 
-  // Bottom Sleek Progress Bar
   const barHeight = 4;
   const barY = height - barHeight - 12;
   const barMargin = width * 0.08;
   const barWidth = width - barMargin * 2;
 
-  // Background track
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.beginPath();
-  ctx.roundRect(barMargin, barY, barWidth, barHeight, barHeight / 2);
-  ctx.fill();
+  // Bottom Sleek Progress Bar (Continuous full-filling bar across whole video or per verse)
+  if (config.showProgressBar) {
+    const progress =
+      config.progressBarScope === 'verse'
+        ? verseProgress
+        : totalProgress !== undefined
+        ? totalProgress
+        : verseProgress;
 
-  // Progress fill
-  const currentProgressWidth = Math.max(barWidth * Math.min(progress, 1), 6);
-  ctx.fillStyle = accentColor;
-  ctx.beginPath();
-  ctx.roundRect(barMargin, barY, currentProgressWidth, barHeight, barHeight / 2);
-  ctx.fill();
+    // Background track
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.beginPath();
+    ctx.roundRect(barMargin, barY, barWidth, barHeight, barHeight / 2);
+    ctx.fill();
 
-  // Subtle watermark / branding at bottom: "Quran.com"
-  ctx.font = '500 18px "Plus Jakarta Sans", system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-  ctx.fillText('Quran.com Video Studio', width / 2, barY - 14);
+    // Progress fill
+    const currentProgressWidth = Math.max(barWidth * Math.min(progress, 1), 6);
+    ctx.fillStyle = config.progressBarColor || accentColor;
+    ctx.beginPath();
+    ctx.roundRect(barMargin, barY, currentProgressWidth, barHeight, barHeight / 2);
+    ctx.fill();
+  }
+
+  // Subtle watermark / branding at bottom: "Quran.com Video Studio"
+  if (config.showWatermark) {
+    const wmFontSize = config.watermarkFontSize || 18;
+    ctx.font = `500 ${wmFontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = config.watermarkColor || 'rgba(255, 255, 255, 0.4)';
+    ctx.fillText('Quran.com Video Studio', width / 2, barY - 14);
+  }
 
   ctx.restore();
 }

@@ -172,12 +172,35 @@ export const DEFAULT_VIDEO_CONFIG: VideoConfig = {
   backgroundPreset: 'midnight',
   customMediaUrl: null,
   customMediaType: null,
+
   arabicFontSize: 38,
   translationFontSize: 20,
+  surahTitleFontSize: 32,
+  badgeFontSize: 24,
+  watermarkFontSize: 18,
+
+  arabicTextColor: '#FFFFFF',
+  translationTextColor: '#CBD5E1',
+  surahTitleColor: 'rgba(254, 240, 138, 0.9)',
+  badgeTextColor: '#E2E8F0',
+  watermarkColor: 'rgba(255, 255, 255, 0.4)',
+  progressBarColor: '#10B981',
+
   arabicFontFamily: 'Amiri Quran',
   showTranslation: true,
   showSurahBadge: true,
   showAyahNumber: true,
+  showProgressBar: true,
+  progressBarScope: 'overall',
+  showWatermark: true,
+
+  // Persian Tafsir Options
+  showPersianTafsir: false,
+  persianTafsirPosition: 'under',
+  persianTafsirEdition: 'persian-mokhtasar',
+  persianFontSize: 17,
+  persianTextColor: '#FDE68A',
+
   overlayOpacity: 0.55,
   glowEffect: true,
   fps: 30,

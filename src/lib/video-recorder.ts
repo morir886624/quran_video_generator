@@ -1,8 +1,10 @@
 import { Chapter, Verse, VideoConfig } from '@/types/quran';
 import { createParticles, getCanvasDimensions, renderVideoFrame } from './video-engine';
 import { stitchAudioBuffers, StitchedAudioResult } from './audio-stitcher';
+import { fetchPersianTafsirSurah } from './quran-api';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 export interface ExportProgress {
   percent: number;
@@ -89,6 +91,16 @@ export async function exportVideo({
   }
 
   const { stitchedBuffer, segments, totalDuration } = stitchedResult;
+
+  // Fetch Persian Tafsir if enabled
+  let persianTafsirMap: Record<number, string> = {};
+  if (config.showPersianTafsir && chapter?.id) {
+    try {
+      persianTafsirMap = await fetchPersianTafsirSurah(chapter.id, config.persianTafsirEdition);
+    } catch (e) {
+      console.warn('Failed to load Persian tafsir for video export:', e);
+    }
+  }
 
   // 3. Setup MediaRecorder with canvas stream + stitched audio
   const fps = config.fps || 30;
@@ -177,6 +189,9 @@ export async function exportVideo({
       }
 
       const currentVerse = verses[activeIndex] || verses[0];
+      const activePersianText = currentVerse
+        ? persianTafsirMap[currentVerse.verse_number] || currentVerse.persianTafsir
+        : undefined;
 
       // Draw frame
       renderVideoFrame({
@@ -187,9 +202,11 @@ export async function exportVideo({
         chapter,
         currentVerse,
         verseProgress,
+        totalProgress: totalDuration > 0 ? Math.min(t / totalDuration, 1) : verseProgress,
         particles,
         time: now - startPerfTime,
         customMediaElement,
+        persianTafsirText: activePersianText,
       });
 
       // Progress reporting
@@ -242,40 +259,161 @@ export async function exportVideo({
 }
 
 /**
- * Triggers native mobile share or downloads video to device
+ * Converts a Blob to a raw base64 data string (stripping data URL prefix)
  */
-export async function shareOrDownloadVideo(url: string, filename: string, blob?: Blob) {
+export function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+      resolve(base64);
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Saves video file directly to device storage on mobile or triggers browser download on web
+ */
+export async function saveVideoToDevice({
+  url,
+  filename,
+  blob,
+}: {
+  url: string;
+  filename: string;
+  blob?: Blob;
+}): Promise<{ success: boolean; message: string }> {
   if (Capacitor.isNativePlatform()) {
     try {
-      await Share.share({
-        title: 'Quran Video',
-        text: 'Created with Quran.com Video Studio',
-        url: url,
-        dialogTitle: 'Share Quran Reel',
-      });
-      return;
-    } catch {}
-  }
+      let targetBlob = blob;
+      if (!targetBlob) {
+        const response = await fetch(url);
+        targetBlob = await response.blob();
+      }
 
-  if (blob && navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: blob.type });
-    if (navigator.canShare({ files: [file] })) {
+      const base64Data = await blobToBase64(targetBlob);
+
+      // Attempt saving to Documents
       try {
-        await navigator.share({
-          files: [file],
-          title: 'Quran Video',
-          text: 'Created with Quran.com Video Studio',
+        await Filesystem.writeFile({
+          path: filename,
+          data: base64Data,
+          directory: Directory.Documents,
+          recursive: true,
         });
-        return;
-      } catch {}
+        return { success: true, message: 'Saved to Documents folder' };
+      } catch (docErr) {
+        console.warn('Could not write to Documents, falling back to Cache:', docErr);
+        // Fallback to Cache
+        await Filesystem.writeFile({
+          path: filename,
+          data: base64Data,
+          directory: Directory.Cache,
+          recursive: true,
+        });
+        return { success: true, message: 'Saved to app storage' };
+      }
+    } catch (err: any) {
+      console.error('Failed to save video natively:', err);
+      throw new Error(err?.message || 'Could not save video to device storage.');
     }
   }
 
-  // Fallback download
+  // Web Browser Fallback
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  return { success: true, message: 'Download started' };
+}
+
+/**
+ * Triggers native mobile share sheet with attached video file, or Web Share API
+ */
+export async function shareVideo({
+  url,
+  filename,
+  blob,
+  title = 'Quran Video',
+  text = 'Created with Quran Video Studio',
+}: {
+  url: string;
+  filename: string;
+  blob?: Blob;
+  title?: string;
+  text?: string;
+}): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    let targetBlob = blob;
+    if (!targetBlob) {
+      const response = await fetch(url);
+      targetBlob = await response.blob();
+    }
+
+    const base64Data = await blobToBase64(targetBlob);
+    const savedFile = await Filesystem.writeFile({
+      path: filename,
+      data: base64Data,
+      directory: Directory.Cache,
+      recursive: true,
+    });
+
+    try {
+      await Share.share({
+        title,
+        text,
+        files: [savedFile.uri],
+        dialogTitle: 'Share Quran Video',
+      });
+    } catch (err: any) {
+      if (
+        err?.message?.toLowerCase().includes('cancel') ||
+        err?.message?.toLowerCase().includes('dismiss')
+      ) {
+        return;
+      }
+      console.warn('Native share error:', err);
+    }
+    return;
+  }
+
+  // Web Share API
+  if (blob && typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+    const file = new File([blob], filename, { type: blob.type || 'video/mp4' });
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title,
+          text,
+        });
+        return;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
+      }
+    }
+  }
+
+  // Fallback web download
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+/**
+ * Backwards-compatible convenience function
+ */
+export async function shareOrDownloadVideo(url: string, filename: string, blob?: Blob) {
+  if (Capacitor.isNativePlatform()) {
+    return shareVideo({ url, filename, blob });
+  }
+  return saveVideoToDevice({ url, filename, blob });
 }

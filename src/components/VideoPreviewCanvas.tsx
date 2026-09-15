@@ -13,6 +13,7 @@ import {
   stitchAudioBuffers,
   VerseTimeSegment,
 } from '@/lib/audio-stitcher';
+import { fetchPersianTafsirSurah } from '@/lib/quran-api';
 import {
   Play,
   Pause,
@@ -54,8 +55,29 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const [totalDuration, setTotalDuration] = useState(0);
   const [segments, setSegments] = useState<VerseTimeSegment[]>([]);
   const [isMuted, setIsMuted] = useState(false);
+  const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
 
   const currentVerse = verses[currentAyahIndex] || verses[0] || null;
+
+  // Load Persian Tafsir when chapter or edition changes or showPersianTafsir is enabled
+  useEffect(() => {
+    if (!chapter?.id || !config.showPersianTafsir) return;
+
+    let isMounted = true;
+    fetchPersianTafsirSurah(chapter.id, config.persianTafsirEdition)
+      .then((map) => {
+        if (isMounted) {
+          setPersianTafsirMap(map);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load Persian tafsir for canvas:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [chapter?.id, config.showPersianTafsir, config.persianTafsirEdition]);
 
   // Initialize particles when config or aspect ratio changes
   useEffect(() => {
@@ -105,6 +127,9 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
     const player = playerRef.current;
 
+    const verseKeys = verses.map((v) => v.verse_key);
+    player.setFallbackAudio(audioUrls, verseKeys);
+
     player.onTimeUpdate = (cur, total, activeIdx, vProg) => {
       if (!isCancelled) {
         setCurrentTime(cur);
@@ -120,8 +145,6 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       }
     };
 
-    const verseKeys = verses.map((v) => v.verse_key);
-
     stitchAudioBuffers(audioUrls, verseKeys, player.getContext())
       .then((stitchedResult) => {
         if (!isCancelled) {
@@ -133,7 +156,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       })
       .catch((err) => {
         if (!isCancelled) {
-          console.warn('Audio stitch warning:', err);
+          console.warn('Audio stitch warning (continuing with HTML5 streaming):', err);
           setIsStitchingAudio(false);
         }
       });
@@ -148,6 +171,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     return () => {
       if (playerRef.current) {
         playerRef.current.destroy();
+        playerRef.current = null;
       }
       if (animFrameIdRef.current) {
         cancelAnimationFrame(animFrameIdRef.current);
@@ -155,18 +179,18 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     };
   }, []);
 
-  const togglePlay = useCallback(() => {
-    if (!playerRef.current || isStitchingAudio) return;
+  const togglePlay = useCallback(async () => {
+    if (!playerRef.current) return;
     const player = playerRef.current;
 
     if (isPlaying) {
       player.pause();
       setIsPlaying(false);
     } else {
-      player.play();
       setIsPlaying(true);
+      await player.play();
     }
-  }, [isPlaying, isStitchingAudio]);
+  }, [isPlaying]);
 
   const handleNext = useCallback(() => {
     if (!playerRef.current) return;
@@ -212,6 +236,13 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     let startTime = performance.now();
 
     const loop = (timestamp: number) => {
+      const totalProgress =
+        totalDuration > 0 ? Math.min(currentTime / totalDuration, 1) : verseProgress;
+
+      const activePersianText = currentVerse
+        ? persianTafsirMap[currentVerse.verse_number] || currentVerse.persianTafsir
+        : undefined;
+
       renderVideoFrame({
         ctx,
         width,
@@ -220,9 +251,11 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         chapter,
         currentVerse,
         verseProgress,
+        totalProgress,
         particles: particlesRef.current,
         time: timestamp - startTime,
         customMediaElement: customMediaElRef.current,
+        persianTafsirText: activePersianText,
       });
 
       animFrameIdRef.current = requestAnimationFrame(loop);
@@ -235,7 +268,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         cancelAnimationFrame(animFrameIdRef.current);
       }
     };
-  }, [config, chapter, currentVerse, verseProgress]);
+  }, [config, chapter, currentVerse, verseProgress, currentTime, totalDuration, persianTafsirMap]);
 
   const formatSeconds = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -258,7 +291,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     <div className="flex flex-col items-center justify-center w-full">
       {/* Video Container Shell */}
       <div
-        className={`relative overflow-hidden rounded-3xl bg-black border-2 border-slate-800 shadow-2xl shadow-black/90 mx-auto flex items-center justify-center transition-all ${getContainerAspectStyle()}`}
+        className={`relative overflow-hidden rounded-3xl bg-black border-2 border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-300/40 dark:shadow-2xl dark:shadow-black/90 mx-auto flex items-center justify-center transition-all ${getContainerAspectStyle()}`}
       >
         <canvas
           ref={canvasRef}
@@ -266,21 +299,19 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
           onClick={togglePlay}
         />
 
-        {/* Loading / Audio Stitching Indicator */}
+        {/* Loading / Audio Stitching Badge */}
         {isStitchingAudio && (
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-emerald-400">
-            <Loader2 className="w-8 h-8 animate-spin" />
-            <span className="text-xs font-semibold text-white">
-              Stitching continuous audio...
-            </span>
+          <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-semibold text-emerald-400 shadow-md">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            <span>Optimizing audio...</span>
           </div>
         )}
 
         {/* Floating Play Button on Pause */}
-        {!isPlaying && !isStitchingAudio && (
+        {!isPlaying && (
           <button
             onClick={togglePlay}
-            className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-emerald-500/80 hover:bg-emerald-500 backdrop-blur-md text-white flex items-center justify-center shadow-xl shadow-emerald-950/60 transition-transform active:scale-90"
+            className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-emerald-500/80 hover:bg-emerald-500 backdrop-blur-md text-white flex items-center justify-center shadow-xl shadow-emerald-950/60 transition-transform active:scale-90 z-10"
             title="Play Video"
           >
             <Play className="w-7 h-7 fill-current ml-1" />
@@ -295,7 +326,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       </div>
 
       {/* Modern Studio Playback Controls Bar */}
-      <div className="w-full max-w-sm sm:max-w-md mt-4 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col gap-2.5 shadow-lg">
+      <div className="w-full max-w-sm sm:max-w-md mt-4 p-3.5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 flex flex-col gap-2.5 shadow-md dark:shadow-lg transition-colors">
         {/* Continuous Scrubber Track */}
         <div className="space-y-1">
           <input
@@ -305,11 +336,11 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
             step="0.1"
             value={totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0}
             onChange={handleScrubberChange}
-            className="w-full accent-emerald-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
+            className="w-full accent-emerald-500 bg-slate-200 dark:bg-slate-800 h-2 rounded-lg cursor-pointer transition-colors"
           />
-          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+          <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400">
             <span>{formatSeconds(currentTime)}</span>
-            <span className="text-emerald-400 font-semibold text-[10px] tracking-wide uppercase">
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[10px] tracking-wide uppercase">
               Gapless Continuous Sound
             </span>
             <span>{formatSeconds(totalDuration)}</span>
@@ -321,7 +352,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
           <div className="flex items-center gap-1">
             <button
               onClick={handleRestart}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
               title="Restart"
             >
               <RotateCcw className="w-4 h-4" />
@@ -335,11 +366,11 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
                   playerRef.current.setVolume(nextMuted ? 0 : 1);
                 }
               }}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
               title={isMuted ? 'Unmute' : 'Mute'}
             >
               {isMuted ? (
-                <VolumeX className="w-4 h-4 text-rose-400" />
+                <VolumeX className="w-4 h-4 text-rose-500 dark:text-rose-400" />
               ) : (
                 <Volume2 className="w-4 h-4" />
               )}
@@ -351,7 +382,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
             <button
               onClick={handlePrev}
               disabled={currentAyahIndex === 0}
-              className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 transition-colors"
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800 disabled:opacity-30 transition-colors"
               title="Previous Ayah"
             >
               <SkipBack className="w-4 h-4" />
@@ -359,8 +390,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
             <button
               onClick={togglePlay}
-              disabled={isStitchingAudio}
-              className="p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-950/50 transition-all active:scale-95 disabled:opacity-50"
+              className="p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-950/30 dark:shadow-emerald-950/50 transition-all active:scale-95"
               title={isPlaying ? 'Pause' : 'Play'}
             >
               {isPlaying ? (
@@ -372,7 +402,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
             <button
               onClick={handleNext}
-              className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
               title="Next Ayah"
             >
               <SkipForward className="w-4 h-4" />
@@ -381,7 +411,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
           {/* Right: Ayah Key Badge */}
           <div className="text-right">
-            <span className="text-xs font-bold text-emerald-400">
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
               {currentVerse?.verse_key || ''}
             </span>
           </div>
