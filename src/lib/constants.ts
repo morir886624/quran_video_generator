@@ -194,6 +194,13 @@ export const DEFAULT_VIDEO_CONFIG: VideoConfig = {
   progressBarScope: 'overall',
   showWatermark: true,
 
+  // Persian Tafsir Options
+  showPersianTafsir: false,
+  persianTafsirPosition: 'under',
+  persianTafsirEdition: 'persian-mokhtasar',
+  persianFontSize: 17,
+  persianTextColor: '#FDE68A',
+
   overlayOpacity: 0.55,
   glowEffect: true,
   fps: 30,

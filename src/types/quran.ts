@@ -43,6 +43,7 @@ export interface Verse {
   text_uthmani: string;
   words?: Word[];
   translations?: VerseTranslation[];
+  persianTafsir?: string;
 }
 
 export interface Reciter {
@@ -77,6 +78,9 @@ export interface BackgroundPreset {
   particleType: 'stars' | 'geometric' | 'dust' | 'rain' | 'minimal' | 'glow';
 }
 
+export type PersianTafsirPosition = 'under' | 'above';
+export type PersianTafsirEdition = 'persian-mokhtasar' | 'fr-tafsir-as-saadi';
+
 export interface VideoConfig {
   aspectRatio: AspectRatio;
   backgroundPreset: BackgroundPresetId;
@@ -106,6 +110,13 @@ export interface VideoConfig {
   showProgressBar: boolean;
   progressBarScope: 'overall' | 'verse';
   showWatermark: boolean;
+
+  // Persian Tafsir Options
+  showPersianTafsir: boolean;
+  persianTafsirPosition: PersianTafsirPosition;
+  persianTafsirEdition: PersianTafsirEdition;
+  persianFontSize: number;
+  persianTextColor: string;
 
   overlayOpacity: number;
   glowEffect: boolean;

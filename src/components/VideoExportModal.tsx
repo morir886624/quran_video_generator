@@ -7,7 +7,7 @@ import {
   ExportProgress,
   shareOrDownloadVideo,
 } from '@/lib/video-recorder';
-import { cleanTranslationText } from '@/lib/quran-api';
+import { cleanTranslationText, fetchPersianTafsirSurah } from '@/lib/quran-api';
 import {
   Download,
   Share2,
@@ -65,8 +65,17 @@ export const VideoExportModal: React.FC<VideoExportModalProps> = ({
   // Copy states
   const [copiedArabic, setCopiedArabic] = useState(false);
   const [copiedTrans, setCopiedTrans] = useState(false);
+  const [copiedPersian, setCopiedPersian] = useState(false);
   const [copiedTitle, setCopiedTitle] = useState(false);
   const [copiedDesc, setCopiedDesc] = useState(false);
+  const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    if (!isOpen || !chapter?.id || !config.showPersianTafsir) return;
+    fetchPersianTafsirSurah(chapter.id, config.persianTafsirEdition)
+      .then(setPersianTafsirMap)
+      .catch((e) => console.warn('Failed to load Persian tafsir for modal text:', e));
+  }, [isOpen, chapter?.id, config.showPersianTafsir, config.persianTafsirEdition]);
 
   const startAyah = verses[0]?.verse_number || 1;
   const endAyah = verses[verses.length - 1]?.verse_number || 1;
@@ -84,6 +93,11 @@ export const VideoExportModal: React.FC<VideoExportModalProps> = ({
     .map((v) => `[${v.verse_number}] ${cleanTranslationText(v.translations?.[0]?.text || '')}`)
     .join('\n\n');
 
+  const fullPersianText = verses
+    .map((v) => `[${v.verse_number}] ${persianTafsirMap[v.verse_number] || v.persianTafsir || ''}`)
+    .filter((t) => t.trim().length > 4)
+    .join('\n\n');
+
   const youtubeDescription = `${chapter?.name_simple || 'Quran'} (${rangeStr})
 Reciter: ${reciterName}
 Surah #${chapter?.id} • ${chapter?.name_arabic}
@@ -93,6 +107,7 @@ ${fullArabicText}
 
 📜 TRANSLATION:
 ${fullTranslationText}
+${fullTranslationText}${config.showPersianTafsir && fullPersianText ? `\n\n🕌 PERSIAN TAFSIR (تفسیر فارسی):\n${fullPersianText}` : ''}
 
 ---
 Generated via Quran.com Video Studio
@@ -327,6 +342,29 @@ Generated via Quran.com Video Studio
                   {fullTranslationText}
                 </div>
               </div>
+
+              {/* 3b. Persian Tafsir Box with Copy Icon */}
+              {config.showPersianTafsir && fullPersianText && (
+                <div className="p-3.5 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-semibold text-amber-900 dark:text-amber-300">
+                    <span>Persian Tafsir (تفسیر فارسی):</span>
+                    <button
+                      onClick={() => copyToClipboard(fullPersianText, setCopiedPersian)}
+                      className="flex items-center gap-1 text-amber-600 dark:text-amber-400 hover:text-amber-500 transition-colors"
+                    >
+                      {copiedPersian ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                      <span>{copiedPersian ? 'Copied Tafsir!' : 'Copy Persian Tafsir'}</span>
+                    </button>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-transparent text-xs text-slate-800 dark:text-slate-200 select-text max-h-28 overflow-y-auto whitespace-pre-line leading-relaxed font-persian text-right" dir="rtl">
+                    {fullPersianText}
+                  </div>
+                </div>
+              )}
 
               {/* 4. Complete Description with Copy Icon */}
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1.5">

@@ -5,6 +5,7 @@ import { VideoConfig } from '@/types/quran';
 import {
   Sparkles,
   Eye,
+  EyeOff,
   Check,
   Type,
   Languages,
@@ -12,6 +13,10 @@ import {
   Sliders,
   Palette,
   Timer,
+  ArrowDown,
+  ArrowUp,
+  BookOpen,
+  Layers,
 } from 'lucide-react';
 
 interface TypographyCustomizerProps {
@@ -138,7 +143,7 @@ export const TypographyCustomizer: React.FC<TypographyCustomizerProps> = ({
           }`}
         >
           <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span>Translation</span>
+          <span>Subtitles &amp; Tafsir</span>
         </button>
 
         <button
@@ -265,49 +270,352 @@ export const TypographyCustomizer: React.FC<TypographyCustomizerProps> = ({
         </div>
       )}
 
-      {/* 2. TRANSLATION SECTION */}
+      {/* 2. SUBTITLES & PERSIAN TAFSIR SECTION */}
       {activeSection === 'translation' && (
-        <div className="space-y-4 animate-in fade-in duration-200">
-          {/* Toggle Translation Visibility */}
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+        <div className="space-y-5 animate-in fade-in duration-200">
+          {/* Header Info Banner */}
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <Languages className="w-4 h-4" />
+              </div>
               <div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white">
-                  Show Translation Subtitle
-                </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Render translated meaning beneath Arabic text
-                </div>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                  Subtitles &amp; Persian Tafsir
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  تفسیر فارسی و ترجمه انگلیسی زیرنویس
+                </p>
               </div>
             </div>
+
+            <div className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+              {config.showTranslation && config.showPersianTafsir
+                ? config.persianTafsirPosition === 'above'
+                  ? 'FA (Above) + EN'
+                  : 'EN + FA (Under)'
+                : config.showPersianTafsir
+                ? 'Persian Only'
+                : config.showTranslation
+                ? 'English Only'
+                : 'Subtitles Off'}
+            </div>
+          </div>
+
+          {/* All Layout Possibilities - Button Grid */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
+              Layout Possibilities (چیدمان و موقعیت)
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Option 1: Persian UNDER English */}
+              <button
+                type="button"
+                onClick={() =>
+                  onChangeConfig({
+                    showTranslation: true,
+                    showPersianTafsir: true,
+                    persianTafsirPosition: 'under',
+                  })
+                }
+                className={`p-3 rounded-2xl border text-left transition-all flex items-center justify-between ${
+                  config.showTranslation &&
+                  config.showPersianTafsir &&
+                  config.persianTafsirPosition === 'under'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/30 shadow-sm'
+                    : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-center justify-center w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] font-bold">
+                    <span className="text-slate-700 dark:text-slate-200 leading-tight">EN</span>
+                    <span className="text-[8px] text-emerald-500 leading-none">↓</span>
+                    <span className="text-amber-600 dark:text-amber-300 leading-tight">فا</span>
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">Persian Under English</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      English on top • Persian below (زیر انگلیسی)
+                    </div>
+                  </div>
+                </div>
+                {config.showTranslation &&
+                  config.showPersianTafsir &&
+                  config.persianTafsirPosition === 'under' && (
+                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                  )}
+              </button>
+
+              {/* Option 2: Persian ABOVE English */}
+              <button
+                type="button"
+                onClick={() =>
+                  onChangeConfig({
+                    showTranslation: true,
+                    showPersianTafsir: true,
+                    persianTafsirPosition: 'above',
+                  })
+                }
+                className={`p-3 rounded-2xl border text-left transition-all flex items-center justify-between ${
+                  config.showTranslation &&
+                  config.showPersianTafsir &&
+                  config.persianTafsirPosition === 'above'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/30 shadow-sm'
+                    : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-center justify-center w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[10px] font-bold">
+                    <span className="text-amber-600 dark:text-amber-300 leading-tight">فا</span>
+                    <span className="text-[8px] text-emerald-500 leading-none">↓</span>
+                    <span className="text-slate-700 dark:text-slate-200 leading-tight">EN</span>
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">Persian Above English</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Persian on top • English below (بالای انگلیسی)
+                    </div>
+                  </div>
+                </div>
+                {config.showTranslation &&
+                  config.showPersianTafsir &&
+                  config.persianTafsirPosition === 'above' && (
+                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                  )}
+              </button>
+
+              {/* Option 3: Persian Tafsir Only */}
+              <button
+                type="button"
+                onClick={() =>
+                  onChangeConfig({
+                    showTranslation: false,
+                    showPersianTafsir: true,
+                  })
+                }
+                className={`p-3 rounded-2xl border text-left transition-all flex items-center justify-between ${
+                  !config.showTranslation && config.showPersianTafsir
+                    ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-800 dark:text-amber-200 ring-2 ring-amber-500/30 shadow-sm'
+                    : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xs font-bold text-amber-600 dark:text-amber-300">
+                    فا
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">Persian Tafsir Only</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Only Persian commentary (فقط تفسیر فارسی)
+                    </div>
+                  </div>
+                </div>
+                {!config.showTranslation && config.showPersianTafsir && (
+                  <Check className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                )}
+              </button>
+
+              {/* Option 4: English Translation Only */}
+              <button
+                type="button"
+                onClick={() =>
+                  onChangeConfig({
+                    showTranslation: true,
+                    showPersianTafsir: false,
+                  })
+                }
+                className={`p-3 rounded-2xl border text-left transition-all flex items-center justify-between ${
+                  config.showTranslation && !config.showPersianTafsir
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/30 shadow-sm'
+                    : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                    EN
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">English Only</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Only English translation (فقط ترجمه انگلیسی)
+                    </div>
+                  </div>
+                </div>
+                {config.showTranslation && !config.showPersianTafsir && (
+                  <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                )}
+              </button>
+            </div>
+
+            {/* Option 5: Hide All Subtitles */}
             <button
+              type="button"
               onClick={() =>
-                onChangeConfig({ showTranslation: !config.showTranslation })
+                onChangeConfig({
+                  showTranslation: false,
+                  showPersianTafsir: false,
+                })
               }
-              className={`w-11 h-6 rounded-full transition-colors relative ${
-                config.showTranslation
-                  ? 'bg-emerald-500'
-                  : 'bg-slate-300 dark:bg-slate-700'
+              className={`mt-2.5 w-full p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                !config.showTranslation && !config.showPersianTafsir
+                  ? 'bg-slate-200 dark:bg-slate-800 border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white'
+                  : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              <div
-                className={`w-4 h-4 rounded-full bg-white transition-transform absolute top-1 ${
-                  config.showTranslation ? 'left-6' : 'left-1'
-                }`}
-              />
+              <EyeOff className="w-3.5 h-3.5" />
+              <span>Hide All Subtitles (Only Arabic Calligraphy)</span>
             </button>
           </div>
 
-          {config.showTranslation && (
-            <>
-              {/* Translation Font Size */}
+          {/* Quick Position Switcher (when both are active) */}
+          {config.showTranslation && config.showPersianTafsir && (
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                <span className="flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  Persian Position Relative to English
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-mono text-[11px]">
+                  {config.persianTafsirPosition === 'under' ? '↓ Under English' : '↑ Above English'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => onChangeConfig({ persianTafsirPosition: 'under' })}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                    config.persianTafsirPosition === 'under'
+                      ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'
+                  }`}
+                >
+                  <ArrowDown className="w-3.5 h-3.5" />
+                  <span>Persian Under (زیر)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChangeConfig({ persianTafsirPosition: 'above' })}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                    config.persianTafsirPosition === 'above'
+                      ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'
+                  }`}
+                >
+                  <ArrowUp className="w-3.5 h-3.5" />
+                  <span>Persian Above (بالا)</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Persian Tafsir Edition Selector */}
+          {config.showPersianTafsir && (
+            <div className="space-y-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                Persian Tafsir Edition (کتاب تفسیر فارسی)
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChangeConfig({ persianTafsirEdition: 'persian-mokhtasar' })
+                  }
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    config.persianTafsirEdition === 'persian-mokhtasar'
+                      ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 text-amber-900 dark:text-amber-200 ring-1 ring-amber-500/40'
+                      : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="text-xs font-bold flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-amber-500" />
+                    <span>تفسیر المختصر</span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Al-Mukhtasar (Concise • Best for video)
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChangeConfig({ persianTafsirEdition: 'fr-tafsir-as-saadi' })
+                  }
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    config.persianTafsirEdition === 'fr-tafsir-as-saadi'
+                      ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 text-amber-900 dark:text-amber-200 ring-1 ring-amber-500/40'
+                      : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="text-xs font-bold flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-amber-500" />
+                    <span>تفسیر السعدی</span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Tafsir As-Saadi (Detailed commentary)
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Persian Tafsir Typography Controls */}
+          {config.showPersianTafsir && (
+            <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                  <Type className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  Persian Tafsir Typography
+                </span>
+                <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
+                  {config.persianFontSize || 17}px
+                </span>
+              </div>
+
               <div>
-                <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
+                <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 mb-1">
+                  <span>Persian Font Size</span>
+                  <span className="font-mono">{config.persianFontSize || 17}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="12"
+                  max="26"
+                  step="1"
+                  value={config.persianFontSize || 17}
+                  onChange={(e) =>
+                    onChangeConfig({
+                      persianFontSize: parseInt(e.target.value, 10),
+                    })
+                  }
+                  className="w-full accent-amber-500 bg-amber-200/50 dark:bg-amber-900/40 h-2 rounded-lg cursor-pointer"
+                />
+              </div>
+
+              <ColorRow
+                label="Persian Tafsir Text Color"
+                currentColor={config.persianTextColor || '#FDE68A'}
+                onChange={(color) => onChangeConfig({ persianTextColor: color })}
+              />
+            </div>
+          )}
+
+          {/* English Translation Typography Controls */}
+          {config.showTranslation && (
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <Type className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  English Translation Typography
+                </span>
+                <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                  {config.translationFontSize}px
+                </span>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400 mb-1">
                   <span>Translation Font Size</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-mono">
-                    {config.translationFontSize}px
-                  </span>
+                  <span className="font-mono">{config.translationFontSize}px</span>
                 </div>
                 <input
                   type="range"
@@ -324,16 +632,112 @@ export const TypographyCustomizer: React.FC<TypographyCustomizerProps> = ({
                 />
               </div>
 
-              {/* Translation Color */}
               <ColorRow
-                label="Translation Text Color"
+                label="English Translation Color"
                 currentColor={config.translationTextColor || '#CBD5E1'}
                 onChange={(color) =>
                   onChangeConfig({ translationTextColor: color })
                 }
               />
-            </>
+            </div>
           )}
+
+          {/* Live Mini Preview Box */}
+          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400 flex items-center justify-between">
+              <span>Live Stack Preview</span>
+              <span className="text-emerald-400 font-mono">Real-time Layout</span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 text-center space-y-2">
+              <div
+                className="font-quran text-lg text-white"
+                style={{ fontSize: `${Math.min(config.arabicFontSize * 0.6, 26)}px` }}
+              >
+                بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
+              </div>
+
+              {(config.showTranslation || config.showPersianTafsir) && (
+                <div className="w-12 h-px bg-slate-700/80 mx-auto my-1.5" />
+              )}
+
+              {/* Stacked Preview based on position */}
+              {config.showTranslation && config.showPersianTafsir ? (
+                config.persianTafsirPosition === 'above' ? (
+                  <>
+                    <div
+                      className="font-persian leading-relaxed"
+                      style={{
+                        color: config.persianTextColor || '#FDE68A',
+                        fontSize: `${Math.max((config.persianFontSize || 17) * 0.8, 12)}px`,
+                      }}
+                      dir="rtl"
+                    >
+                      قرائت قرآن با نام الله آغاز می‌شود تا از او تعالی یاری تقاضا گردد...
+                    </div>
+                    <div className="w-8 h-px bg-slate-800 mx-auto my-1" />
+                    <div
+                      className="leading-snug"
+                      style={{
+                        color: config.translationTextColor || '#CBD5E1',
+                        fontSize: `${Math.max(config.translationFontSize * 0.75, 12)}px`,
+                      }}
+                    >
+                      In the Name of Allah—the Most Compassionate, Most Merciful.
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div
+                      className="leading-snug"
+                      style={{
+                        color: config.translationTextColor || '#CBD5E1',
+                        fontSize: `${Math.max(config.translationFontSize * 0.75, 12)}px`,
+                      }}
+                    >
+                      In the Name of Allah—the Most Compassionate, Most Merciful.
+                    </div>
+                    <div className="w-8 h-px bg-slate-800 mx-auto my-1" />
+                    <div
+                      className="font-persian leading-relaxed"
+                      style={{
+                        color: config.persianTextColor || '#FDE68A',
+                        fontSize: `${Math.max((config.persianFontSize || 17) * 0.8, 12)}px`,
+                      }}
+                      dir="rtl"
+                    >
+                      قرائت قرآن با نام الله آغاز می‌شود تا از او تعالی یاری تقاضا گردد...
+                    </div>
+                  </>
+                )
+              ) : config.showPersianTafsir ? (
+                <div
+                  className="font-persian leading-relaxed"
+                  style={{
+                    color: config.persianTextColor || '#FDE68A',
+                    fontSize: `${Math.max((config.persianFontSize || 17) * 0.8, 12)}px`,
+                  }}
+                  dir="rtl"
+                >
+                  قرائت قرآن با نام الله آغاز می‌شود تا از او تعالی یاری تقاضا گردد...
+                </div>
+              ) : config.showTranslation ? (
+                <div
+                  className="leading-snug"
+                  style={{
+                    color: config.translationTextColor || '#CBD5E1',
+                    fontSize: `${Math.max(config.translationFontSize * 0.75, 12)}px`,
+                  }}
+                >
+                  In the Name of Allah—the Most Compassionate, Most Merciful.
+                </div>
+              ) : (
+                <div className="text-xs text-slate-500 italic py-1">
+                  (Subtitles hidden • Only calligraphy is rendered)
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

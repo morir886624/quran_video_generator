@@ -1,4 +1,4 @@
-import { AyahAudioFile, Chapter, Verse } from '@/types/quran';
+import { AyahAudioFile, Chapter, Verse, PersianTafsirEdition } from '@/types/quran';
 
 const BASE_URL = 'https://api.quran.com/api/v4';
 const AUDIO_BASE_URL = 'https://verses.quran.com';
@@ -213,4 +213,53 @@ export async function fetchAvailableTranslations(): Promise<
     ];
   }
 }
+
+const PERSIAN_TAFSIR_BASE = 'https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir';
+const persianTafsirCache = new Map<string, Record<number, string>>();
+
+/**
+ * Fetches Persian Tafsir for an entire Surah (cached in-memory)
+ * Supported editions:
+ * - 'persian-mokhtasar': Persian Al-Mukhtasar in interpreting the Noble Quran (المختصر)
+ * - 'fr-tafsir-as-saadi': Tafsir As-Sa'di in Persian (تفسیر السعدی)
+ */
+export async function fetchPersianTafsirSurah(
+  surahId: number,
+  edition: PersianTafsirEdition = 'persian-mokhtasar'
+): Promise<Record<number, string>> {
+  const cacheKey = `${edition}_${surahId}`;
+  if (persianTafsirCache.has(cacheKey)) {
+    return persianTafsirCache.get(cacheKey)!;
+  }
+
+  try {
+    const res = await fetch(`${PERSIAN_TAFSIR_BASE}/${edition}/${surahId}.json`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch Persian tafsir: ${res.statusText}`);
+    }
+    const data: Array<{ ayah: number; surah: number; text: string }> = await res.json();
+    const map: Record<number, string> = {};
+    for (const item of data) {
+      map[item.ayah] = cleanTranslationText(item.text);
+    }
+    persianTafsirCache.set(cacheKey, map);
+    return map;
+  } catch (err) {
+    console.error(`Error fetching Persian tafsir for Surah ${surahId} (${edition}):`, err);
+    return {};
+  }
+}
+
+/**
+ * Fetches Persian Tafsir for a single Ayah
+ */
+export async function fetchPersianTafsirAyah(
+  surahId: number,
+  ayahNumber: number,
+  edition: PersianTafsirEdition = 'persian-mokhtasar'
+): Promise<string> {
+  const surahMap = await fetchPersianTafsirSurah(surahId, edition);
+  return surahMap[ayahNumber] || '';
+}
+
 

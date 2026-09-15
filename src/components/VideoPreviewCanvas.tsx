@@ -13,6 +13,7 @@ import {
   stitchAudioBuffers,
   VerseTimeSegment,
 } from '@/lib/audio-stitcher';
+import { fetchPersianTafsirSurah } from '@/lib/quran-api';
 import {
   Play,
   Pause,
@@ -54,8 +55,29 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const [totalDuration, setTotalDuration] = useState(0);
   const [segments, setSegments] = useState<VerseTimeSegment[]>([]);
   const [isMuted, setIsMuted] = useState(false);
+  const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
 
   const currentVerse = verses[currentAyahIndex] || verses[0] || null;
+
+  // Load Persian Tafsir when chapter or edition changes or showPersianTafsir is enabled
+  useEffect(() => {
+    if (!chapter?.id || !config.showPersianTafsir) return;
+
+    let isMounted = true;
+    fetchPersianTafsirSurah(chapter.id, config.persianTafsirEdition)
+      .then((map) => {
+        if (isMounted) {
+          setPersianTafsirMap(map);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load Persian tafsir for canvas:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [chapter?.id, config.showPersianTafsir, config.persianTafsirEdition]);
 
   // Initialize particles when config or aspect ratio changes
   useEffect(() => {
@@ -217,6 +239,10 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       const totalProgress =
         totalDuration > 0 ? Math.min(currentTime / totalDuration, 1) : verseProgress;
 
+      const activePersianText = currentVerse
+        ? persianTafsirMap[currentVerse.verse_number] || currentVerse.persianTafsir
+        : undefined;
+
       renderVideoFrame({
         ctx,
         width,
@@ -229,6 +255,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         particles: particlesRef.current,
         time: timestamp - startTime,
         customMediaElement: customMediaElRef.current,
+        persianTafsirText: activePersianText,
       });
 
       animFrameIdRef.current = requestAnimationFrame(loop);
@@ -241,7 +268,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         cancelAnimationFrame(animFrameIdRef.current);
       }
     };
-  }, [config, chapter, currentVerse, verseProgress, currentTime, totalDuration]);
+  }, [config, chapter, currentVerse, verseProgress, currentTime, totalDuration, persianTafsirMap]);
 
   const formatSeconds = (sec: number) => {
     const m = Math.floor(sec / 60);

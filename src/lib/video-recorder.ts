@@ -1,6 +1,7 @@
 import { Chapter, Verse, VideoConfig } from '@/types/quran';
 import { createParticles, getCanvasDimensions, renderVideoFrame } from './video-engine';
 import { stitchAudioBuffers, StitchedAudioResult } from './audio-stitcher';
+import { fetchPersianTafsirSurah } from './quran-api';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
 
@@ -90,6 +91,16 @@ export async function exportVideo({
 
   const { stitchedBuffer, segments, totalDuration } = stitchedResult;
 
+  // Fetch Persian Tafsir if enabled
+  let persianTafsirMap: Record<number, string> = {};
+  if (config.showPersianTafsir && chapter?.id) {
+    try {
+      persianTafsirMap = await fetchPersianTafsirSurah(chapter.id, config.persianTafsirEdition);
+    } catch (e) {
+      console.warn('Failed to load Persian tafsir for video export:', e);
+    }
+  }
+
   // 3. Setup MediaRecorder with canvas stream + stitched audio
   const fps = config.fps || 30;
   const canvasStream = canvas.captureStream(fps);
@@ -177,6 +188,9 @@ export async function exportVideo({
       }
 
       const currentVerse = verses[activeIndex] || verses[0];
+      const activePersianText = currentVerse
+        ? persianTafsirMap[currentVerse.verse_number] || currentVerse.persianTafsir
+        : undefined;
 
       // Draw frame
       renderVideoFrame({
@@ -191,6 +205,7 @@ export async function exportVideo({
         particles,
         time: now - startPerfTime,
         customMediaElement,
+        persianTafsirText: activePersianText,
       });
 
       // Progress reporting
