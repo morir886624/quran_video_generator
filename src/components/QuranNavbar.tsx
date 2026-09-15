@@ -27,11 +27,11 @@ export const QuranNavbar: React.FC<QuranNavbarProps> = ({
     <header className="sticky top-0 z-40 w-full bg-white/95 dark:bg-[#0B1329]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 transition-colors safe-top">
       <div className="max-w-7xl mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
         {/* Left: Quran.com Logo */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-950/20 dark:shadow-emerald-950/40">
             <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
-          <div className="flex flex-col">
+          <div className="hidden sm:flex flex-col">
             <div className="flex items-center gap-1 font-bold text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">
               <span>Quran</span>
               <span className="text-emerald-600 dark:text-emerald-400">.com</span>
@@ -39,7 +39,7 @@ export const QuranNavbar: React.FC<QuranNavbarProps> = ({
                 Video
               </span>
             </div>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 hidden sm:block">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400">
               Shorts &amp; Reels Studio
             </span>
           </div>
@@ -53,7 +53,7 @@ export const QuranNavbar: React.FC<QuranNavbarProps> = ({
           <span className="w-5 h-5 rounded-full bg-emerald-500/15 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold flex items-center justify-center">
             {currentChapter?.id || 1}
           </span>
-          <span className="font-semibold text-slate-900 dark:text-white truncate max-w-[100px] sm:max-w-[160px]">
+          <span className="font-semibold text-slate-900 dark:text-white truncate max-w-[120px] sm:max-w-[170px]">
             {currentChapter?.name_simple || 'Al-Fatihah'}
           </span>
           <span className="text-slate-500 dark:text-slate-400 font-serif text-xs hidden sm:inline">
