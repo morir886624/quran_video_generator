@@ -6,3 +6,4 @@ storeFile=app/quran-release-key.jks
 storePassword=YourKeystorePasswordHere
 keyAlias=quran-key
 keyPassword=YourKeyPasswordHere
+

@@ -40,3 +40,4 @@ The app is safe and suitable for all age groups, including families and children
 ### 5. Contact
 For any questions regarding this Privacy Policy, please open an issue or contact via our repository:  
 https://github.com/morir886624/quran_video_generator
+
