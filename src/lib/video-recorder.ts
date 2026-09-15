@@ -187,6 +187,7 @@ export async function exportVideo({
         chapter,
         currentVerse,
         verseProgress,
+        totalProgress: totalDuration > 0 ? Math.min(t / totalDuration, 1) : verseProgress,
         particles,
         time: now - startPerfTime,
         customMediaElement,

@@ -82,6 +82,7 @@ export function renderVideoFrame({
   chapter,
   currentVerse,
   verseProgress = 0,
+  totalProgress,
   particles,
   time = 0,
   customMediaElement,
@@ -93,6 +94,7 @@ export function renderVideoFrame({
   chapter: Chapter | null;
   currentVerse: Verse | null;
   verseProgress?: number; // 0 to 1
+  totalProgress?: number; // 0 to 1 across whole video
   particles: Particle[];
   time?: number;
   customMediaElement?: HTMLVideoElement | HTMLImageElement | null;
@@ -136,7 +138,15 @@ export function renderVideoFrame({
   }
 
   // 5. Draw Decorative Islamic Border & Footer
-  drawIslamicAccents(ctx, width, height, preset.accentColor, verseProgress);
+  drawIslamicAccents(
+    ctx,
+    width,
+    height,
+    config,
+    preset.accentColor,
+    verseProgress,
+    totalProgress
+  );
 
   ctx.restore();
 }
@@ -266,38 +276,40 @@ function drawCenterVerse(
     const badgeText = `${chapter.name_simple} • Ayah ${verse.verse_number}`;
     const arabicBadge = chapter.name_arabic;
 
-    ctx.font = '500 24px "Plus Jakarta Sans", system-ui, sans-serif';
+    // Badge container pill
+    const badgeFontSize = config.badgeFontSize || 24;
+    ctx.font = `500 ${badgeFontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
     const textWidth = ctx.measureText(badgeText).width;
     const pillWidth = Math.max(textWidth + 70, 260);
-    const pillHeight = 44;
+    const pillHeight = Math.max(badgeFontSize + 20, 44);
     const pillX = (width - pillWidth) / 2;
 
-    // Badge container pill
     ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.roundRect(pillX, badgeY - pillHeight / 2, pillWidth, pillHeight, 22);
+    ctx.roundRect(pillX, badgeY - pillHeight / 2, pillWidth, pillHeight, pillHeight / 2);
     ctx.fill();
     ctx.stroke();
 
-    // Emerald indicator dot
+    // Indicator dot
     ctx.fillStyle = accentColor;
     ctx.beginPath();
     ctx.arc(pillX + 22, badgeY, 5, 0, Math.PI * 2);
     ctx.fill();
 
     // Badge English text
-    ctx.fillStyle = '#E2E8F0';
+    ctx.fillStyle = config.badgeTextColor || '#E2E8F0';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(badgeText, pillX + 38, badgeY);
 
     // Arabic chapter title above badge
-    ctx.font = '700 32px "Amiri Quran", "Amiri", serif';
+    const surahTitleSize = config.surahTitleFontSize || 32;
+    ctx.font = `700 ${surahTitleSize}px "Amiri Quran", "Amiri", serif`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(254, 240, 138, 0.9)';
-    ctx.fillText(arabicBadge, width / 2, badgeY - 42);
+    ctx.fillStyle = config.surahTitleColor || 'rgba(254, 240, 138, 0.9)';
+    ctx.fillText(arabicBadge, width / 2, badgeY - pillHeight / 2 - 20);
   }
 
   // 2. Center Arabic Verse Calligraphy
@@ -365,7 +377,7 @@ function drawCenterVerse(
   }
 
   // Draw Arabic Calligraphy Lines
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = config.arabicTextColor || '#FFFFFF';
   ctx.font = `600 ${arabicFontSize}px "${config.arabicFontFamily || 'Amiri Quran'}", "Amiri", serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -392,7 +404,7 @@ function drawCenterVerse(
     ctx.stroke();
 
     ctx.font = `400 ${translationFontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
-    ctx.fillStyle = '#CBD5E1'; // Slate 300
+    ctx.fillStyle = config.translationTextColor || '#CBD5E1';
     const transLineHeight = translationFontSize * 1.55;
 
     translationLines.forEach((tLine, tIdx) => {
@@ -407,36 +419,50 @@ function drawIslamicAccents(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
+  config: VideoConfig,
   accentColor: string,
-  progress: number
+  verseProgress: number,
+  totalProgress?: number
 ) {
   ctx.save();
 
-  // Bottom Sleek Progress Bar
   const barHeight = 4;
   const barY = height - barHeight - 12;
   const barMargin = width * 0.08;
   const barWidth = width - barMargin * 2;
 
-  // Background track
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.beginPath();
-  ctx.roundRect(barMargin, barY, barWidth, barHeight, barHeight / 2);
-  ctx.fill();
+  // Bottom Sleek Progress Bar (Continuous full-filling bar across whole video or per verse)
+  if (config.showProgressBar) {
+    const progress =
+      config.progressBarScope === 'verse'
+        ? verseProgress
+        : totalProgress !== undefined
+        ? totalProgress
+        : verseProgress;
 
-  // Progress fill
-  const currentProgressWidth = Math.max(barWidth * Math.min(progress, 1), 6);
-  ctx.fillStyle = accentColor;
-  ctx.beginPath();
-  ctx.roundRect(barMargin, barY, currentProgressWidth, barHeight, barHeight / 2);
-  ctx.fill();
+    // Background track
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.beginPath();
+    ctx.roundRect(barMargin, barY, barWidth, barHeight, barHeight / 2);
+    ctx.fill();
 
-  // Subtle watermark / branding at bottom: "Quran.com"
-  ctx.font = '500 18px "Plus Jakarta Sans", system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-  ctx.fillText('Quran.com Video Studio', width / 2, barY - 14);
+    // Progress fill
+    const currentProgressWidth = Math.max(barWidth * Math.min(progress, 1), 6);
+    ctx.fillStyle = config.progressBarColor || accentColor;
+    ctx.beginPath();
+    ctx.roundRect(barMargin, barY, currentProgressWidth, barHeight, barHeight / 2);
+    ctx.fill();
+  }
+
+  // Subtle watermark / branding at bottom: "Quran.com Video Studio"
+  if (config.showWatermark) {
+    const wmFontSize = config.watermarkFontSize || 18;
+    ctx.font = `500 ${wmFontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = config.watermarkColor || 'rgba(255, 255, 255, 0.4)';
+    ctx.fillText('Quran.com Video Studio', width / 2, barY - 14);
+  }
 
   ctx.restore();
 }

@@ -82,12 +82,31 @@ export interface VideoConfig {
   backgroundPreset: BackgroundPresetId;
   customMediaUrl: string | null;
   customMediaType: 'video' | 'image' | null;
+
+  // Text Sizing
   arabicFontSize: number;
   translationFontSize: number;
+  surahTitleFontSize: number;
+  badgeFontSize: number;
+  watermarkFontSize: number;
+
+  // Text & UI Colors
+  arabicTextColor: string;
+  translationTextColor: string;
+  surahTitleColor: string;
+  badgeTextColor: string;
+  watermarkColor: string;
+  progressBarColor: string;
+
+  // Typography & Toggles
   arabicFontFamily: 'Amiri' | 'Amiri Quran' | 'Scheherazade New';
   showTranslation: boolean;
   showSurahBadge: boolean;
   showAyahNumber: boolean;
+  showProgressBar: boolean;
+  progressBarScope: 'overall' | 'verse';
+  showWatermark: boolean;
+
   overlayOpacity: number;
   glowEffect: boolean;
   fps: 30 | 60;

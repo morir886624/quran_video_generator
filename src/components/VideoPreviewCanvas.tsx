@@ -214,6 +214,9 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     let startTime = performance.now();
 
     const loop = (timestamp: number) => {
+      const totalProgress =
+        totalDuration > 0 ? Math.min(currentTime / totalDuration, 1) : verseProgress;
+
       renderVideoFrame({
         ctx,
         width,
@@ -222,6 +225,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         chapter,
         currentVerse,
         verseProgress,
+        totalProgress,
         particles: particlesRef.current,
         time: timestamp - startTime,
         customMediaElement: customMediaElRef.current,
@@ -237,7 +241,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         cancelAnimationFrame(animFrameIdRef.current);
       }
     };
-  }, [config, chapter, currentVerse, verseProgress]);
+  }, [config, chapter, currentVerse, verseProgress, currentTime, totalDuration]);
 
   const formatSeconds = (sec: number) => {
     const m = Math.floor(sec / 60);
