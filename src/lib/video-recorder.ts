@@ -259,19 +259,73 @@ export async function exportVideo({
 }
 
 /**
- * Converts a Blob to a raw base64 data string (stripping data URL prefix)
+ * Converts a Blob to a raw base64 data string (stripping data URL prefix and whitespace)
  */
 export function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = () => {
+    reader.onerror = () => reject(new Error('Failed to read video blob.'));
+    reader.onloadend = () => {
       const result = reader.result as string;
+      if (!result) {
+        return reject(new Error('Video blob conversion resulted in empty data.'));
+      }
       const base64 = result.includes(',') ? result.split(',')[1] : result;
-      resolve(base64);
+      // Strip any whitespace or MIME line breaks
+      const cleanBase64 = base64.replace(/\s+/g, '');
+      resolve(cleanBase64);
     };
     reader.readAsDataURL(blob);
   });
+}
+
+/**
+ * Writes binary data in safe chunks of 256KB to prevent Android WebView
+ * bridge payload size overflow ("The 'writeFile' input parameters aren't valid").
+ */
+export async function writeLargeBase64File(
+  path: string,
+  base64Data: string,
+  directory: Directory
+): Promise<string> {
+  // 256KB = 262,144 characters (multiple of 4 for clean Base64 chunks)
+  const CHUNK_SIZE = 256 * 1024;
+  const totalLength = base64Data.length;
+
+  if (totalLength <= CHUNK_SIZE) {
+    const res = await Filesystem.writeFile({
+      path,
+      data: base64Data,
+      directory,
+      recursive: true,
+    });
+    return res.uri;
+  }
+
+  // Write initial chunk (creates/replaces file)
+  const firstChunk = base64Data.slice(0, CHUNK_SIZE);
+  await Filesystem.writeFile({
+    path,
+    data: firstChunk,
+    directory,
+    recursive: true,
+  });
+
+  // Append remaining chunks sequentially
+  let offset = CHUNK_SIZE;
+  while (offset < totalLength) {
+    const nextOffset = Math.min(offset + CHUNK_SIZE, totalLength);
+    const chunk = base64Data.slice(offset, nextOffset);
+    await Filesystem.appendFile({
+      path,
+      data: chunk,
+      directory,
+    });
+    offset = nextOffset;
+  }
+
+  const uriRes = await Filesystem.getUri({ path, directory });
+  return uriRes.uri;
 }
 
 /**
@@ -285,7 +339,7 @@ export async function saveVideoToDevice({
   url: string;
   filename: string;
   blob?: Blob;
-}): Promise<{ success: boolean; message: string }> {
+}): Promise<{ success: boolean; message: string; uri?: string }> {
   if (Capacitor.isNativePlatform()) {
     try {
       let targetBlob = blob;
@@ -296,25 +350,32 @@ export async function saveVideoToDevice({
 
       const base64Data = await blobToBase64(targetBlob);
 
-      // Attempt saving to Documents
+      // Write in safe chunks to app Cache (always writable on all Android & iOS versions)
+      let fileUri: string;
       try {
-        await Filesystem.writeFile({
-          path: filename,
-          data: base64Data,
-          directory: Directory.Documents,
-          recursive: true,
+        fileUri = await writeLargeBase64File(filename, base64Data, Directory.Cache);
+      } catch (cacheErr) {
+        console.warn('Cache write failed, trying Documents:', cacheErr);
+        fileUri = await writeLargeBase64File(filename, base64Data, Directory.Documents);
+      }
+
+      // Open native save/share sheet with the saved file so user can save directly to Gallery, Drive, or files
+      try {
+        await Share.share({
+          title: 'Quran Video',
+          text: 'Save or share your Quran video',
+          files: [fileUri],
+          dialogTitle: 'Save Quran Video to Phone',
         });
-        return { success: true, message: 'Saved to Documents folder' };
-      } catch (docErr) {
-        console.warn('Could not write to Documents, falling back to Cache:', docErr);
-        // Fallback to Cache
-        await Filesystem.writeFile({
-          path: filename,
-          data: base64Data,
-          directory: Directory.Cache,
-          recursive: true,
-        });
-        return { success: true, message: 'Saved to app storage' };
+        return { success: true, message: 'Saved to device! Choose Save in menu.', uri: fileUri };
+      } catch (shareErr: any) {
+        if (
+          shareErr?.message?.toLowerCase().includes('cancel') ||
+          shareErr?.message?.toLowerCase().includes('dismiss')
+        ) {
+          return { success: true, message: 'Saved to device storage.', uri: fileUri };
+        }
+        return { success: true, message: 'Saved to device storage.', uri: fileUri };
       }
     } catch (err: any) {
       console.error('Failed to save video natively:', err);
@@ -356,18 +417,13 @@ export async function shareVideo({
     }
 
     const base64Data = await blobToBase64(targetBlob);
-    const savedFile = await Filesystem.writeFile({
-      path: filename,
-      data: base64Data,
-      directory: Directory.Cache,
-      recursive: true,
-    });
+    const fileUri = await writeLargeBase64File(filename, base64Data, Directory.Cache);
 
     try {
       await Share.share({
         title,
         text,
-        files: [savedFile.uri],
+        files: [fileUri],
         dialogTitle: 'Share Quran Video',
       });
     } catch (err: any) {
