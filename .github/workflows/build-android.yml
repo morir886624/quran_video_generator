@@ -52,14 +52,12 @@ jobs:
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "Decoding release keystore from GitHub Secrets..."
             echo "$KEYSTORE_BASE64" | base64 --decode > android/app/quran-release-key.jks
-            cat <<EOF > android/key.properties
-          storeFile=app/quran-release-key.jks
-          storePassword=$KEYSTORE_PASSWORD
-          keyAlias=$KEY_ALIAS
-          keyPassword=$KEY_PASSWORD
-          EOF
+            echo "storeFile=quran-release-key.jks" > android/key.properties
+            echo "storePassword=$KEYSTORE_PASSWORD" >> android/key.properties
+            echo "keyAlias=$KEY_ALIAS" >> android/key.properties
+            echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
           else
-            echo "No ANDROID_KEYSTORE_BASE64 secret found. Generating temporary CI signing keystore for testing..."
+            echo "No ANDROID_KEYSTORE_BASE64 secret found. Generating CI signing keystore for testing..."
             keytool -genkeypair -v \
               -keystore android/app/quran-release-key.jks \
               -alias quran-key \
@@ -69,12 +67,10 @@ jobs:
               -storepass testpassword123 \
               -keypass testpassword123 \
               -dname "CN=Quran Video Studio, OU=Dev, O=Quran, L=Unknown, S=Unknown, C=US"
-            cat <<EOF > android/key.properties
-          storeFile=app/quran-release-key.jks
-          storePassword=testpassword123
-          keyAlias=quran-key
-          keyPassword=testpassword123
-          EOF
+            echo "storeFile=quran-release-key.jks" > android/key.properties
+            echo "storePassword=testpassword123" >> android/key.properties
+            echo "keyAlias=quran-key" >> android/key.properties
+            echo "keyPassword=testpassword123" >> android/key.properties
           fi
 
       - name: Make Gradlew Executable

@@ -3,7 +3,21 @@ apply plugin: 'com.android.application'
 def keystorePropertiesFile = rootProject.file("key.properties")
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    keystorePropertiesFile.withReader('UTF-8') { reader ->
+        keystoreProperties.load(reader)
+    }
+}
+
+// Helper to safely get properties ignoring whitespace
+def getSigningProp = { String key ->
+    def val = keystoreProperties.getProperty(key)
+    if (val != null) return val.trim()
+    for (entry in keystoreProperties.entrySet()) {
+        if (entry.key.toString().trim() == key) {
+            return entry.value.toString().trim()
+        }
+    }
+    return null
 }
 
 android {
@@ -25,13 +39,24 @@ android {
 
     signingConfigs {
         release {
-            def storeFilePath = keystoreProperties['storeFile'] ?: System.getenv('ANDROID_KEYSTORE_PATH') ?: 'quran-release-key.jks'
-            def resolvedStoreFile = file(storeFilePath)
-            if (resolvedStoreFile.exists()) {
-                storeFile resolvedStoreFile
-                storePassword keystoreProperties['storePassword'] ?: System.getenv('ANDROID_KEYSTORE_PASSWORD')
-                keyAlias keystoreProperties['keyAlias'] ?: System.getenv('ANDROID_KEY_ALIAS')
-                keyPassword keystoreProperties['keyPassword'] ?: System.getenv('ANDROID_KEY_PASSWORD')
+            def storePath = getSigningProp('storeFile') ?: System.getenv('ANDROID_KEYSTORE_PATH') ?: 'quran-release-key.jks'
+            def storePass = getSigningProp('storePassword') ?: System.getenv('ANDROID_KEYSTORE_PASSWORD')
+            def alias = getSigningProp('keyAlias') ?: System.getenv('ANDROID_KEY_ALIAS')
+            def keyPass = getSigningProp('keyPassword') ?: System.getenv('ANDROID_KEY_PASSWORD')
+
+            def keystoreFile = file(storePath)
+            if (!keystoreFile.exists()) {
+                keystoreFile = rootProject.file(storePath)
+            }
+
+            if (keystoreFile.exists() && storePass && alias && keyPass) {
+                storeFile keystoreFile
+                storePassword storePass
+                keyAlias alias
+                keyPassword keyPass
+            } else {
+                println "Release keystore info incomplete. Using debug signing for release build."
+                initWith(signingConfigs.debug)
             }
         }
     }
