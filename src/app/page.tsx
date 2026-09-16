@@ -1,6 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { useBackButton, dispatchBackButton } from '@/lib/back-button';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { Chapter, Reciter, Verse, VideoConfig } from '@/types/quran';
 import { DEFAULT_VIDEO_CONFIG, POPULAR_RECITERS } from '@/lib/constants';
 import { fetchAudioFiles, fetchChapters, fetchVerses } from '@/lib/quran-api';
@@ -63,6 +67,55 @@ export default function Home() {
   const [isTranslationModalOpen, setIsTranslationModalOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+
+  // Native exit confirmation toast state
+  const [showExitToast, setShowExitToast] = useState<boolean>(false);
+  const lastBackPressRef = useRef<number>(0);
+
+  // Wire hardware back button for all root modals & drawers
+  useBackButton(showOnboarding, () => setShowOnboarding(false), 30);
+  useBackButton(isSurahDrawerOpen, () => setIsSurahDrawerOpen(false), 20);
+  useBackButton(isRecitersModalOpen, () => setIsRecitersModalOpen(false), 20);
+  useBackButton(isTafsirOpen, () => setIsTafsirOpen(false), 20);
+  useBackButton(isSurahInfoOpen, () => setIsSurahInfoOpen(false), 20);
+  useBackButton(isTranslationModalOpen, () => setIsTranslationModalOpen(false), 20);
+
+  // Native Android hardware back button listener
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let backListenerHandler: { remove: () => void } | null = null;
+
+    App.addListener('backButton', () => {
+      // 1. Check if any open modal / drawer / subcomponent handles the back button
+      const handled = dispatchBackButton();
+      if (handled) return;
+
+      // 2. If user is in a non-studio tab, navigate back to studio tab
+      if (activeTab !== 'studio') {
+        setActiveTab('studio');
+        return;
+      }
+
+      // 3. Double-tap to exit cleanly on Android
+      const now = Date.now();
+      if (now - lastBackPressRef.current < 2000) {
+        App.exitApp();
+      } else {
+        lastBackPressRef.current = now;
+        setShowExitToast(true);
+        setTimeout(() => setShowExitToast(false), 2000);
+      }
+    }).then((handler) => {
+      backListenerHandler = handler;
+    });
+
+    return () => {
+      if (backListenerHandler) {
+        backListenerHandler.remove();
+      }
+    };
+  }, [activeTab]);
 
   // Load theme and user preferences from localStorage on mount
   useEffect(() => {
@@ -445,6 +498,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0B1329] text-slate-900 dark:text-slate-100 transition-colors duration-200">
+      {/* Offline Status & Reconnection Banner */}
+      <OfflineBanner onRetry={() => loadChapterData(currentChapterId || 1)} />
+
       {/* Quran.com Mobile Top Navbar */}
       <QuranNavbar
         currentChapter={currentChapter}
@@ -601,6 +657,13 @@ export default function Home() {
           onComplete={() => setShowOnboarding(false)}
           onExploreAsGuest={() => setShowOnboarding(false)}
         />
+      )}
+
+      {/* Android Native Exit Toast */}
+      {showExitToast && (
+        <div className="fixed bottom-20 inset-x-0 mx-auto w-fit z-50 px-4 py-2 bg-slate-900/90 dark:bg-slate-100/90 text-white dark:text-slate-900 text-xs font-semibold rounded-full shadow-lg backdrop-blur pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+          Press back again to exit
+        </div>
       )}
     </div>
   );

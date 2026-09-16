@@ -9,6 +9,7 @@ import { VideoExportModal } from './VideoExportModal';
 import { ReciterModal } from './ReciterModal';
 import { ProjectsModal } from './ProjectsModal';
 import { ProjectDraft } from '@/lib/storage-db';
+import { useBackButton } from '@/lib/back-button';
 import {
   Download,
   Mic2,
@@ -53,6 +54,11 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isReciterModalOpen, setIsReciterModalOpen] = useState(false);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
+
+  // Wire hardware back button for modals inside VideoStudio
+  useBackButton(isExportModalOpen, () => setIsExportModalOpen(false), 25);
+  useBackButton(isReciterModalOpen, () => setIsReciterModalOpen(false), 25);
+  useBackButton(isProjectsModalOpen, () => setIsProjectsModalOpen(false), 25);
 
   const startAyah = verses[0]?.verse_number || 1;
   const endAyah = verses[verses.length - 1]?.verse_number || 1;
