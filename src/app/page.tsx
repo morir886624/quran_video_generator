@@ -104,7 +104,7 @@ export default function Home() {
         setSelectedVerseKeys(initialKeys);
 
         // Fetch audio files for this chapter & reciter
-        const audioFiles = await fetchAudioFiles(currentReciter.id, chapterId);
+        const audioFiles = await fetchAudioFiles(currentReciter.id, chapterId, currentReciter.audioSubfolder);
         const map: Record<string, string> = {};
         audioFiles.forEach((f) => {
           map[f.verse_key] = f.url;
@@ -116,7 +116,7 @@ export default function Home() {
         setIsLoadingVerses(false);
       }
     },
-    [chapters, currentReciter.id, selectedTranslationId]
+    [chapters, currentReciter, selectedTranslationId]
   );
 
   // 2. Initial load of all 114 Surahs and default Chapter
@@ -134,7 +134,7 @@ export default function Home() {
   // 3. Reload audio map when reciter changes
   useEffect(() => {
     if (currentChapterId) {
-      fetchAudioFiles(currentReciter.id, currentChapterId)
+      fetchAudioFiles(currentReciter.id, currentChapterId, currentReciter.audioSubfolder)
         .then((files) => {
           const map: Record<string, string> = {};
           files.forEach((f) => {
@@ -144,7 +144,7 @@ export default function Home() {
         })
         .catch((e) => console.error('Error updating audio files:', e));
     }
-  }, [currentReciter.id, currentChapterId]);
+  }, [currentReciter, currentChapterId]);
 
   // Selected Verses for Video Studio
   const selectedVerses = useMemo(() => {
@@ -154,15 +154,17 @@ export default function Home() {
   // Mapped Audio URLs for the selected verses
   const selectedAudioUrls = useMemo(() => {
     return selectedVerses.map((v) => {
-      return (
-        chapterAudioMap[v.verse_key] ||
-        `https://verses.quran.com/Alafasy/mp3/${String(currentChapterId).padStart(
-          3,
-          '0'
-        )}${String(v.verse_number).padStart(3, '0')}.mp3`
-      );
+      if (chapterAudioMap[v.verse_key]) {
+        return chapterAudioMap[v.verse_key];
+      }
+      const padC = String(currentChapterId).padStart(3, '0');
+      const padV = String(v.verse_number).padStart(3, '0');
+      if (currentReciter.audioSubfolder) {
+        return `https://everyayah.com/data/${currentReciter.audioSubfolder}/${padC}${padV}.mp3`;
+      }
+      return `https://verses.quran.com/Alafasy/mp3/${padC}${padV}.mp3`;
     });
-  }, [selectedVerses, chapterAudioMap, currentChapterId]);
+  }, [selectedVerses, chapterAudioMap, currentChapterId, currentReciter]);
 
   // Verse Selection Toggles
   const handleToggleVerse = useCallback((verseKey: string) => {
@@ -203,7 +205,15 @@ export default function Home() {
         singleAyahAudio.pause();
       }
 
-      const audioUrl = chapterAudioMap[verseKey];
+      let audioUrl = chapterAudioMap[verseKey];
+      if (!audioUrl) {
+        const [cStr, vStr] = verseKey.split(':');
+        const padC = String(cStr).padStart(3, '0');
+        const padV = String(vStr).padStart(3, '0');
+        if (currentReciter.audioSubfolder) {
+          audioUrl = `https://everyayah.com/data/${currentReciter.audioSubfolder}/${padC}${padV}.mp3`;
+        }
+      }
       if (!audioUrl) return;
 
       const audio = new Audio(audioUrl);
@@ -213,7 +223,7 @@ export default function Home() {
       audio.play().catch(() => setActivePlayingKey(null));
       audio.onended = () => setActivePlayingKey(null);
     },
-    [activePlayingKey, chapterAudioMap, singleAyahAudio]
+    [activePlayingKey, chapterAudioMap, singleAyahAudio, currentReciter]
   );
 
   const handleOpenTafsir = (verseKey: string, arabicText: string) => {

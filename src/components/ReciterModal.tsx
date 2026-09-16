@@ -59,6 +59,14 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
   const [playingReciterId, setPlayingReciterId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  React.useEffect(() => {
+    return () => {
+      if (previewAudio) {
+        previewAudio.pause();
+      }
+    };
+  }, [previewAudio]);
+
   if (!isOpen) return null;
 
   const handlePreview = (reciter: Reciter, e: React.MouseEvent) => {
