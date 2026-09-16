@@ -26,6 +26,7 @@ import {
   Check,
   BookOpen,
   Sliders,
+  ChevronRight,
 } from 'lucide-react';
 import {
   getStorageUsageSummary,
@@ -56,6 +57,7 @@ interface SettingsViewProps {
   onSelectTranslation: (id: number, name: string) => void;
   onOpenRecitersModal: () => void;
   onOpenTranslationModal: () => void;
+  onReplayOnboarding?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -71,6 +73,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSelectTranslation,
   onOpenRecitersModal,
   onOpenTranslationModal,
+  onReplayOnboarding,
 }) => {
   // Navigation sub-tab
   const [activeTab, setActiveTab] = useState<'preferences' | 'system'>('preferences');
@@ -999,6 +1002,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </h2>
 
             <div className="space-y-3 text-xs">
+              {onReplayOnboarding && (
+                <button
+                  onClick={onReplayOnboarding}
+                  className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-950/60 dark:hover:bg-slate-900 border border-slate-200 dark:border-slate-800/90 transition-colors text-left group cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="font-semibold text-slate-900 dark:text-white block">
+                        Starter Walkthrough &amp; Tour
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                        Revisit the intro guide &amp; 9:16 studio tips
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
+                </button>
+              )}
+
               <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/90">
                 <span className="font-semibold text-slate-900 dark:text-white">
                   Privacy Policy

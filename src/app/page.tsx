@@ -30,6 +30,7 @@ import {
   saveUserPreferences,
   resetUserPreferences,
 } from '@/lib/preferences';
+import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { Loader2 } from 'lucide-react';
 
 export default function Home() {
@@ -60,20 +61,26 @@ export default function Home() {
   const [activeTafsirArabic, setActiveTafsirArabic] = useState<string>('');
   const [isSurahInfoOpen, setIsSurahInfoOpen] = useState<boolean>(false);
   const [isTranslationModalOpen, setIsTranslationModalOpen] = useState<boolean>(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 
   // Load theme and user preferences from localStorage on mount
   useEffect(() => {
     try {
       const savedTheme = localStorage.getItem('quran_theme') as 'dark' | 'light' | null;
-      if (savedTheme) {
-        if (savedTheme === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
-        document.documentElement.setAttribute('data-theme', savedTheme);
-        setTheme(savedTheme);
+      const activeTheme = savedTheme || 'light';
+      if (activeTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      document.documentElement.setAttribute('data-theme', activeTheme);
+      setTheme(activeTheme);
+
+      // Check if user has completed first-start onboarding
+      const onboardingCompleted = localStorage.getItem('quran_onboarding_completed');
+      if (!onboardingCompleted) {
+        setShowOnboarding(true);
       }
 
       const savedPrefs = loadUserPreferences();
@@ -531,6 +538,7 @@ export default function Home() {
                 onSelectTranslation={handleSelectTranslation}
                 onOpenRecitersModal={() => setIsRecitersModalOpen(true)}
                 onOpenTranslationModal={() => setIsTranslationModalOpen(true)}
+                onReplayOnboarding={() => setShowOnboarding(true)}
               />
             )}
           </>
@@ -586,6 +594,14 @@ export default function Home() {
         selectedTranslationId={selectedTranslationId}
         onSelectTranslation={handleSelectTranslation}
       />
+
+      {/* Starter Onboarding Flow for First Launch or Tour */}
+      {showOnboarding && (
+        <OnboardingFlow
+          onComplete={() => setShowOnboarding(false)}
+          onExploreAsGuest={() => setShowOnboarding(false)}
+        />
+      )}
     </div>
   );
 }
