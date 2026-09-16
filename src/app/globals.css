@@ -5,6 +5,16 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card-bg: #FFFFFF;
+  --border-color: #E2E8F0;
+  --quran-emerald: #059669;
+  --quran-gold: #D97706;
+}
+
+[data-theme="dark"],
+.dark {
   --background: #0B1329;
   --foreground: #F8FAFC;
   --card-bg: #131E3A;

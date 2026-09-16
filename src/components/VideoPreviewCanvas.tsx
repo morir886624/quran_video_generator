@@ -11,7 +11,6 @@ import {
 import {
   StitchedAudioPlayer,
   stitchAudioBuffers,
-  VerseTimeSegment,
 } from '@/lib/audio-stitcher';
 import { fetchPersianTafsirSurah } from '@/lib/quran-api';
 import {
@@ -48,14 +47,16 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const customMediaElRef = useRef<HTMLVideoElement | HTMLImageElement | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isStitchingAudio, setIsStitchingAudio] = useState(false);
+  const [stitchedKey, setStitchedKey] = useState<string | null>(null);
   const [currentAyahIndex, setCurrentAyahIndex] = useState(0);
   const [verseProgress, setVerseProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
-  const [segments, setSegments] = useState<VerseTimeSegment[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
+
+  const currentStitchKey = `${audioUrls.join(',')}|${verses.map((v) => v.verse_key).join(',')}`;
+  const isStitchingAudio = audioUrls.length > 0 && verses.length > 0 && stitchedKey !== currentStitchKey;
 
   const currentVerse = verses[currentAyahIndex] || verses[0] || null;
 
@@ -120,7 +121,6 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     if (audioUrls.length === 0 || verses.length === 0) return;
 
     let isCancelled = false;
-    setIsStitchingAudio(true);
 
     if (!playerRef.current) {
       playerRef.current = new StitchedAudioPlayer();
@@ -149,22 +149,21 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       .then((stitchedResult) => {
         if (!isCancelled) {
           player.setStitchedAudio(stitchedResult);
-          setSegments(stitchedResult.segments);
           setTotalDuration(stitchedResult.totalDuration);
-          setIsStitchingAudio(false);
+          setStitchedKey(currentStitchKey);
         }
       })
       .catch((err) => {
         if (!isCancelled) {
           console.warn('Audio stitch warning (continuing with HTML5 streaming):', err);
-          setIsStitchingAudio(false);
+          setStitchedKey(currentStitchKey);
         }
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [audioUrls, verses]);
+  }, [audioUrls, verses, currentStitchKey]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -233,7 +232,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     canvas.width = width;
     canvas.height = height;
 
-    let startTime = performance.now();
+    const startTime = performance.now();
 
     const loop = (timestamp: number) => {
       const totalProgress =

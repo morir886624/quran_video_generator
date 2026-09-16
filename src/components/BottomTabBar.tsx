@@ -1,25 +1,26 @@
 'use client';
 
 import React from 'react';
-import { BookOpen, Video, Mic2, Settings } from 'lucide-react';
+import { BookOpen, Video, Film, Settings } from 'lucide-react';
 
 interface BottomTabBarProps {
-  activeTab: 'reader' | 'studio' | 'reciters';
-  setActiveTab: (tab: 'reader' | 'studio' | 'reciters') => void;
+  activeTab: 'reader' | 'studio' | 'creations' | 'settings';
+  setActiveTab: (tab: 'reader' | 'studio' | 'creations' | 'settings') => void;
   selectedVersesCount: number;
-  onOpenSettings: () => void;
+  creationsCount?: number;
+  onOpenSettings?: () => void;
 }
 
 export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   activeTab,
   setActiveTab,
   selectedVersesCount,
-  onOpenSettings,
+  creationsCount = 0,
 }) => {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#0B1329]/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800/90 transition-colors safe-bottom">
       <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-around">
-        {/* Reader Tab */}
+        {/* 1. Reader Page */}
         <button
           onClick={() => setActiveTab('reader')}
           className={`flex flex-col items-center justify-center gap-1 w-16 transition-all active:scale-95 ${
@@ -38,7 +39,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
           <span className="text-[10px] tracking-tight">Reader</span>
         </button>
 
-        {/* Video Studio Tab (Center Spotlight) */}
+        {/* 2. Video Studio Page (Center Spotlight) */}
         <button
           onClick={() => setActiveTab('studio')}
           className={`relative flex flex-col items-center justify-center gap-1 w-20 transition-all active:scale-95 ${
@@ -64,31 +65,44 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
           <span className="text-[10px] tracking-tight">Studio</span>
         </button>
 
-        {/* Reciters Tab */}
+        {/* 3. Creations Page */}
         <button
-          onClick={() => setActiveTab('reciters')}
+          onClick={() => setActiveTab('creations')}
+          className={`relative flex flex-col items-center justify-center gap-1 w-16 transition-all active:scale-95 ${
+            activeTab === 'creations'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 font-medium'
+          }`}
+        >
+          <div
+            className={`relative p-1 rounded-xl transition-all ${
+              activeTab === 'creations' ? 'bg-emerald-500/10' : ''
+            }`}
+          >
+            <Film className="w-5 h-5" />
+            {creationsCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white font-bold text-[8px] flex items-center justify-center shadow">
+                {creationsCount > 9 ? '9+' : creationsCount}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] tracking-tight">Creations</span>
+        </button>
+
+        {/* 4. Settings Page */}
+        <button
+          onClick={() => setActiveTab('settings')}
           className={`flex flex-col items-center justify-center gap-1 w-16 transition-all active:scale-95 ${
-            activeTab === 'reciters'
+            activeTab === 'settings'
               ? 'text-emerald-600 dark:text-emerald-400 font-bold'
               : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 font-medium'
           }`}
         >
           <div
             className={`p-1 rounded-xl transition-all ${
-              activeTab === 'reciters' ? 'bg-emerald-500/10' : ''
+              activeTab === 'settings' ? 'bg-emerald-500/10' : ''
             }`}
           >
-            <Mic2 className="w-5 h-5" />
-          </div>
-          <span className="text-[10px] tracking-tight">Reciters</span>
-        </button>
-
-        {/* Settings Tab */}
-        <button
-          onClick={onOpenSettings}
-          className="flex flex-col items-center justify-center gap-1 w-16 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-all active:scale-95"
-        >
-          <div className="p-1 rounded-xl">
             <Settings className="w-5 h-5" />
           </div>
           <span className="text-[10px] tracking-tight">Settings</span>
@@ -97,4 +111,3 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
     </nav>
   );
 };
-

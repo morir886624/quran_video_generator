@@ -2,14 +2,14 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Quran.com Video Studio • Reels & Shorts Maker',
+  title: 'Quran Video Studio • Reels & Shorts Maker',
   description:
-    'Turn Quranic verses into stunning short-form videos with synchronized recitation and centered calligraphy, identical to Quran.com.',
+    'Turn Quranic verses into stunning short-form videos with synchronized recitation and centered calligraphy, powered by Quran.com public API.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Quran Video',
+    title: 'Quran Video Studio',
   },
 };
 
@@ -19,7 +19,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#0B1329',
+  themeColor: '#F8FAFC',
 };
 
 export default function RootLayout({
@@ -28,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark h-full" suppressHydrationWarning>
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -36,7 +36,7 @@ export default function RootLayout({
               (function() {
                 try {
                   var stored = localStorage.getItem('quran_theme');
-                  var theme = stored || 'dark';
+                  var theme = stored || 'light';
                   if (theme === 'dark') {
                     document.documentElement.classList.add('dark');
                   } else {

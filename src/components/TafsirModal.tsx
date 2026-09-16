@@ -21,35 +21,38 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
 }) => {
   const [selectedSource, setSelectedSource] = useState<TafsirSource>('persian-mokhtasar');
   const [tafsirData, setTafsirData] = useState<{ text: string; resourceName: string } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen || !verseKey) {
-      setTafsirData(null);
-      return;
-    }
+  const currentKey = isOpen && verseKey ? `${verseKey}_${selectedSource}` : null;
+  const isLoading = currentKey !== null && loadedKey !== currentKey;
 
+  useEffect(() => {
+    if (!isOpen || !verseKey) return;
+
+    const requestKey = `${verseKey}_${selectedSource}`;
+    let isMounted = true;
     const [surahStr, ayahStr] = verseKey.split(':');
     const surahId = parseInt(surahStr, 10);
     const ayahNumber = parseInt(ayahStr, 10);
 
-    setIsLoading(true);
-
     if (selectedSource === 'ibn-kathir') {
       fetchTafsir(verseKey, 169)
         .then((res) => {
-          setTafsirData(res);
+          if (isMounted) {
+            setTafsirData(res);
+            setLoadedKey(requestKey);
+          }
         })
         .catch((err) => {
-          console.error('Error fetching tafsir:', err);
-          setTafsirData({
-            text: 'Unable to load Tafsir. Please check your network connection.',
-            resourceName: 'Tafsir Ibn Kathir',
-          });
-        })
-        .finally(() => {
-          setIsLoading(false);
+          if (isMounted) {
+            console.error('Error fetching tafsir:', err);
+            setTafsirData({
+              text: 'Unable to load Tafsir. Please check your network connection.',
+              resourceName: 'Tafsir Ibn Kathir',
+            });
+            setLoadedKey(requestKey);
+          }
         });
     } else {
       const edition = selectedSource;
@@ -60,22 +63,29 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
 
       fetchPersianTafsirAyah(surahId, ayahNumber, edition)
         .then((text) => {
-          setTafsirData({
-            text: text || 'تفسیر برای این آیه یافت نشد.',
-            resourceName,
-          });
+          if (isMounted) {
+            setTafsirData({
+              text: text || 'تفسیر برای این آیه یافت نشد.',
+              resourceName,
+            });
+            setLoadedKey(requestKey);
+          }
         })
         .catch((err) => {
-          console.error('Error fetching Persian tafsir:', err);
-          setTafsirData({
-            text: 'خطا در بارگذاری تفسیر. لطفا اتصال اینترنت خود را بررسی کنید.',
-            resourceName,
-          });
-        })
-        .finally(() => {
-          setIsLoading(false);
+          if (isMounted) {
+            console.error('Error fetching Persian tafsir:', err);
+            setTafsirData({
+              text: 'خطا در بارگذاری تفسیر. لطفا اتصال اینترنت خود را بررسی کنید.',
+              resourceName,
+            });
+            setLoadedKey(requestKey);
+          }
         });
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen, verseKey, selectedSource]);
 
   if (!isOpen || !verseKey) return null;

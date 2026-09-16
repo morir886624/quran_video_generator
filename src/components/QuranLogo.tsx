@@ -4,8 +4,6 @@ interface QuranLogoProps extends React.SVGProps<SVGSVGElement> {
   variant?: 'full' | 'icon';
   size?: number | string;
   className?: string;
-  lightModeStroke?: string;
-  darkModeStroke?: string;
 }
 
 /**
@@ -18,8 +16,6 @@ export const QuranLogo: React.FC<QuranLogoProps> = ({
   variant = 'icon',
   size,
   className = '',
-  lightModeStroke = '#0E5E4E',
-  darkModeStroke = '#10B981',
   ...props
 }) => {
   if (variant === 'icon') {

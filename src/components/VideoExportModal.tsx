@@ -9,6 +9,7 @@ import {
   shareVideo,
 } from '@/lib/video-recorder';
 import { cleanTranslationText, fetchPersianTafsirSurah } from '@/lib/quran-api';
+import { saveExportedVideo } from '@/lib/storage-db';
 import {
   Download,
   Share2,
@@ -19,6 +20,7 @@ import {
   Copy,
   Check,
   ExternalLink,
+  Film,
 } from 'lucide-react';
 
 function YoutubeIcon({ className = 'w-4 h-4' }: { className?: string }) {
@@ -37,6 +39,8 @@ interface VideoExportModalProps {
   chapter: Chapter | null;
   config: VideoConfig;
   reciter?: Reciter;
+  selectedTranslationId?: number;
+  onViewInCreations?: () => void;
 }
 
 export const VideoExportModal: React.FC<VideoExportModalProps> = ({
@@ -47,6 +51,8 @@ export const VideoExportModal: React.FC<VideoExportModalProps> = ({
   chapter,
   config,
   reciter,
+  selectedTranslationId,
+  onViewInCreations,
 }) => {
   const [progress, setProgress] = useState<ExportProgress>({
     percent: 0,
@@ -55,13 +61,28 @@ export const VideoExportModal: React.FC<VideoExportModalProps> = ({
     status: 'Initializing video engine...',
   });
 
-  const [isExporting, setIsExporting] = useState(false);
   const [exportResult, setExportResult] = useState<{
     blob: Blob;
     url: string;
     filename: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSavedToCreations, setIsSavedToCreations] = useState(false);
+
+  const isExporting = isOpen && !exportResult && !error;
+
+  const handleClose = () => {
+    setExportResult(null);
+    setError(null);
+    setProgress({
+      percent: 0,
+      currentAyahIndex: 1,
+      totalAyahs: verses.length,
+      status: 'Initializing video engine...',
+    });
+    setIsSavedToCreations(false);
+    onClose();
+  };
 
   // Copy states
   const [copiedArabic, setCopiedArabic] = useState(false);
@@ -111,23 +132,16 @@ ${fullArabicText}
 
 📜 TRANSLATION:
 ${fullTranslationText}
-${fullTranslationText}${config.showPersianTafsir && fullPersianText ? `\n\n🕌 PERSIAN TAFSIR (تفسیر فارسی):\n${fullPersianText}` : ''}
+${config.showPersianTafsir && fullPersianText ? `\n\n🕌 PERSIAN TAFSIR (تفسیر فارسی):\n${fullPersianText}` : ''}
 
 ---
 Generated via Quran.com Video Studio
 #Quran #Shorts #Reels #QuranRecitation #Islam #Muslim #AlQuran #IslamicShorts`;
 
   useEffect(() => {
-    if (!isOpen) {
-      setIsExporting(false);
-      setExportResult(null);
-      setError(null);
-      return;
-    }
+    if (!isOpen) return;
 
     let isCancelled = false;
-    setIsExporting(true);
-    setError(null);
 
     exportVideo({
       verses,
@@ -140,24 +154,55 @@ Generated via Quran.com Video Studio
         }
       },
     })
-      .then((res) => {
+      .then(async (res) => {
         if (!isCancelled) {
           setExportResult(res);
-          setIsExporting(false);
+
+          // Automatically store in app Creations IndexedDB library
+          try {
+            await saveExportedVideo({
+              id: `vid_${Date.now()}`,
+              title: `Surah ${chapter?.name_simple || 'Quran'} (${rangeStr})`,
+              chapterId: chapter?.id || 1,
+              chapterName: chapter?.name_simple || 'Surah',
+              verseRange: rangeStr,
+              reciterName,
+              videoBlob: res.blob,
+              mimeType: res.blob.type || 'video/mp4',
+              size: res.blob.size,
+              createdAt: Date.now(),
+              youtubeTitle,
+              youtubeDescription,
+              fullArabicText,
+              fullTranslationText,
+              fullPersianText: config.showPersianTafsir ? fullPersianText : undefined,
+              projectSnapshot: {
+                chapterId: chapter?.id || 1,
+                verseKeys: verses.map((v) => v.verse_key),
+                reciterId: reciter?.id || 7,
+                translationId: selectedTranslationId || 20,
+                videoConfig: config,
+              },
+            });
+            if (!isCancelled) {
+              setIsSavedToCreations(true);
+            }
+          } catch (e) {
+            console.warn('Failed to save exported video to library:', e);
+          }
         }
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (!isCancelled) {
           console.error('Video export error:', err);
-          setError(err.message || 'Failed to generate video.');
-          setIsExporting(false);
+          setError(err instanceof Error ? err.message : 'Failed to generate video.');
         }
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, audioUrls, chapter, config, verses]);
+  }, [isOpen, audioUrls, chapter, config, verses, rangeStr, reciterName, reciter?.id, youtubeTitle, youtubeDescription, fullArabicText, fullTranslationText, fullPersianText, selectedTranslationId]);
 
   if (!isOpen) return null;
 
@@ -173,8 +218,8 @@ Generated via Quran.com Video Studio
       });
       setStatusFeedback(res.message);
       setTimeout(() => setStatusFeedback(null), 4500);
-    } catch (err: any) {
-      setStatusFeedback(err?.message || 'Failed to save video');
+    } catch (err: unknown) {
+      setStatusFeedback(err instanceof Error ? err.message : 'Failed to save video');
       setTimeout(() => setStatusFeedback(null), 4500);
     } finally {
       setIsSaving(false);
@@ -192,7 +237,7 @@ Generated via Quran.com Video Studio
         title: youtubeTitle,
         text: `${chapter?.name_simple || 'Quran'} (${rangeStr}) - Recited by ${reciterName}`,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('Share error:', err);
     } finally {
       setIsSharing(false);
@@ -210,7 +255,7 @@ Generated via Quran.com Video Studio
       <div className="relative w-full max-w-2xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-700/90 rounded-3xl shadow-2xl p-5 sm:p-6 flex flex-col max-h-[92vh] overflow-y-auto transition-colors">
         {/* Close Button */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
         >
           <X className="w-5 h-5" />
@@ -279,6 +324,27 @@ Generated via Quran.com Video Studio
               </div>
 
               <div className="flex-1 w-full space-y-2.5">
+                {isSavedToCreations && (
+                  <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs animate-in fade-in">
+                    <span className="flex items-center gap-1.5 font-semibold">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Saved to Creations Library</span>
+                    </span>
+                    {onViewInCreations && (
+                      <button
+                        onClick={() => {
+                          handleClose();
+                          onViewInCreations();
+                        }}
+                        className="flex items-center gap-1 font-bold underline hover:opacity-80 transition-opacity"
+                      >
+                        <Film className="w-3 h-3" />
+                        <span>View Library</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <button
                   onClick={handleSave}
                   disabled={isSaving}
@@ -445,7 +511,7 @@ Generated via Quran.com Video Studio
             {/* Done Button */}
             <div className="pt-2 text-center">
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-6 py-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-transparent transition-colors"
               >
                 Close Window

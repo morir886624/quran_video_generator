@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { Reciter } from '@/types/quran';
-import { POPULAR_RECITERS } from '@/lib/constants';
-import { Mic2, X, Check, Play, Pause } from 'lucide-react';
+import { POPULAR_RECITERS, getReciterPreviewUrl } from '@/lib/constants';
+import { Mic2, X, Check, Play, Pause, Search } from 'lucide-react';
 
 interface ReciterModalProps {
   isOpen: boolean;
@@ -20,6 +20,15 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
 }) => {
   const [previewAudio, setPreviewAudio] = useState<HTMLAudioElement | null>(null);
   const [playingReciterId, setPlayingReciterId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  React.useEffect(() => {
+    return () => {
+      if (previewAudio) {
+        previewAudio.pause();
+      }
+    };
+  }, [previewAudio]);
 
   if (!isOpen) return null;
 
@@ -34,47 +43,54 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
       }
     }
 
-    // Al-Fatiha Ayah 1 audio preview for this reciter
-    // Quran.com audio format for Ayah 1:1
-    const audioUrl = `https://verses.quran.com/${
-      reciter.id === 7
-        ? 'Alafasy/mp3/001001.mp3'
-        : reciter.id === 2
-        ? 'AbdulBaset/Murattal/mp3/001001.mp3'
-        : reciter.id === 9
-        ? 'MaherAlMuaiqly/mp3/001001.mp3'
-        : reciter.id === 3
-        ? 'Sudais/mp3/001001.mp3'
-        : 'Alafasy/mp3/001001.mp3'
-    }`;
-
+    const audioUrl = getReciterPreviewUrl(reciter);
     const audio = new Audio(audioUrl);
-    setPreviewAudio(audio);
-    setPlayingReciterId(reciter.id);
+    audio.addEventListener('ended', () => {
+      setPlayingReciterId(null);
+    });
 
     audio.play().catch(() => {
       setPlayingReciterId(null);
     });
 
-    audio.onended = () => {
-      setPlayingReciterId(null);
-    };
+    setPreviewAudio(audio);
+    setPlayingReciterId(reciter.id);
   };
 
   const handleClose = () => {
     if (previewAudio) previewAudio.pause();
     setPlayingReciterId(null);
+    setSearchQuery('');
     onClose();
   };
 
+  const filteredReciters = POPULAR_RECITERS.filter((reciter) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      reciter.name.toLowerCase().includes(q) ||
+      (reciter.description && reciter.description.toLowerCase().includes(q)) ||
+      (reciter.style && reciter.style.toLowerCase().includes(q))
+    );
+  });
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="relative w-full max-w-lg bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] transition-colors">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="relative w-full max-w-lg bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] transition-colors">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Mic2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <h3 className="font-bold text-lg text-slate-900 dark:text-white">Choose Reciter</h3>
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+              <Mic2 className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base sm:text-lg text-slate-900 dark:text-white">
+                Choose Reciter Voice
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {POPULAR_RECITERS.length} world-renowned Quran reciters available
+              </p>
+            </div>
           </div>
           <button
             onClick={handleClose}
@@ -84,78 +100,108 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
           </button>
         </div>
 
-        {/* Reciters List */}
-        <div className="p-4 overflow-y-auto space-y-2">
-          {POPULAR_RECITERS.map((reciter) => {
-            const isSelected = reciter.id === selectedReciterId;
-            const isPlaying = playingReciterId === reciter.id;
-
-            return (
-              <div
-                key={reciter.id}
-                onClick={() => {
-                  onSelectReciter(reciter);
-                  handleClose();
-                }}
-                className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all active:scale-[0.99] ${
-                  isSelected
-                    ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-500/70 text-slate-900 dark:text-white shadow-sm ring-1 ring-emerald-500/40'
-                    : 'bg-slate-50 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-800 dark:text-slate-200'
-                }`}
+        {/* Search Bar */}
+        <div className="p-3 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search reciter by name, style, or country..."
+              className="w-full pl-9 pr-8 py-2 rounded-xl text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
               >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-                      isSelected
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    <Mic2 className="w-4 h-4" />
-                  </div>
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
 
-                  <div>
-                    <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                      <span>{reciter.name}</span>
-                      {reciter.style && (
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700">
-                          {reciter.style}
-                        </span>
-                      )}
+        {/* Reciters List */}
+        <div className="p-3 sm:p-4 overflow-y-auto space-y-2 flex-1">
+          {filteredReciters.length === 0 ? (
+            <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400">
+              No reciters found matching &ldquo;{searchQuery}&rdquo;
+            </div>
+          ) : (
+            filteredReciters.map((reciter) => {
+              const isSelected = reciter.id === selectedReciterId;
+              const isPlaying = playingReciterId === reciter.id;
+
+              return (
+                <div
+                  key={reciter.id}
+                  onClick={() => {
+                    onSelectReciter(reciter);
+                    handleClose();
+                  }}
+                  className={`flex items-center justify-between p-3 sm:p-3.5 rounded-2xl border cursor-pointer transition-all active:scale-[0.99] ${
+                    isSelected
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-500/70 text-slate-900 dark:text-white shadow-sm ring-1 ring-emerald-500/40'
+                      : 'bg-slate-50 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-800 dark:text-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 pr-2">
+                    <div
+                      className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${
+                        isSelected
+                          ? 'bg-emerald-500 text-white shadow-md shadow-emerald-600/30'
+                          : 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <Mic2 className="w-4 h-4" />
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{reciter.description}</p>
+
+                    <div className="min-w-0">
+                      <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
+                        <span className="truncate">{reciter.name}</span>
+                        {reciter.style && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 font-medium shrink-0">
+                            {reciter.style}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {reciter.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => handlePreview(reciter, e)}
+                      className={`p-2 rounded-xl transition-all ${
+                        isPlaying
+                          ? 'bg-emerald-500 text-white shadow-md shadow-emerald-600/30 animate-pulse'
+                          : 'bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      }`}
+                      title="Listen to 1:1 preview"
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-3.5 h-3.5" />
+                      ) : (
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                      )}
+                    </button>
+
+                    {isSelected && (
+                      <span className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow">
+                        <Check className="w-3.5 h-3.5" />
+                      </span>
+                    )}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => handlePreview(reciter, e)}
-                    className={`p-2 rounded-full transition-all ${
-                      isPlaying
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
-                    }`}
-                    title="Audio Preview"
-                  >
-                    {isPlaying ? (
-                      <Pause className="w-3.5 h-3.5" />
-                    ) : (
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                    )}
-                  </button>
-
-                  {isSelected && (
-                    <span className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow">
-                      <Check className="w-3.5 h-3.5" />
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
     </div>
   );
 };
-

@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { AspectRatio, BackgroundPresetId, VideoConfig } from '@/types/quran';
+import { VideoConfig } from '@/types/quran';
 import { BACKGROUND_PRESETS } from '@/lib/constants';
-import { Sparkles, Upload, Smartphone, Square, Monitor, Check } from 'lucide-react';
+import { Upload, Smartphone, Square, Monitor, Check } from 'lucide-react';
 
 interface BackgroundPickerProps {
   config: VideoConfig;

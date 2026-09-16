@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Chapter, Verse } from '@/types/quran';
+import { UserPreferences } from '@/lib/preferences';
 import { SurahBanner } from './SurahBanner';
 import { cleanTranslationText } from '@/lib/quran-api';
 import {
@@ -17,6 +18,7 @@ import {
   Info,
   Languages,
   Layers,
+  Mic2,
 } from 'lucide-react';
 
 interface ReaderViewProps {
@@ -32,6 +34,9 @@ interface ReaderViewProps {
   onOpenSurahInfo: () => void;
   onOpenTranslations: () => void;
   currentTranslationName: string;
+  onOpenReciters?: () => void;
+  currentReciterName?: string;
+  preferences?: UserPreferences;
 }
 
 export const ReaderView: React.FC<ReaderViewProps> = ({
@@ -47,13 +52,24 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   onOpenSurahInfo,
   onOpenTranslations,
   currentTranslationName,
+  onOpenReciters,
+  currentReciterName,
+  preferences,
 }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [rangeStart, setRangeStart] = useState<number>(1);
   const [rangeEnd, setRangeEnd] = useState<number>(
     Math.min(chapter.verses_count, 5)
   );
-  const [showWordByWord, setShowWordByWord] = useState<boolean>(false);
+  const [showWordByWord, setShowWordByWord] = useState<boolean>(
+    preferences?.showWordByWord ?? false
+  );
+
+  React.useEffect(() => {
+    if (preferences?.showWordByWord !== undefined) {
+      setShowWordByWord(preferences.showWordByWord);
+    }
+  }, [preferences?.showWordByWord]);
 
   const handleCopy = (verse: Verse) => {
     const text = `${verse.text_uthmani}\n${cleanTranslationText(verse.translations?.[0]?.text || '')}\n(Surah ${chapter.name_simple} ${verse.verse_key})`;
@@ -73,7 +89,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
       {/* Surah Action Shortcuts Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4 p-3 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={onOpenSurahInfo}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700/80 transition-all"
@@ -89,6 +105,16 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span className="truncate max-w-[140px]">{currentTranslationName}</span>
           </button>
+
+          {onOpenReciters && (
+            <button
+              onClick={onOpenReciters}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700/80 transition-all"
+            >
+              <Mic2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="truncate max-w-[140px]">{currentReciterName || 'Reciter'}</span>
+            </button>
+          )}
         </div>
 
         <button
@@ -237,11 +263,37 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
               </div>
 
               {/* Arabic Calligraphy Verse Text */}
-              <div className="text-right font-quran text-2xl sm:text-3xl md:text-4xl text-slate-900 dark:text-white font-semibold leading-[2.2] sm:leading-[2.4] tracking-wide mb-4 select-text">
+              <div
+                className={`text-right font-semibold leading-[2.2] sm:leading-[2.4] tracking-wide mb-4 select-text ${
+                  preferences?.arabicFontFamily === 'Scheherazade New'
+                    ? 'font-scheherazade'
+                    : preferences?.arabicFontFamily === 'Amiri'
+                    ? 'font-serif'
+                    : 'font-quran'
+                } ${
+                  !preferences?.arabicFontSize ? 'text-2xl sm:text-3xl md:text-4xl' : ''
+                } ${
+                  !preferences?.useCustomColors ? 'text-slate-900 dark:text-white' : ''
+                }`}
+                style={{
+                  fontSize: preferences?.arabicFontSize ? `${preferences.arabicFontSize}px` : undefined,
+                  color: preferences?.useCustomColors ? preferences.arabicTextColor : undefined,
+                }}
+              >
                 {verse.text_uthmani}
-                <span className="inline-block text-emerald-600 dark:text-emerald-400 font-bold mx-2 text-xl sm:text-2xl">
-                  ۝{verse.verse_number}
-                </span>
+                {preferences?.showAyahNumber !== false && (
+                  <span
+                    className="inline-block font-bold mx-2"
+                    style={{
+                      color: preferences?.accentColor || undefined,
+                      fontSize: preferences?.arabicFontSize
+                        ? `${Math.max(16, Math.round(preferences.arabicFontSize * 0.65))}px`
+                        : undefined,
+                    }}
+                  >
+                    ۝{verse.verse_number}
+                  </span>
+                )}
               </div>
 
               {/* Optional Word-by-Word Breakdown Display */}
@@ -267,7 +319,19 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
               )}
 
               {/* English Translation */}
-              <div className="text-left text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed font-normal select-text">
+              <div
+                className={`text-left leading-relaxed font-normal select-text ${
+                  !preferences?.translationFontSize ? 'text-sm sm:text-base' : ''
+                } ${
+                  !preferences?.useCustomColors ? 'text-slate-700 dark:text-slate-300' : ''
+                }`}
+                style={{
+                  fontSize: preferences?.translationFontSize
+                    ? `${preferences.translationFontSize}px`
+                    : undefined,
+                  color: preferences?.useCustomColors ? preferences.translationTextColor : undefined,
+                }}
+              >
                 {cleanTrans}
               </div>
             </div>
