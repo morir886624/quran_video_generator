@@ -289,7 +289,7 @@ Generated via Quran.com Video Studio
                   ) : (
                     <Download className="w-4 h-4" />
                   )}
-                  <span>{isSaving ? 'Saving Video...' : 'Save / Download Video (MP4)'}</span>
+                  <span>{isSaving ? 'Saving to Gallery...' : 'Save to Gallery / Photos (MP4)'}</span>
                 </button>
 
                 <div className="flex gap-2">
@@ -314,13 +314,14 @@ Generated via Quran.com Video Studio
                     ) : (
                       <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     )}
-                    <span>{isSharing ? 'Preparing...' : 'Share Sheet'}</span>
+                    <span>{isSharing ? 'Preparing...' : 'Share Video'}</span>
                   </button>
                 </div>
 
                 {statusFeedback && (
-                  <div className="text-center text-xs font-medium text-emerald-600 dark:text-emerald-400 animate-in fade-in py-1">
-                    {statusFeedback}
+                  <div className="flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 rounded-xl py-2 px-3 animate-in fade-in shadow-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                    <span>{statusFeedback}</span>
                   </div>
                 )}
               </div>
