@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Reciter } from '@/types/quran';
-import { POPULAR_RECITERS } from '@/lib/constants';
+import { POPULAR_RECITERS, getReciterPreviewUrl } from '@/lib/constants';
 import { Mic2, X, Check, Play, Pause, Search } from 'lucide-react';
 
 interface ReciterModalProps {
@@ -11,43 +11,6 @@ interface ReciterModalProps {
   selectedReciterId: number;
   onSelectReciter: (reciter: Reciter) => void;
 }
-
-/**
- * Returns a verified working preview audio URL for Al-Fatihah (Ayah 1:1)
- */
-const getReciterPreviewUrl = (reciter: Reciter): string => {
-  if (reciter.audioSubfolder) {
-    return `https://everyayah.com/data/${reciter.audioSubfolder}/001001.mp3`;
-  }
-  switch (reciter.id) {
-    case 1:
-      return 'https://verses.quran.com/AbdulBaset/Mujawwad/mp3/001001.mp3';
-    case 2:
-      return 'https://verses.quran.com/AbdulBaset/Murattal/mp3/001001.mp3';
-    case 3:
-      return 'https://verses.quran.com/Sudais/mp3/001001.mp3';
-    case 4:
-      return 'https://verses.quran.com/Shatri/mp3/001001.mp3';
-    case 5:
-      return 'https://verses.quran.com/Rifai/mp3/001001.mp3';
-    case 6:
-      return 'https://mirrors.quranicaudio.com/everyayah/Husary_64kbps/001001.mp3';
-    case 7:
-      return 'https://verses.quran.com/Alafasy/mp3/001001.mp3';
-    case 8:
-      return 'https://verses.quran.com/Minshawi/Mujawwad/mp3/001001.mp3';
-    case 9:
-      return 'https://verses.quran.com/Minshawi/Murattal/mp3/001001.mp3';
-    case 10:
-      return 'https://verses.quran.com/Shuraym/mp3/001001.mp3';
-    case 11:
-      return 'https://mirrors.quranicaudio.com/everyayah/Mohammad_al_Tablaway_128kbps/001001.mp3';
-    case 12:
-      return 'https://mirrors.quranicaudio.com/everyayah/Husary_Muallim_128kbps/001001.mp3';
-    default:
-      return 'https://verses.quran.com/Alafasy/mp3/001001.mp3';
-  }
-};
 
 export const ReciterModal: React.FC<ReciterModalProps> = ({
   isOpen,

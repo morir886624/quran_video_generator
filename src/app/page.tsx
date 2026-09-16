@@ -23,6 +23,13 @@ import {
   clearActiveSession,
   getStorageUsageSummary,
 } from '@/lib/storage-db';
+import {
+  UserPreferences,
+  DEFAULT_USER_PREFERENCES,
+  loadUserPreferences,
+  saveUserPreferences,
+  resetUserPreferences,
+} from '@/lib/preferences';
 import { Loader2 } from 'lucide-react';
 
 export default function Home() {
@@ -34,6 +41,7 @@ export default function Home() {
     new Set(['1:1', '1:2', '1:3', '1:4', '1:5', '1:6', '1:7'])
   );
 
+  const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
   const [currentReciter, setCurrentReciter] = useState<Reciter>(POPULAR_RECITERS[0]);
   const [chapterAudioMap, setChapterAudioMap] = useState<Record<string, string>>({});
   const [videoConfig, setVideoConfig] = useState<VideoConfig>(DEFAULT_VIDEO_CONFIG);
@@ -54,7 +62,7 @@ export default function Home() {
   const [isTranslationModalOpen, setIsTranslationModalOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
-  // Load theme preference from localStorage on mount
+  // Load theme and user preferences from localStorage on mount
   useEffect(() => {
     try {
       const savedTheme = localStorage.getItem('quran_theme') as 'dark' | 'light' | null;
@@ -65,9 +73,20 @@ export default function Home() {
           document.documentElement.classList.remove('dark');
         }
         document.documentElement.setAttribute('data-theme', savedTheme);
-        Promise.resolve().then(() => {
-          setTheme(savedTheme);
-        });
+        setTheme(savedTheme);
+      }
+
+      const savedPrefs = loadUserPreferences();
+      setPreferences(savedPrefs);
+      if (savedPrefs.reciterId) {
+        const rec = POPULAR_RECITERS.find((r) => r.id === savedPrefs.reciterId);
+        if (rec) setCurrentReciter(rec);
+      }
+      if (savedPrefs.translationId) {
+        setSelectedTranslationId(savedPrefs.translationId);
+      }
+      if (savedPrefs.translationName) {
+        setSelectedTranslationName(savedPrefs.translationName);
       }
     } catch {
       // ignore
@@ -232,11 +251,60 @@ export default function Home() {
     setIsTafsirOpen(true);
   };
 
-  const handleSelectTranslation = (id: number, name: string) => {
-    setSelectedTranslationId(id);
-    setSelectedTranslationName(name);
-    loadChapterData(currentChapterId, undefined, undefined, id);
-  };
+  const handleSelectReciter = useCallback((rec: Reciter) => {
+    setCurrentReciter(rec);
+    setPreferences((prev) => {
+      const next = { ...prev, reciterId: rec.id };
+      saveUserPreferences({ reciterId: rec.id });
+      return next;
+    });
+  }, []);
+
+  const handleSelectTranslation = useCallback(
+    (id: number, name: string) => {
+      setSelectedTranslationId(id);
+      setSelectedTranslationName(name);
+      setPreferences((prev) => {
+        const next = { ...prev, translationId: id, translationName: name };
+        saveUserPreferences({ translationId: id, translationName: name });
+        return next;
+      });
+      loadChapterData(currentChapterId, undefined, undefined, id);
+    },
+    [currentChapterId, loadChapterData]
+  );
+
+  const handleUpdatePreferences = useCallback(
+    (updates: Partial<UserPreferences>) => {
+      const updated = saveUserPreferences(updates);
+      setPreferences(updated);
+
+      if (updates.reciterId && updates.reciterId !== currentReciter.id) {
+        const rec = POPULAR_RECITERS.find((r) => r.id === updates.reciterId);
+        if (rec) setCurrentReciter(rec);
+      }
+
+      if (updates.translationId && updates.translationId !== selectedTranslationId) {
+        setSelectedTranslationId(updates.translationId);
+        if (updates.translationName) {
+          setSelectedTranslationName(updates.translationName);
+        }
+        loadChapterData(currentChapterId, undefined, undefined, updates.translationId);
+      }
+    },
+    [currentReciter.id, selectedTranslationId, currentChapterId, loadChapterData]
+  );
+
+  const handleResetPreferences = useCallback(() => {
+    const def = resetUserPreferences();
+    setPreferences(def);
+    const defaultRec =
+      POPULAR_RECITERS.find((r) => r.id === def.reciterId) || POPULAR_RECITERS[0];
+    setCurrentReciter(defaultRec);
+    setSelectedTranslationId(def.translationId);
+    setSelectedTranslationName(def.translationName);
+    loadChapterData(currentChapterId, undefined, undefined, def.translationId);
+  }, [currentChapterId, loadChapterData]);
 
   const handleToggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
@@ -417,6 +485,7 @@ export default function Home() {
                 currentTranslationName={selectedTranslationName}
                 onOpenReciters={() => setIsRecitersModalOpen(true)}
                 currentReciterName={currentReciter.name}
+                preferences={preferences}
               />
             )}
 
@@ -430,7 +499,7 @@ export default function Home() {
                   setVideoConfig((prev) => ({ ...prev, ...updates }))
                 }
                 currentReciter={currentReciter}
-                onSelectReciter={(r) => setCurrentReciter(r)}
+                onSelectReciter={handleSelectReciter}
                 onBackToReader={() => setActiveTab('reader')}
                 selectedVerseKeys={selectedVerseKeys}
                 selectedTranslationId={selectedTranslationId}
@@ -452,6 +521,16 @@ export default function Home() {
                 theme={theme}
                 onToggleTheme={handleToggleTheme}
                 onGoToStudio={() => setActiveTab('studio')}
+                preferences={preferences}
+                onUpdatePreferences={handleUpdatePreferences}
+                onResetPreferences={handleResetPreferences}
+                currentReciter={currentReciter}
+                onSelectReciter={handleSelectReciter}
+                selectedTranslationId={selectedTranslationId}
+                selectedTranslationName={selectedTranslationName}
+                onSelectTranslation={handleSelectTranslation}
+                onOpenRecitersModal={() => setIsRecitersModalOpen(true)}
+                onOpenTranslationModal={() => setIsTranslationModalOpen(true)}
               />
             )}
           </>
@@ -482,7 +561,7 @@ export default function Home() {
         isOpen={isRecitersModalOpen}
         onClose={() => setIsRecitersModalOpen(false)}
         selectedReciterId={currentReciter.id}
-        onSelectReciter={(r) => setCurrentReciter(r)}
+        onSelectReciter={handleSelectReciter}
       />
 
       {/* Tafsir Ibn Kathir Modal */}
