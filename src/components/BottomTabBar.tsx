@@ -8,7 +8,7 @@ interface BottomTabBarProps {
   setActiveTab: (tab: 'reader' | 'studio' | 'creations' | 'settings') => void;
   selectedVersesCount: number;
   creationsCount?: number;
-  onOpenSettings: () => void;
+  onOpenSettings?: () => void;
 }
 
 export const BottomTabBar: React.FC<BottomTabBarProps> = ({
@@ -16,7 +16,6 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   setActiveTab,
   selectedVersesCount,
   creationsCount = 0,
-  onOpenSettings,
 }) => {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#0B1329]/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800/90 transition-colors safe-bottom">
@@ -92,16 +91,18 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
 
         {/* 4. Settings Page */}
         <button
-          onClick={() => {
-            onOpenSettings();
-          }}
+          onClick={() => setActiveTab('settings')}
           className={`flex flex-col items-center justify-center gap-1 w-16 transition-all active:scale-95 ${
             activeTab === 'settings'
               ? 'text-emerald-600 dark:text-emerald-400 font-bold'
               : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 font-medium'
           }`}
         >
-          <div className="p-1 rounded-xl">
+          <div
+            className={`p-1 rounded-xl transition-all ${
+              activeTab === 'settings' ? 'bg-emerald-500/10' : ''
+            }`}
+          >
             <Settings className="w-5 h-5" />
           </div>
           <span className="text-[10px] tracking-tight">Settings</span>

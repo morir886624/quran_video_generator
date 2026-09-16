@@ -12,7 +12,7 @@ import { ResumeBanner } from '@/components/ResumeBanner';
 import { SurahDrawer } from '@/components/SurahDrawer';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { ReciterModal } from '@/components/ReciterModal';
-import { SettingsModal } from '@/components/SettingsModal';
+import { SettingsView } from '@/components/SettingsView';
 import { TafsirModal } from '@/components/TafsirModal';
 import { SurahInfoModal } from '@/components/SurahInfoModal';
 import { TranslationSelectorModal } from '@/components/TranslationSelectorModal';
@@ -47,7 +47,6 @@ export default function Home() {
   const [creationsCount, setCreationsCount] = useState<number>(0);
   const [isSurahDrawerOpen, setIsSurahDrawerOpen] = useState<boolean>(false);
   const [isRecitersModalOpen, setIsRecitersModalOpen] = useState<boolean>(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isTafsirOpen, setIsTafsirOpen] = useState<boolean>(false);
   const [activeTafsirVerseKey, setActiveTafsirVerseKey] = useState<string | null>(null);
   const [activeTafsirArabic, setActiveTafsirArabic] = useState<string>('');
@@ -440,6 +439,14 @@ export default function Home() {
                 onOpenInStudio={handleLoadProjectSnapshot}
               />
             )}
+
+            {activeTab === 'settings' && (
+              <SettingsView
+                theme={theme}
+                onToggleTheme={handleToggleTheme}
+                onGoToStudio={() => setActiveTab('studio')}
+              />
+            )}
           </>
         )}
       </main>
@@ -452,7 +459,6 @@ export default function Home() {
         }}
         selectedVersesCount={selectedVerseKeys.size}
         creationsCount={creationsCount}
-        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Surah Drawer / Search Modal */}
@@ -493,14 +499,6 @@ export default function Home() {
         onClose={() => setIsTranslationModalOpen(false)}
         selectedTranslationId={selectedTranslationId}
         onSelectTranslation={handleSelectTranslation}
-      />
-
-      {/* App Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        theme={theme}
-        onToggleTheme={handleToggleTheme}
       />
     </div>
   );
