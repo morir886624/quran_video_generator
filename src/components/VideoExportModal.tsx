@@ -92,7 +92,7 @@ export const VideoExportModal: React.FC<VideoExportModalProps> = ({
   const [copiedDesc, setCopiedDesc] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
-  const [statusFeedback, setStatusFeedback] = useState<string | null>(null);
+  const [statusFeedback, setStatusFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
 
   useEffect(() => {
@@ -216,11 +216,14 @@ Generated via Quran.com Video Studio
         filename: exportResult.filename,
         blob: exportResult.blob,
       });
-      setStatusFeedback(res.message);
-      setTimeout(() => setStatusFeedback(null), 4500);
+      setStatusFeedback({ type: 'success', message: res.message });
+      setTimeout(() => setStatusFeedback(null), 5000);
     } catch (err: unknown) {
-      setStatusFeedback(err instanceof Error ? err.message : 'Failed to save video');
-      setTimeout(() => setStatusFeedback(null), 4500);
+      setStatusFeedback({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to save video',
+      });
+      setTimeout(() => setStatusFeedback(null), 5000);
     } finally {
       setIsSaving(false);
     }
@@ -385,9 +388,17 @@ Generated via Quran.com Video Studio
                 </div>
 
                 {statusFeedback && (
-                  <div className="flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 rounded-xl py-2 px-3 animate-in fade-in shadow-sm">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                    <span>{statusFeedback}</span>
+                  <div className={`flex items-center justify-center gap-1.5 text-center text-xs font-semibold rounded-xl py-2.5 px-3.5 animate-in fade-in shadow-sm ${
+                    statusFeedback.type === 'error'
+                      ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800/60'
+                      : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60'
+                  }`}>
+                    {statusFeedback.type === 'error' ? (
+                      <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                    )}
+                    <span>{statusFeedback.message}</span>
                   </div>
                 )}
               </div>

@@ -7,14 +7,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Media } from '@capacitor-community/media';
 
-interface MediaSaverPlugin {
-  saveVideoToGallery(options: {
-    filePath: string;
-    fileName: string;
-  }): Promise<{ success: boolean; uri?: string; path?: string; message?: string }>;
-}
-
-const MediaSaver = registerPlugin<MediaSaverPlugin>('MediaSaver');
+import { MediaSaver, requestAppPermissions } from './permissions';
 
 export interface ExportProgress {
   percent: number;
@@ -359,48 +352,51 @@ export async function saveVideoToDevice({
       }
 
       const base64Data = await blobToBase64(targetBlob);
-
-      // Write in safe chunks to app Cache
-      let fileUri: string;
-      try {
-        fileUri = await writeLargeBase64File(filename, base64Data, Directory.Cache);
-      } catch (cacheErr) {
-        console.warn('Cache write failed, trying Documents:', cacheErr);
-        fileUri = await writeLargeBase64File(filename, base64Data, Directory.Documents);
-      }
-
       const platform = Capacitor.getPlatform();
 
       if (platform === 'android') {
         try {
+          // Request storage & audio permissions like standard Android apps
+          await requestAppPermissions();
+
+          // Save directly to Gallery via native MediaStore using Base64 bytes (no Filesystem EACCES issues)
           const res = await MediaSaver.saveVideoToGallery({
-            filePath: fileUri,
+            base64Data,
             fileName: filename,
           });
 
-          // Clean up cache file safely in background
-          Filesystem.deleteFile({ path: filename, directory: Directory.Cache }).catch(() => {});
-
           return {
             success: true,
-            message: 'Saved to Gallery (Movies/QuranStudio)!',
-            uri: res.uri || fileUri,
+            message: res.message || 'Saved to Gallery (Movies/QuranStudio)!',
+            uri: res.uri,
           };
         } catch (androidErr: unknown) {
-          console.warn('MediaSaver failed, falling back to Share sheet:', androidErr);
-          await Share.share({
-            title: 'Quran Video',
-            text: 'Save Quran video',
-            files: [fileUri],
-            dialogTitle: 'Save Quran Video to Phone',
-          });
-          return {
-            success: true,
-            message: 'Video prepared. Choose Save in menu.',
-            uri: fileUri,
-          };
+          console.warn('Direct MediaSaver save failed, attempting cache fallback:', androidErr);
+
+          let fileUri: string | undefined;
+          try {
+            fileUri = await writeLargeBase64File(filename, base64Data, Directory.Cache);
+          } catch (cacheErr) {
+            console.warn('Cache write failed:', cacheErr);
+          }
+
+          if (fileUri) {
+            await Share.share({
+              title: 'Quran Video',
+              text: 'Save Quran video',
+              files: [fileUri],
+              dialogTitle: 'Save Quran Video to Phone',
+            });
+            return {
+              success: true,
+              message: 'Video prepared. Choose Save in menu.',
+              uri: fileUri,
+            };
+          }
+          throw androidErr;
         }
       } else if (platform === 'ios') {
+        let fileUri = await writeLargeBase64File(filename, base64Data, Directory.Cache);
         try {
           await Media.saveVideo({ path: fileUri });
           Filesystem.deleteFile({ path: filename, directory: Directory.Cache }).catch(() => {});

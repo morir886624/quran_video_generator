@@ -5,6 +5,8 @@ import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { useBackButton, dispatchBackButton } from '@/lib/back-button';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { PermissionPrompt } from '@/components/PermissionPrompt';
+import { requestAppPermissions } from '@/lib/permissions';
 import { Chapter, Reciter, Verse, VideoConfig } from '@/types/quran';
 import { DEFAULT_VIDEO_CONFIG, POPULAR_RECITERS } from '@/lib/constants';
 import { fetchAudioFiles, fetchChapters, fetchVerses } from '@/lib/quran-api';
@@ -116,6 +118,15 @@ export default function Home() {
       }
     };
   }, [activeTab]);
+
+  // Request standard Android permissions (voice, sound, storage) like other Android apps
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const timer = setTimeout(() => {
+      requestAppPermissions().catch(() => {});
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Load theme and user preferences from localStorage on mount
   useEffect(() => {
@@ -500,6 +511,9 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0B1329] text-slate-900 dark:text-slate-100 transition-colors duration-200">
       {/* Offline Status & Reconnection Banner */}
       <OfflineBanner onRetry={() => loadChapterData(currentChapterId || 1)} />
+
+      {/* Android System Permissions Status Prompt */}
+      <PermissionPrompt />
 
       {/* Quran.com Mobile Top Navbar */}
       <QuranNavbar
