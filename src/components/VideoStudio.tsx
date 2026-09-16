@@ -7,12 +7,15 @@ import { BackgroundPicker } from './BackgroundPicker';
 import { TypographyCustomizer } from './TypographyCustomizer';
 import { VideoExportModal } from './VideoExportModal';
 import { ReciterModal } from './ReciterModal';
+import { ProjectsModal } from './ProjectsModal';
+import { ProjectDraft } from '@/lib/storage-db';
 import {
   Download,
   Mic2,
   Palette,
   Type,
   BookOpen,
+  FolderKanban,
 } from 'lucide-react';
 
 interface VideoStudioProps {
@@ -24,6 +27,11 @@ interface VideoStudioProps {
   currentReciter: Reciter;
   onSelectReciter: (reciter: Reciter) => void;
   onBackToReader: () => void;
+  selectedVerseKeys?: Set<string>;
+  selectedTranslationId?: number;
+  onLoadProject?: (project: ProjectDraft) => void;
+  onResetNewProject?: () => void;
+  onViewInCreations?: () => void;
 }
 
 export const VideoStudio: React.FC<VideoStudioProps> = ({
@@ -35,10 +43,16 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   currentReciter,
   onSelectReciter,
   onBackToReader,
+  selectedVerseKeys = new Set(),
+  selectedTranslationId = 20,
+  onLoadProject,
+  onResetNewProject,
+  onViewInCreations,
 }) => {
   const [activeTab, setActiveTab] = useState<'background' | 'typography' | 'reciter'>('background');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isReciterModalOpen, setIsReciterModalOpen] = useState(false);
+  const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
 
   const startAyah = verses[0]?.verse_number || 1;
   const endAyah = verses[verses.length - 1]?.verse_number || 1;
@@ -65,19 +79,27 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         {/* Action Buttons */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
+            onClick={() => setIsProjectsModalOpen(true)}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-all"
+          >
+            <FolderKanban className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Projects</span>
+          </button>
+
+          <button
             onClick={onBackToReader}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-all"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-all"
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span>Select Other Ayahs</span>
+            <span>Ayahs</span>
           </button>
 
           <button
             onClick={() => setIsExportModalOpen(true)}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-950/20 dark:shadow-emerald-950/60 transition-all active:scale-95"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-950/20 dark:shadow-emerald-950/60 transition-all active:scale-95"
           >
             <Download className="w-4 h-4" />
-            <span>Export Video</span>
+            <span>Export</span>
           </button>
         </div>
       </div>
@@ -178,6 +200,8 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         chapter={chapter}
         config={config}
         reciter={currentReciter}
+        selectedTranslationId={selectedTranslationId}
+        onViewInCreations={onViewInCreations}
       />
 
       {/* Reciter Modal */}
@@ -187,6 +211,21 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         selectedReciterId={currentReciter.id}
         onSelectReciter={onSelectReciter}
       />
+
+      {/* Projects & Drafts Modal */}
+      {onLoadProject && onResetNewProject && (
+        <ProjectsModal
+          isOpen={isProjectsModalOpen}
+          onClose={() => setIsProjectsModalOpen(false)}
+          chapter={chapter}
+          selectedVerseKeys={Array.from(selectedVerseKeys)}
+          currentReciter={currentReciter}
+          selectedTranslationId={selectedTranslationId}
+          videoConfig={config}
+          onLoadProject={onLoadProject}
+          onResetNewProject={onResetNewProject}
+        />
+      )}
     </div>
   );
 };

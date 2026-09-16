@@ -7,6 +7,8 @@ import { fetchAudioFiles, fetchChapters, fetchVerses } from '@/lib/quran-api';
 import { QuranNavbar } from '@/components/QuranNavbar';
 import { ReaderView } from '@/components/ReaderView';
 import { VideoStudio } from '@/components/VideoStudio';
+import { CreationsView } from '@/components/CreationsView';
+import { ResumeBanner } from '@/components/ResumeBanner';
 import { SurahDrawer } from '@/components/SurahDrawer';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { ReciterModal } from '@/components/ReciterModal';
@@ -14,6 +16,13 @@ import { SettingsModal } from '@/components/SettingsModal';
 import { TafsirModal } from '@/components/TafsirModal';
 import { SurahInfoModal } from '@/components/SurahInfoModal';
 import { TranslationSelectorModal } from '@/components/TranslationSelectorModal';
+import {
+  ProjectDraft,
+  getActiveSession,
+  saveActiveSession,
+  clearActiveSession,
+  getStorageUsageSummary,
+} from '@/lib/storage-db';
 import { Loader2 } from 'lucide-react';
 
 export default function Home() {
@@ -32,8 +41,10 @@ export default function Home() {
   const [selectedTranslationId, setSelectedTranslationId] = useState<number>(20);
   const [selectedTranslationName, setSelectedTranslationName] = useState<string>('Saheeh International');
 
-  // Modals
-  const [activeTab, setActiveTab] = useState<'reader' | 'studio' | 'reciters'>('studio');
+  // Modals & Navigation
+  const [activeTab, setActiveTab] = useState<'reader' | 'studio' | 'creations' | 'settings'>('studio');
+  const [resumeCandidate, setResumeCandidate] = useState<ProjectDraft | null>(null);
+  const [creationsCount, setCreationsCount] = useState<number>(0);
   const [isSurahDrawerOpen, setIsSurahDrawerOpen] = useState<boolean>(false);
   const [isRecitersModalOpen, setIsRecitersModalOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -235,6 +246,122 @@ export default function Home() {
     document.documentElement.setAttribute('data-theme', nextTheme);
   };
 
+  // ---------------------------------------------------------------------------
+  // PERSISTENCE: Check Previous Session & Storage on Mount
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    getActiveSession()
+      .then((session) => {
+        if (session && session.chapterId && session.verseKeys?.length > 0) {
+          // Check if session has customization or different chapter/verses
+          setResumeCandidate(session);
+        }
+      })
+      .catch((e) => console.warn('Failed to check active session:', e));
+
+    getStorageUsageSummary()
+      .then((usage) => setCreationsCount(usage.videoCount))
+      .catch(() => {});
+  }, []);
+
+  const refreshCreationsCount = useCallback(() => {
+    getStorageUsageSummary()
+      .then((usage) => setCreationsCount(usage.videoCount))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    refreshCreationsCount();
+  }, [activeTab, refreshCreationsCount]);
+
+  // ---------------------------------------------------------------------------
+  // PERSISTENCE: Auto-save active in-progress video session (debounced 1s)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!currentChapter || verses.length === 0 || selectedVerseKeys.size === 0) return;
+
+    const timer = setTimeout(() => {
+      saveActiveSession({
+        title: `Surah ${currentChapter.name_simple} (${selectedVerseKeys.size} ayahs)`,
+        chapterId: currentChapterId,
+        chapterName: currentChapter.name_simple,
+        verseKeys: Array.from(selectedVerseKeys),
+        reciterId: currentReciter.id,
+        reciterName: currentReciter.name,
+        translationId: selectedTranslationId,
+        videoConfig,
+      }).catch((e) => console.warn('Autosave error:', e));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [
+    currentChapter,
+    currentChapterId,
+    selectedVerseKeys,
+    currentReciter,
+    selectedTranslationId,
+    videoConfig,
+    verses.length,
+  ]);
+
+  // ---------------------------------------------------------------------------
+  // Session Resume & Project Handlers
+  // ---------------------------------------------------------------------------
+  const handleResumeSession = async (session: ProjectDraft) => {
+    setResumeCandidate(null);
+    await loadChapterData(session.chapterId);
+    setSelectedVerseKeys(new Set(session.verseKeys));
+    if (session.reciterId) {
+      const rec = POPULAR_RECITERS.find((r) => r.id === session.reciterId);
+      if (rec) setCurrentReciter(rec);
+    }
+    if (session.translationId) {
+      setSelectedTranslationId(session.translationId);
+    }
+    if (session.videoConfig) {
+      setVideoConfig(session.videoConfig);
+    }
+    setActiveTab('studio');
+  };
+
+  const handleDismissResume = () => {
+    setResumeCandidate(null);
+    clearActiveSession().catch(() => {});
+  };
+
+  const handleResetNewProject = () => {
+    setVideoConfig(DEFAULT_VIDEO_CONFIG);
+    const initialKeys = new Set<string>();
+    const maxAyahs = Math.min(verses.length || 5, 5);
+    for (let i = 1; i <= maxAyahs; i++) {
+      initialKeys.add(`${currentChapterId}:${i}`);
+    }
+    setSelectedVerseKeys(initialKeys);
+    clearActiveSession().catch(() => {});
+  };
+
+  const handleLoadProjectSnapshot = async (snapshot: {
+    chapterId: number;
+    verseKeys: string[];
+    reciterId?: number;
+    translationId?: number;
+    videoConfig?: VideoConfig;
+  }) => {
+    await loadChapterData(snapshot.chapterId);
+    setSelectedVerseKeys(new Set(snapshot.verseKeys));
+    if (snapshot.reciterId) {
+      const rec = POPULAR_RECITERS.find((r) => r.id === snapshot.reciterId);
+      if (rec) setCurrentReciter(rec);
+    }
+    if (snapshot.translationId) {
+      setSelectedTranslationId(snapshot.translationId);
+    }
+    if (snapshot.videoConfig) {
+      setVideoConfig(snapshot.videoConfig);
+    }
+    setActiveTab('studio');
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0B1329] text-slate-900 dark:text-slate-100 transition-colors duration-200">
       {/* Quran.com Mobile Top Navbar */}
@@ -247,6 +374,15 @@ export default function Home() {
         theme={theme}
         onToggleTheme={handleToggleTheme}
       />
+
+      {/* Subtle Resume Session Banner */}
+      {(activeTab === 'studio' || activeTab === 'reader') && (
+        <ResumeBanner
+          session={resumeCandidate}
+          onResume={handleResumeSession}
+          onDismiss={handleDismissResume}
+        />
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 w-full">
@@ -273,6 +409,8 @@ export default function Home() {
                 onOpenSurahInfo={() => setIsSurahInfoOpen(true)}
                 onOpenTranslations={() => setIsTranslationModalOpen(true)}
                 currentTranslationName={selectedTranslationName}
+                onOpenReciters={() => setIsRecitersModalOpen(true)}
+                currentReciterName={currentReciter.name}
               />
             )}
 
@@ -288,6 +426,18 @@ export default function Home() {
                 currentReciter={currentReciter}
                 onSelectReciter={(r) => setCurrentReciter(r)}
                 onBackToReader={() => setActiveTab('reader')}
+                selectedVerseKeys={selectedVerseKeys}
+                selectedTranslationId={selectedTranslationId}
+                onLoadProject={handleResumeSession}
+                onResetNewProject={handleResetNewProject}
+                onViewInCreations={() => setActiveTab('creations')}
+              />
+            )}
+
+            {activeTab === 'creations' && (
+              <CreationsView
+                onGoToStudio={() => setActiveTab('studio')}
+                onOpenInStudio={handleLoadProjectSnapshot}
               />
             )}
           </>
@@ -298,13 +448,10 @@ export default function Home() {
       <BottomTabBar
         activeTab={activeTab}
         setActiveTab={(tab) => {
-          if (tab === 'reciters') {
-            setIsRecitersModalOpen(true);
-          } else {
-            setActiveTab(tab);
-          }
+          setActiveTab(tab);
         }}
         selectedVersesCount={selectedVerseKeys.size}
+        creationsCount={creationsCount}
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 

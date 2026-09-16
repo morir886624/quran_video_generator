@@ -8,8 +8,8 @@ import { QuranLogo } from './QuranLogo';
 interface QuranNavbarProps {
   currentChapter: Chapter | null;
   onOpenSurahDrawer: () => void;
-  activeTab: 'reader' | 'studio' | 'reciters';
-  setActiveTab: (tab: 'reader' | 'studio' | 'reciters') => void;
+  activeTab: 'reader' | 'studio' | 'creations' | 'settings';
+  setActiveTab: (tab: 'reader' | 'studio' | 'creations' | 'settings') => void;
   selectedVersesCount: number;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;

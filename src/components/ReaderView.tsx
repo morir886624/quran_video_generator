@@ -17,6 +17,7 @@ import {
   Info,
   Languages,
   Layers,
+  Mic2,
 } from 'lucide-react';
 
 interface ReaderViewProps {
@@ -32,6 +33,8 @@ interface ReaderViewProps {
   onOpenSurahInfo: () => void;
   onOpenTranslations: () => void;
   currentTranslationName: string;
+  onOpenReciters?: () => void;
+  currentReciterName?: string;
 }
 
 export const ReaderView: React.FC<ReaderViewProps> = ({
@@ -47,6 +50,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   onOpenSurahInfo,
   onOpenTranslations,
   currentTranslationName,
+  onOpenReciters,
+  currentReciterName,
 }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [rangeStart, setRangeStart] = useState<number>(1);
@@ -73,7 +78,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
       {/* Surah Action Shortcuts Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4 p-3 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={onOpenSurahInfo}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700/80 transition-all"
@@ -89,6 +94,16 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span className="truncate max-w-[140px]">{currentTranslationName}</span>
           </button>
+
+          {onOpenReciters && (
+            <button
+              onClick={onOpenReciters}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700/80 transition-all"
+            >
+              <Mic2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="truncate max-w-[140px]">{currentReciterName || 'Reciter'}</span>
+            </button>
+          )}
         </div>
 
         <button
