@@ -193,7 +193,7 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
                   onLoadProject(proj);
                   onClose();
                 }}
-                className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800/90 cursor-pointer transition-all flex items-center justify-between group"
+                className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800/90 cursor-pointer transition-all flex items-center justify-between group"
               >
                 <div className="space-y-1">
                   <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
