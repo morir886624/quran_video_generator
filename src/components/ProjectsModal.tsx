@@ -52,12 +52,15 @@ export const ProjectsModal: React.FC<ProjectsModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      loadProjects().then(() => {
-        const defaultTitle = `Surah ${chapter?.name_simple || 'Quran'} (${selectedVerseKeys.length} verses)`;
-        setTitleInput(defaultTitle);
-      });
+      getAllProjects()
+        .then((data) => {
+          setProjects(data);
+          const defaultTitle = `Surah ${chapter?.name_simple || 'Quran'} (${selectedVerseKeys.length} verses)`;
+          setTitleInput(defaultTitle);
+        })
+        .catch(() => {});
     }
-  }, [isOpen, chapter?.name_simple, selectedVerseKeys.length, loadProjects]);
+  }, [isOpen, chapter?.name_simple, selectedVerseKeys.length]);
 
   if (!isOpen) return null;
 

@@ -49,16 +49,16 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
     }`;
 
     const audio = new Audio(audioUrl);
-    setPreviewAudio(audio);
-    setPlayingReciterId(reciter.id);
+    audio.addEventListener('ended', () => {
+      setPlayingReciterId(null);
+    });
 
     audio.play().catch(() => {
       setPlayingReciterId(null);
     });
 
-    audio.onended = () => {
-      setPlayingReciterId(null);
-    };
+    setPreviewAudio(audio);
+    setPlayingReciterId(reciter.id);
   };
 
   const handleClose = () => {

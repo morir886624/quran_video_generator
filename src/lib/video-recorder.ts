@@ -386,7 +386,7 @@ export async function saveVideoToDevice({
             message: 'Saved to Gallery (Movies/QuranStudio)!',
             uri: res.uri || fileUri,
           };
-        } catch (androidErr: any) {
+        } catch (androidErr: unknown) {
           console.warn('MediaSaver failed, falling back to Share sheet:', androidErr);
           await Share.share({
             title: 'Quran Video',
@@ -409,7 +409,7 @@ export async function saveVideoToDevice({
             message: 'Saved to Photos / Camera Roll!',
             uri: fileUri,
           };
-        } catch (iosErr: any) {
+        } catch (iosErr: unknown) {
           console.warn('iOS Media.saveVideo failed, falling back to Share:', iosErr);
           await Share.share({
             title: 'Quran Video',
@@ -424,9 +424,9 @@ export async function saveVideoToDevice({
           };
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to save video natively:', err);
-      throw new Error(err?.message || 'Could not save video to device storage.');
+      throw new Error(err instanceof Error ? err.message : 'Could not save video to device storage.');
     }
   }
 
@@ -473,10 +473,11 @@ export async function shareVideo({
         files: [fileUri],
         dialogTitle: 'Share Quran Video',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
       if (
-        err?.message?.toLowerCase().includes('cancel') ||
-        err?.message?.toLowerCase().includes('dismiss')
+        msg.toLowerCase().includes('cancel') ||
+        msg.toLowerCase().includes('dismiss')
       ) {
         return;
       }
@@ -496,8 +497,8 @@ export async function shareVideo({
           text,
         });
         return;
-      } catch (err: any) {
-        if (err?.name === 'AbortError') return;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') return;
       }
     }
   }

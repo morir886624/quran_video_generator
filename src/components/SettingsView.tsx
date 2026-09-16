@@ -11,7 +11,6 @@ import {
   Info,
   Radio,
   ExternalLink,
-  ShieldCheck,
   CheckCircle2,
   AlertTriangle,
   Loader2,
@@ -50,7 +49,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   useEffect(() => {
-    loadStorage();
+    let isMounted = true;
+    getStorageUsageSummary()
+      .then((summary) => {
+        if (isMounted) {
+          setStorageUsage(summary);
+          setIsLoadingStorage(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setIsLoadingStorage(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleClearVideos = async () => {
@@ -288,3 +302,4 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     </div>
   );
 };
+

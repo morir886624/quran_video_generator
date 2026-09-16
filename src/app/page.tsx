@@ -59,16 +59,18 @@ export default function Home() {
     try {
       const savedTheme = localStorage.getItem('quran_theme') as 'dark' | 'light' | null;
       if (savedTheme) {
-        setTheme(savedTheme);
         if (savedTheme === 'dark') {
           document.documentElement.classList.add('dark');
         } else {
           document.documentElement.classList.remove('dark');
         }
         document.documentElement.setAttribute('data-theme', savedTheme);
+        Promise.resolve().then(() => {
+          setTheme(savedTheme);
+        });
       }
-    } catch (e) {
-      console.error('Failed to load theme:', e);
+    } catch {
+      // ignore
     }
   }, []);
 
@@ -76,18 +78,7 @@ export default function Home() {
   const [activePlayingKey, setActivePlayingKey] = useState<string | null>(null);
   const [singleAyahAudio, setSingleAyahAudio] = useState<HTMLAudioElement | null>(null);
 
-  // 1. Initial load of all 114 Surahs
-  useEffect(() => {
-    fetchChapters()
-      .then((data) => {
-        setChapters(data);
-        const fatihah = data.find((c) => c.id === 1) || data[0];
-        setCurrentChapter(fatihah);
-      })
-      .catch((err) => console.error('Failed to load chapters:', err));
-  }, []);
-
-  // 2. Load Verses when Chapter or Translation Changes
+  // 1. Load Verses when Chapter or Translation Changes
   const loadChapterData = useCallback(
     async (chapterId: number, startAyah?: number, endAyah?: number, transId?: number) => {
       setIsLoadingVerses(true);
@@ -128,11 +119,17 @@ export default function Home() {
     [chapters, currentReciter.id, selectedTranslationId]
   );
 
+  // 2. Initial load of all 114 Surahs and default Chapter
   useEffect(() => {
-    if (chapters.length > 0) {
-      loadChapterData(currentChapterId);
-    }
-  }, [chapters.length, currentChapterId, loadChapterData]);
+    fetchChapters()
+      .then((data) => {
+        setChapters(data);
+        const fatihah = data.find((c) => c.id === 1) || data[0];
+        setCurrentChapter(fatihah);
+        loadChapterData(fatihah ? fatihah.id : 1);
+      })
+      .catch((err) => console.error('Failed to load chapters:', err));
+  }, [loadChapterData]);
 
   // 3. Reload audio map when reciter changes
   useEffect(() => {
@@ -236,7 +233,7 @@ export default function Home() {
     setTheme(nextTheme);
     try {
       localStorage.setItem('quran_theme', nextTheme);
-    } catch (e) {}
+    } catch {}
     if (nextTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {

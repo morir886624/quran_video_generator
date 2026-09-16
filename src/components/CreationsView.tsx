@@ -107,19 +107,47 @@ export const CreationsView: React.FC<CreationsViewProps> = ({
   }, []);
 
   const videoUrlsRef = React.useRef<Record<string, string>>({});
-  videoUrlsRef.current = videoUrls;
 
   useEffect(() => {
-    loadData();
+    videoUrlsRef.current = videoUrls;
+  }, [videoUrls]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    Promise.all([
+      getAllExportedVideos(),
+      getAllProjects(),
+      getStorageUsageSummary(),
+    ])
+      .then(([vids, projs, usage]) => {
+        if (isCancelled) return;
+        setVideos(vids);
+        setDrafts(projs);
+        setStorageUsage(usage);
+        const urls: Record<string, string> = {};
+        vids.forEach((v) => {
+          if (v.videoBlob) {
+            urls[v.id] = URL.createObjectURL(v.videoBlob);
+          }
+        });
+        setVideoUrls(urls);
+        setIsLoading(false);
+      })
+      .catch((e) => {
+        if (isCancelled) return;
+        console.error('Failed to load creations:', e);
+        setIsLoading(false);
+      });
+
     return () => {
-      // Cleanup object URLs
+      isCancelled = true;
       Object.values(videoUrlsRef.current).forEach((url) => {
         try {
           URL.revokeObjectURL(url);
         } catch {}
       });
     };
-  }, [loadData]);
+  }, []);
 
   const handleDeleteVideo = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();

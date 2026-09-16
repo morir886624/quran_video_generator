@@ -17,28 +17,36 @@ export const SurahInfoModal: React.FC<SurahInfoModalProps> = ({
   chapter,
 }) => {
   const [info, setInfo] = useState<{ text: string; shortText: string; source: string } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadedChapterId, setLoadedChapterId] = useState<number | null>(null);
+
+  const isLoading = isOpen && chapter ? loadedChapterId !== chapter.id : false;
 
   useEffect(() => {
-    if (!isOpen || !chapter) {
-      setInfo(null);
-      return;
-    }
+    if (!isOpen || !chapter) return;
 
-    setIsLoading(true);
+    let isMounted = true;
     fetchChapterInfo(chapter.id)
       .then((res) => {
-        setInfo(res);
+        if (isMounted) {
+          setInfo(res);
+          setLoadedChapterId(chapter.id);
+        }
       })
       .catch((err) => {
-        console.error('Error fetching chapter info:', err);
-        setInfo({
-          text: 'Information currently unavailable for this chapter.',
-          shortText: '',
-          source: 'Quran.com',
-        });
-      })
-      .finally(() => setIsLoading(false));
+        if (isMounted) {
+          console.error('Error fetching chapter info:', err);
+          setInfo({
+            text: 'Information currently unavailable for this chapter.',
+            shortText: '',
+            source: 'Quran.com',
+          });
+          setLoadedChapterId(chapter.id);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen, chapter]);
 
   if (!isOpen || !chapter) return null;

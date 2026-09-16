@@ -61,13 +61,28 @@ export const VideoExportModal: React.FC<VideoExportModalProps> = ({
     status: 'Initializing video engine...',
   });
 
-  const [isExporting, setIsExporting] = useState(false);
   const [exportResult, setExportResult] = useState<{
     blob: Blob;
     url: string;
     filename: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSavedToCreations, setIsSavedToCreations] = useState(false);
+
+  const isExporting = isOpen && !exportResult && !error;
+
+  const handleClose = () => {
+    setExportResult(null);
+    setError(null);
+    setProgress({
+      percent: 0,
+      currentAyahIndex: 1,
+      totalAyahs: verses.length,
+      status: 'Initializing video engine...',
+    });
+    setIsSavedToCreations(false);
+    onClose();
+  };
 
   // Copy states
   const [copiedArabic, setCopiedArabic] = useState(false);
@@ -79,7 +94,6 @@ export const VideoExportModal: React.FC<VideoExportModalProps> = ({
   const [isSharing, setIsSharing] = useState(false);
   const [statusFeedback, setStatusFeedback] = useState<string | null>(null);
   const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
-  const [isSavedToCreations, setIsSavedToCreations] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !chapter?.id || !config.showPersianTafsir) return;
@@ -125,18 +139,9 @@ Generated via Quran.com Video Studio
 #Quran #Shorts #Reels #QuranRecitation #Islam #Muslim #AlQuran #IslamicShorts`;
 
   useEffect(() => {
-    if (!isOpen) {
-      setIsExporting(false);
-      setExportResult(null);
-      setError(null);
-      setIsSavedToCreations(false);
-      return;
-    }
+    if (!isOpen) return;
 
     let isCancelled = false;
-    setIsExporting(true);
-    setError(null);
-    setIsSavedToCreations(false);
 
     exportVideo({
       verses,
@@ -152,7 +157,6 @@ Generated via Quran.com Video Studio
       .then(async (res) => {
         if (!isCancelled) {
           setExportResult(res);
-          setIsExporting(false);
 
           // Automatically store in app Creations IndexedDB library
           try {
@@ -192,7 +196,6 @@ Generated via Quran.com Video Studio
         if (!isCancelled) {
           console.error('Video export error:', err);
           setError(err instanceof Error ? err.message : 'Failed to generate video.');
-          setIsExporting(false);
         }
       });
 
@@ -252,7 +255,7 @@ Generated via Quran.com Video Studio
       <div className="relative w-full max-w-2xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-700/90 rounded-3xl shadow-2xl p-5 sm:p-6 flex flex-col max-h-[92vh] overflow-y-auto transition-colors">
         {/* Close Button */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
         >
           <X className="w-5 h-5" />
@@ -330,7 +333,7 @@ Generated via Quran.com Video Studio
                     {onViewInCreations && (
                       <button
                         onClick={() => {
-                          onClose();
+                          handleClose();
                           onViewInCreations();
                         }}
                         className="flex items-center gap-1 font-bold underline hover:opacity-80 transition-opacity"
@@ -508,7 +511,7 @@ Generated via Quran.com Video Studio
             {/* Done Button */}
             <div className="pt-2 text-center">
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-6 py-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-transparent transition-colors"
               >
                 Close Window
