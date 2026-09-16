@@ -3,8 +3,18 @@ import { createParticles, getCanvasDimensions, renderVideoFrame } from './video-
 import { stitchAudioBuffers, StitchedAudioResult } from './audio-stitcher';
 import { fetchPersianTafsirSurah } from './quran-api';
 import { Share } from '@capacitor/share';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Media } from '@capacitor-community/media';
+
+interface MediaSaverPlugin {
+  saveVideoToGallery(options: {
+    filePath: string;
+    fileName: string;
+  }): Promise<{ success: boolean; uri?: string; path?: string; message?: string }>;
+}
+
+const MediaSaver = registerPlugin<MediaSaverPlugin>('MediaSaver');
 
 export interface ExportProgress {
   percent: number;
@@ -350,7 +360,7 @@ export async function saveVideoToDevice({
 
       const base64Data = await blobToBase64(targetBlob);
 
-      // Write in safe chunks to app Cache (always writable on all Android & iOS versions)
+      // Write in safe chunks to app Cache
       let fileUri: string;
       try {
         fileUri = await writeLargeBase64File(filename, base64Data, Directory.Cache);
@@ -359,23 +369,60 @@ export async function saveVideoToDevice({
         fileUri = await writeLargeBase64File(filename, base64Data, Directory.Documents);
       }
 
-      // Open native save/share sheet with the saved file so user can save directly to Gallery, Drive, or files
-      try {
-        await Share.share({
-          title: 'Quran Video',
-          text: 'Save or share your Quran video',
-          files: [fileUri],
-          dialogTitle: 'Save Quran Video to Phone',
-        });
-        return { success: true, message: 'Saved to device! Choose Save in menu.', uri: fileUri };
-      } catch (shareErr: any) {
-        if (
-          shareErr?.message?.toLowerCase().includes('cancel') ||
-          shareErr?.message?.toLowerCase().includes('dismiss')
-        ) {
-          return { success: true, message: 'Saved to device storage.', uri: fileUri };
+      const platform = Capacitor.getPlatform();
+
+      if (platform === 'android') {
+        try {
+          const res = await MediaSaver.saveVideoToGallery({
+            filePath: fileUri,
+            fileName: filename,
+          });
+
+          // Clean up cache file safely in background
+          Filesystem.deleteFile({ path: filename, directory: Directory.Cache }).catch(() => {});
+
+          return {
+            success: true,
+            message: 'Saved to Gallery (Movies/QuranStudio)!',
+            uri: res.uri || fileUri,
+          };
+        } catch (androidErr: any) {
+          console.warn('MediaSaver failed, falling back to Share sheet:', androidErr);
+          await Share.share({
+            title: 'Quran Video',
+            text: 'Save Quran video',
+            files: [fileUri],
+            dialogTitle: 'Save Quran Video to Phone',
+          });
+          return {
+            success: true,
+            message: 'Video prepared. Choose Save in menu.',
+            uri: fileUri,
+          };
         }
-        return { success: true, message: 'Saved to device storage.', uri: fileUri };
+      } else if (platform === 'ios') {
+        try {
+          await Media.saveVideo({ path: fileUri });
+          Filesystem.deleteFile({ path: filename, directory: Directory.Cache }).catch(() => {});
+          return {
+            success: true,
+            message: 'Saved to Photos / Camera Roll!',
+            uri: fileUri,
+          };
+        } catch (iosErr: any) {
+          console.warn('iOS Media.saveVideo failed, falling back to Share:', iosErr);
+          await Share.share({
+            title: 'Quran Video',
+            text: 'Save Quran video',
+            files: [fileUri],
+            dialogTitle: 'Save Quran Video to Photos',
+          });
+          return {
+            success: true,
+            message: 'Choose "Save Video" in menu.',
+            uri: fileUri,
+          };
+        }
       }
     } catch (err: any) {
       console.error('Failed to save video natively:', err);
