@@ -54,6 +54,7 @@ interface VideoPreviewCanvasProps {
   onActiveVerseChange?: (verse: Verse, index: number) => void;
   topBar?: React.ReactNode;
   children?: React.ReactNode;
+  isModalOpen?: boolean;
 }
 
 export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
@@ -64,6 +65,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   onActiveVerseChange,
   topBar,
   children,
+  isModalOpen = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const playerRef = useRef<StitchedAudioPlayer | null>(null);
@@ -145,6 +147,14 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
   }, [currentVerse, currentAyahIndex, onActiveVerseChange]);
 
+  // Automatically pause canvas video playback whenever a modal is opened
+  useEffect(() => {
+    if (isModalOpen && playerRef.current) {
+      playerRef.current.pause();
+      setIsPlaying(false);
+    }
+  }, [isModalOpen]);
+
   // Initialize and stitch audio whenever selected verses or audioUrls change
   useEffect(() => {
     if (audioUrls.length === 0 || verses.length === 0) return;
@@ -155,6 +165,13 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       playerRef.current = new StitchedAudioPlayer();
     }
     const player = playerRef.current;
+
+    // Fully stop any existing playback and reset UI play state on audio change
+    player.stop();
+    setIsPlaying(false);
+    setCurrentAyahIndex(0);
+    setCurrentTime(0);
+    setVerseProgress(0);
 
     const verseKeys = verses.map((v) => v.verse_key);
     player.setFallbackAudio(audioUrls, verseKeys);
@@ -191,6 +208,10 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
     return () => {
       isCancelled = true;
+      if (playerRef.current) {
+        playerRef.current.stop();
+      }
+      setIsPlaying(false);
     };
   }, [audioUrls, verses, currentStitchKey]);
 

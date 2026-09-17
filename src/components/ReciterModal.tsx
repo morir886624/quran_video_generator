@@ -22,13 +22,33 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
   const [playingReciterId, setPlayingReciterId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const stopPreviewAudio = React.useCallback(() => {
+    if (previewAudio) {
+      try {
+        previewAudio.onended = null;
+        previewAudio.onerror = null;
+        previewAudio.pause();
+        previewAudio.removeAttribute('src');
+        previewAudio.src = '';
+        previewAudio.load();
+      } catch {}
+      setPreviewAudio(null);
+    }
+    setPlayingReciterId(null);
+  }, [previewAudio]);
+
+  // Clean up preview audio on unmount or if modal closes
+  React.useEffect(() => {
+    if (!isOpen) {
+      stopPreviewAudio();
+    }
+  }, [isOpen, stopPreviewAudio]);
+
   React.useEffect(() => {
     return () => {
-      if (previewAudio) {
-        previewAudio.pause();
-      }
+      stopPreviewAudio();
     };
-  }, [previewAudio]);
+  }, [stopPreviewAudio]);
 
   if (!isOpen) return null;
 
@@ -36,18 +56,20 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
     e.stopPropagation();
 
     if (previewAudio) {
-      previewAudio.pause();
+      stopPreviewAudio();
       if (playingReciterId === reciter.id) {
-        setPlayingReciterId(null);
         return;
       }
     }
 
     const audioUrl = getReciterPreviewUrl(reciter);
     const audio = new Audio(audioUrl);
-    audio.addEventListener('ended', () => {
+    audio.onended = () => {
       setPlayingReciterId(null);
-    });
+    };
+    audio.onerror = () => {
+      setPlayingReciterId(null);
+    };
 
     audio.play().catch(() => {
       setPlayingReciterId(null);
@@ -58,8 +80,7 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
   };
 
   const handleClose = () => {
-    if (previewAudio) previewAudio.pause();
-    setPlayingReciterId(null);
+    stopPreviewAudio();
     setSearchQuery('');
     onClose();
   };
@@ -137,6 +158,7 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
                 <div
                   key={reciter.id}
                   onClick={() => {
+                    stopPreviewAudio();
                     onSelectReciter(reciter);
                     handleClose();
                   }}

@@ -106,6 +106,8 @@ export class StitchedAudioPlayer {
 
   private currentAudioEl: HTMLAudioElement | null = null;
   private nextAudioEl: HTMLAudioElement | null = null;
+  private metadataLoaders: HTMLAudioElement[] = [];
+  private playSessionId = 0;
 
   public onTimeUpdate?: (
     currentTime: number,
@@ -126,6 +128,40 @@ export class StitchedAudioPlayer {
     return new AudioCtxClass();
   }
 
+  /**
+   * Safely and completely disconnects, pauses, silences, and purges an HTMLAudioElement.
+   */
+  private cleanupAudioElement(el: HTMLAudioElement | null) {
+    if (!el) return;
+    try {
+      el.onended = null;
+      el.onerror = null;
+      el.ontimeupdate = null;
+      el.oncanplay = null;
+      el.onloadedmetadata = null;
+      el.pause();
+      el.removeAttribute('src');
+      el.src = '';
+      el.load();
+    } catch {}
+  }
+
+  /**
+   * Immediately invalidates all pending playback chains and purges active and preloaded elements.
+   */
+  private cleanupAllAudio() {
+    this.playSessionId++;
+    this.cleanupAudioElement(this.currentAudioEl);
+    this.currentAudioEl = null;
+    this.cleanupAudioElement(this.nextAudioEl);
+    this.nextAudioEl = null;
+
+    for (const loader of this.metadataLoaders) {
+      this.cleanupAudioElement(loader);
+    }
+    this.metadataLoaders = [];
+  }
+
   public setFallbackAudio(audioUrls: string[], verseKeys: string[]) {
     this.setAudio(audioUrls, verseKeys);
   }
@@ -144,7 +180,7 @@ export class StitchedAudioPlayer {
   }
 
   public setAudio(audioUrls: string[], verseKeys: string[]) {
-    const wasPlaying = this.isPlaying;
+    // 1. Immediately terminate and purge all previous audio elements and pending promises
     this.stop();
 
     this.audioUrls = [...audioUrls];
@@ -153,12 +189,15 @@ export class StitchedAudioPlayer {
     this.verseDurations = new Array(audioUrls.length).fill(5); // Default estimate: 5s
     this.recomputeSegments();
 
+    const currentSession = this.playSessionId;
+
     // Preload audio metadata to record exact durations
-    audioUrls.forEach((url, i) => {
+    this.metadataLoaders = audioUrls.map((url, i) => {
       const a = new Audio();
       a.preload = 'metadata';
       a.src = url;
       a.onloadedmetadata = () => {
+        if (currentSession !== this.playSessionId) return;
         if (a.duration && !isNaN(a.duration) && a.duration > 0) {
           this.verseDurations[i] = a.duration;
           this.recomputeSegments();
@@ -167,13 +206,10 @@ export class StitchedAudioPlayer {
           }
         }
       };
+      return a;
     });
 
-    if (wasPlaying) {
-      this.play(0);
-    } else {
-      this.emitCurrentTime();
-    }
+    this.emitCurrentTime();
   }
 
   private recomputeSegments() {
@@ -206,21 +242,19 @@ export class StitchedAudioPlayer {
   }
 
   private async playCurrentAyah(): Promise<void> {
+    const session = this.playSessionId;
     const url = this.audioUrls[this.currentAyahIndex];
-    if (!url) {
+    if (!url || !this.isPlaying) {
       this.isPlaying = false;
       this.stopTracking();
-      this.onEnded?.();
+      if (!url) this.onEnded?.();
       return;
     }
 
-    // Stop and cleanup previously active element
+    // Stop and cleanup previously active element completely
     if (this.currentAudioEl) {
-      try {
-        this.currentAudioEl.pause();
-        this.currentAudioEl.onended = null;
-        this.currentAudioEl.onerror = null;
-      } catch {}
+      this.cleanupAudioElement(this.currentAudioEl);
+      this.currentAudioEl = null;
     }
 
     // Reuse preloaded next audio element if it matches target URL
@@ -228,10 +262,16 @@ export class StitchedAudioPlayer {
       this.currentAudioEl = this.nextAudioEl;
       this.nextAudioEl = null;
     } else {
+      if (this.nextAudioEl) {
+        this.cleanupAudioElement(this.nextAudioEl);
+        this.nextAudioEl = null;
+      }
       this.currentAudioEl = new Audio(url);
     }
 
     const audio = this.currentAudioEl;
+    if (!audio) return;
+
     audio.volume = this.isMuted ? 0 : this.currentVolume;
 
     // Preload next Ayah audio in the background for zero gap
@@ -243,6 +283,10 @@ export class StitchedAudioPlayer {
     }
 
     audio.onended = () => {
+      if (session !== this.playSessionId || !this.isPlaying) {
+        this.cleanupAudioElement(audio);
+        return;
+      }
       if (this.currentAyahIndex < this.audioUrls.length - 1) {
         this.currentAyahIndex++;
         this.playCurrentAyah();
@@ -256,6 +300,10 @@ export class StitchedAudioPlayer {
     };
 
     audio.onerror = (e) => {
+      if (session !== this.playSessionId || !this.isPlaying) {
+        this.cleanupAudioElement(audio);
+        return;
+      }
       console.warn('Audio playback warning on url:', url, e);
       if (this.currentAyahIndex < this.audioUrls.length - 1) {
         this.currentAyahIndex++;
@@ -268,14 +316,27 @@ export class StitchedAudioPlayer {
     };
 
     try {
-      await audio.play();
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        await playPromise;
+      }
     } catch (err) {
+      if (session !== this.playSessionId || !this.isPlaying) {
+        // Interrupted by reciter switch or pause, ignore
+        return;
+      }
       console.warn('Audio play request interrupted or requires user gesture:', err);
+    }
+
+    if (session !== this.playSessionId || !this.isPlaying) {
+      this.cleanupAudioElement(audio);
+      return;
     }
   }
 
   public pause() {
     this.isPlaying = false;
+    this.playSessionId++; // Invalidate pending playCurrentAyah async chains
     if (this.currentAudioEl) {
       try {
         this.currentAudioEl.pause();
@@ -287,12 +348,7 @@ export class StitchedAudioPlayer {
 
   public stop() {
     this.isPlaying = false;
-    if (this.currentAudioEl) {
-      try {
-        this.currentAudioEl.pause();
-        this.currentAudioEl.currentTime = 0;
-      } catch {}
-    }
+    this.cleanupAllAudio();
     this.currentAyahIndex = 0;
     this.stopTracking();
     this.emitCurrentTime();
@@ -321,11 +377,7 @@ export class StitchedAudioPlayer {
 
     const url = this.audioUrls[targetIndex];
     if (!this.currentAudioEl || this.currentAudioEl.src !== url) {
-      if (this.currentAudioEl) {
-        try {
-          this.currentAudioEl.pause();
-        } catch {}
-      }
+      this.cleanupAudioElement(this.currentAudioEl);
       this.currentAudioEl = new Audio(url);
       this.currentAudioEl.volume = this.isMuted ? 0 : this.currentVolume;
     }
@@ -348,11 +400,7 @@ export class StitchedAudioPlayer {
     this.currentAyahIndex = clamped;
 
     const url = this.audioUrls[clamped];
-    if (this.currentAudioEl) {
-      try {
-        this.currentAudioEl.pause();
-      } catch {}
-    }
+    this.cleanupAudioElement(this.currentAudioEl);
     this.currentAudioEl = new Audio(url);
     this.currentAudioEl.volume = this.isMuted ? 0 : this.currentVolume;
 
@@ -423,20 +471,8 @@ export class StitchedAudioPlayer {
 
   public destroy() {
     this.stop();
-    if (this.currentAudioEl) {
-      try {
-        this.currentAudioEl.pause();
-        this.currentAudioEl.src = '';
-      } catch {}
-      this.currentAudioEl = null;
-    }
-    if (this.nextAudioEl) {
-      try {
-        this.nextAudioEl.pause();
-        this.nextAudioEl.src = '';
-      } catch {}
-      this.nextAudioEl = null;
-    }
     this.stopTracking();
+    this.onTimeUpdate = undefined;
+    this.onEnded = undefined;
   }
 }

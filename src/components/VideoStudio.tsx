@@ -252,6 +252,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         audioUrls={audioUrls}
         chapter={chapter}
         config={config}
+        isModalOpen={isReciterModalOpen || isExportModalOpen || isProjectsModalOpen}
         topBar={
           <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white/95 dark:bg-[#0E1626] border-b border-slate-200/90 dark:border-slate-800/80 transition-colors z-20">
             {/* Verses Selector */}

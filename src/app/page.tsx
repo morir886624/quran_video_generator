@@ -224,8 +224,10 @@ export default function Home() {
   // 3. Reload audio map when reciter changes
   useEffect(() => {
     if (currentChapterId) {
+      let isCancelled = false;
       fetchAudioFiles(currentReciter.id, currentChapterId, currentReciter.audioSubfolder)
         .then((files) => {
+          if (isCancelled) return;
           const map: Record<string, string> = {};
           files.forEach((f) => {
             map[f.verse_key] = f.url;
@@ -233,6 +235,10 @@ export default function Home() {
           setChapterAudioMap(map);
         })
         .catch((e) => console.error('Error updating audio files:', e));
+
+      return () => {
+        isCancelled = true;
+      };
     }
   }, [currentReciter, currentChapterId]);
 
@@ -335,14 +341,28 @@ export default function Home() {
     setIsTafsirOpen(true);
   };
 
-  const handleSelectReciter = useCallback((rec: Reciter) => {
-    setCurrentReciter(rec);
-    setPreferences((prev) => {
-      const next = { ...prev, reciterId: rec.id };
-      saveUserPreferences({ reciterId: rec.id });
-      return next;
-    });
-  }, []);
+  const handleSelectReciter = useCallback(
+    (rec: Reciter) => {
+      if (singleAyahAudio) {
+        try {
+          singleAyahAudio.pause();
+          singleAyahAudio.removeAttribute('src');
+          singleAyahAudio.src = '';
+          singleAyahAudio.load();
+        } catch {}
+        setSingleAyahAudio(null);
+      }
+      setActivePlayingKey(null);
+      setChapterAudioMap({}); // Reset audio map immediately so stale reciter URLs are not reused
+      setCurrentReciter(rec);
+      setPreferences((prev) => {
+        const next = { ...prev, reciterId: rec.id };
+        saveUserPreferences({ reciterId: rec.id });
+        return next;
+      });
+    },
+    [singleAyahAudio]
+  );
 
   const handleSelectTranslation = useCallback(
     (id: number, name: string) => {
