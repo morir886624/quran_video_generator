@@ -495,29 +495,147 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         {/* TAB 2: TYPOGRAPHY */}
         {activeTab === 'typography' && (
           <div className="space-y-2.5 animate-in fade-in duration-150">
-            <span className="text-xs font-bold text-slate-900 dark:text-white tracking-wide block">
-              Arabic Font Style
-            </span>
-            <div className="grid grid-cols-3 gap-2">
-              {(['Amiri Quran', 'Scheherazade New', 'Amiri'] as const).map((font) => {
-                const isSelected = config.arabicFontFamily === font;
-                return (
-                  <button
-                    key={font}
-                    onClick={() => onChangeConfig({ arabicFontFamily: font })}
-                    className={`p-2 rounded-xl border text-center transition-all ${
-                      isSelected
-                        ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 ring-1 ring-emerald-500/30'
-                        : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                  >
-                    <span className="block text-sm font-quran font-bold mb-0.5">
-                      بِسْمِ اللَّهِ
-                    </span>
-                    <span className="text-[9px] truncate block">{font}</span>
-                  </button>
-                );
-              })}
+            {/* Translation & Subtitles with 1st/2nd Order and Cadre Selection */}
+            <div className="space-y-2 rounded-2xl bg-slate-50 dark:bg-[#08101E] border border-slate-200/90 dark:border-slate-800/80 p-2.5 transition-colors">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 dark:text-white tracking-wide">
+                  Translation &amp; Subtitles
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextShow = !config.showTranslation && !config.showPersianTafsir;
+                    onChangeConfig({
+                      showTranslation: nextShow,
+                      showPersianTafsir: nextShow ? config.showPersianTafsir : false,
+                    });
+                  }}
+                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition-all ${
+                    config.showTranslation || config.showPersianTafsir
+                      ? 'bg-emerald-500/15 border-emerald-500 dark:border-emerald-400 text-emerald-700 dark:text-emerald-400'
+                      : 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-500'
+                  }`}
+                >
+                  {config.showTranslation || config.showPersianTafsir ? 'Active' : 'Off'}
+                </button>
+              </div>
+
+              {/* Order 1: First Subtitle under Arabic */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>1st Order (Directly under Verses)</span>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Top</span>
+                </label>
+                <select
+                  value={
+                    !config.showTranslation && !config.showPersianTafsir
+                      ? 'none'
+                      : config.persianTafsirPosition === 'above' && config.showPersianTafsir
+                      ? config.persianTafsirEdition
+                      : config.showTranslation
+                      ? 'translation-main'
+                      : config.showPersianTafsir
+                      ? config.persianTafsirEdition
+                      : 'none'
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'none') {
+                      onChangeConfig({ showTranslation: false, showPersianTafsir: false });
+                    } else if (val === 'translation-main') {
+                      onChangeConfig({
+                        showTranslation: true,
+                        persianTafsirPosition: 'under',
+                      });
+                    } else if (val === 'persian-mokhtasar' || val === 'fr-tafsir-as-saadi') {
+                      onChangeConfig({
+                        showPersianTafsir: true,
+                        persianTafsirEdition: val,
+                        persianTafsirPosition: 'above',
+                      });
+                    }
+                  }}
+                  className="w-full text-xs font-semibold rounded-xl bg-white dark:bg-[#0B1325] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs"
+                >
+                  <option value="translation-main">Translation (English - Saheeh Int.)</option>
+                  <option value="persian-mokhtasar">Persian (Tafsir-e-Mokhtasar)</option>
+                  <option value="fr-tafsir-as-saadi">French (Tafsir As-Sa'di)</option>
+                  <option value="none">None (Hidden)</option>
+                </select>
+              </div>
+
+              {/* Order 2: Second Subtitle under First */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>2nd Order (Below 1st Translation)</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">Bottom</span>
+                </label>
+                <select
+                  value={
+                    config.persianTafsirPosition === 'above'
+                      ? config.showTranslation
+                        ? 'translation-main'
+                        : 'none'
+                      : config.showPersianTafsir
+                      ? config.persianTafsirEdition
+                      : 'none'
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'none') {
+                      if (config.persianTafsirPosition === 'above') {
+                        onChangeConfig({ showTranslation: false });
+                      } else {
+                        onChangeConfig({ showPersianTafsir: false });
+                      }
+                    } else if (val === 'translation-main') {
+                      onChangeConfig({
+                        showTranslation: true,
+                        persianTafsirPosition: 'above',
+                      });
+                    } else if (val === 'persian-mokhtasar' || val === 'fr-tafsir-as-saadi') {
+                      onChangeConfig({
+                        showPersianTafsir: true,
+                        persianTafsirEdition: val,
+                        persianTafsirPosition: 'under',
+                      });
+                    }
+                  }}
+                  className="w-full text-xs font-semibold rounded-xl bg-white dark:bg-[#0B1325] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs"
+                >
+                  <option value="none">None (Single Subtitle)</option>
+                  <option value="persian-mokhtasar">Persian (Tafsir-e-Mokhtasar)</option>
+                  <option value="fr-tafsir-as-saadi">French (Tafsir As-Sa'di)</option>
+                  <option value="translation-main">Translation (English - Saheeh Int.)</option>
+                </select>
+              </div>
+
+              {/* Backdrop Cadre (Card) Style selector */}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                  Backdrop Cadre (Card)
+                </span>
+                <select
+                  value={
+                    config.overlayOpacity === 0
+                      ? 'none'
+                      : config.overlayOpacity === 0.75
+                      ? 'solid'
+                      : 'glass'
+                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    onChangeConfig({
+                      overlayOpacity: v === 'none' ? 0 : v === 'solid' ? 0.75 : 0.48,
+                    });
+                  }}
+                  className="text-[11px] font-semibold rounded-lg bg-white dark:bg-[#0B1325] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="glass">Glass Card (Default)</option>
+                  <option value="solid">Dark Card</option>
+                  <option value="none">None (Transparent)</option>
+                </select>
+              </div>
             </div>
 
             {/* Arabic Font Size Slider */}

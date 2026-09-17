@@ -368,13 +368,16 @@ function drawCenterVerse(
   const cardX = (width - cardWidth) / 2;
   const cardY = startArabicY - arabicLineHeight / 2 - cardPadY;
 
-  ctx.fillStyle = 'rgba(10, 15, 30, 0.48)';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.roundRect(cardX, cardY, cardWidth, cardHeight, 28);
-  ctx.fill();
-  ctx.stroke();
+  const cadreAlpha = config.overlayOpacity !== undefined ? config.overlayOpacity : 0.48;
+  if (cadreAlpha > 0) {
+    ctx.fillStyle = `rgba(10, 15, 30, ${cadreAlpha})`;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardWidth, cardHeight, 28);
+    ctx.fill();
+    ctx.stroke();
+  }
 
   // Glow Effect behind Arabic text
   if (config.glowEffect) {
