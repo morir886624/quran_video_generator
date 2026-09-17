@@ -543,8 +543,8 @@ export default function Home() {
         onToggleTheme={handleToggleTheme}
       />
 
-      {/* Subtle Resume Session Banner */}
-      {(activeTab === 'studio' || activeTab === 'reader') && (
+      {/* Subtle Resume Session Banner - only on reader page */}
+      {activeTab === 'reader' && (
         <ResumeBanner
           session={resumeCandidate}
           onResume={handleResumeSession}
