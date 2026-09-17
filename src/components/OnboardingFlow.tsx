@@ -77,6 +77,23 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
     }
   };
 
+  // Lock background body and html scroll when onboarding is mounted
+  useEffect(() => {
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalTouchAction = document.body.style.touchAction;
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.touchAction = originalTouchAction;
+    };
+  }, []);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -115,7 +132,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
     <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="fixed inset-0 z-50 flex flex-col justify-between bg-gradient-to-b from-white via-slate-50 to-emerald-50/25 dark:from-[#0B1329] dark:via-[#0F172A] dark:to-[#070B16] text-slate-900 dark:text-slate-100 overflow-hidden select-none safe-top safe-bottom transition-colors duration-300"
+      onWheel={(e) => e.stopPropagation()}
+      className="fixed inset-0 z-[100] flex flex-col justify-between bg-[#F8FAFC] dark:bg-[#0B1329] bg-gradient-to-b from-white via-[#F8FAFC] to-[#ECFDF5] dark:from-[#0B1329] dark:via-[#0F172A] dark:to-[#070B16] text-slate-900 dark:text-slate-100 overflow-hidden select-none safe-top safe-bottom transition-colors duration-300 overscroll-none touch-pan-x"
     >
       {/* --------------------------------------------------------------------- */}
       {/* TOP HEADER / STEP INDICATOR BAR                                       */}

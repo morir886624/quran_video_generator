@@ -508,7 +508,11 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0B1329] text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div
+      className={`min-h-screen flex flex-col bg-slate-50 dark:bg-[#0B1329] text-slate-900 dark:text-slate-100 transition-colors duration-200 ${
+        showOnboarding ? 'h-screen overflow-hidden' : ''
+      }`}
+    >
       {/* Offline Status & Reconnection Banner */}
       <OfflineBanner onRetry={() => loadChapterData(currentChapterId || 1)} />
 
