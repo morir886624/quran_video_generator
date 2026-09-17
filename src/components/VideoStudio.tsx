@@ -218,61 +218,45 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
   return (
     <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 py-2 pb-24 transition-colors">
-      {/* Top Header Bar */}
-      <div className="flex items-center justify-between gap-2 mb-3 p-2.5 sm:p-3 rounded-2xl bg-white/95 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-xs dark:shadow-md transition-colors">
-        <button
-          onClick={onBackToReader}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all shadow-2xs"
-        >
-          <BookOpen className="w-3.5 h-3.5" />
-          <span>Ayahs</span>
-        </button>
-
-        <div className="text-center">
-          <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center justify-center gap-1.5">
-            <span>{chapter?.name_simple || 'Surah'}</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-mono text-xs">
-              ({startAyah === endAyah ? `Ayah ${startAyah}` : `Ayahs ${startAyah}–${endAyah}`})
-            </span>
-          </h2>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          {/* Quick Light/Dark Toggle Button */}
-          <button
-            onClick={handleThemeToggle}
-            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all shadow-2xs"
-            title="Toggle Light / Dark Theme"
-          >
-            <Sun className="w-3.5 h-3.5 hidden dark:block text-amber-400" />
-            <Moon className="w-3.5 h-3.5 block dark:hidden text-slate-700" />
-          </button>
-
-          <button
-            onClick={() => setIsProjectsModalOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all shadow-2xs"
-            title="Projects"
-          >
-            <FolderKanban className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="hidden sm:inline">Projects</span>
-          </button>
-
-          <button
-            onClick={() => setIsExportModalOpen(true)}
-            className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition-all active:scale-95"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export</span>
-          </button>
-        </div>
-      </div>
-
       {/* Main Studio Frame Mockup (Responsive to Light & Dark Mode) */}
       <VideoPreviewCanvas
         verses={verses}
         audioUrls={audioUrls}
         chapter={chapter}
         config={config}
+        topBar={
+          <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white/95 dark:bg-[#0E1626] border-b border-slate-200/90 dark:border-slate-800/80 transition-colors z-20">
+            {/* Verses Selector */}
+            <button
+              onClick={onBackToReader}
+              className="flex items-center gap-1.5 min-w-0 hover:opacity-85 active:scale-95 transition-all text-left"
+              title="Change selected verses"
+            >
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0 shadow-2xs border border-slate-200/60 dark:border-slate-700/60 transition-colors">
+                <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Ayahs</span>
+              </div>
+
+              <div className="flex items-baseline gap-1 min-w-0 truncate pl-0.5">
+                <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                  {chapter?.name_simple || 'Surah'}
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-mono text-[11px] font-semibold shrink-0">
+                  ({startAyah === endAyah ? `Ayah ${startAyah}` : `Ayahs ${startAyah}–${endAyah}`})
+                </span>
+              </div>
+            </button>
+
+            {/* Export Button */}
+            <button
+              onClick={() => setIsExportModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export</span>
+            </button>
+          </div>
+        }
       >
         {/* Top 4 Segmented Category Tabs Bar */}
         <div className="grid grid-cols-4 gap-1 pb-1">
@@ -730,29 +714,49 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
             </div>
 
-            {/* Custom media file or Reset */}
-            <div className="flex items-center justify-between pt-1">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
-              >
-                <Upload className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Upload Media</span>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,video/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
+            {/* Custom media file, Projects, Theme or Reset */}
+            <div className="flex items-center justify-between gap-1.5 pt-1 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
+                >
+                  <Upload className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Media</span>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+
+                <button
+                  onClick={() => setIsProjectsModalOpen(true)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
+                  title="Projects & Drafts"
+                >
+                  <FolderKanban className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Projects</span>
+                </button>
+
+                <button
+                  onClick={handleThemeToggle}
+                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors"
+                  title="Toggle Light / Dark Theme"
+                >
+                  <Sun className="w-3.5 h-3.5 hidden dark:block text-amber-400" />
+                  <Moon className="w-3.5 h-3.5 block dark:hidden text-slate-700" />
+                </button>
+              </div>
 
               <button
                 onClick={handleResetDefaults}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Reset All</span>
+                <span>Reset</span>
               </button>
             </div>
           </div>

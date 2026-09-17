@@ -52,6 +52,7 @@ interface VideoPreviewCanvasProps {
   chapter: Chapter | null;
   config: VideoConfig;
   onActiveVerseChange?: (verse: Verse, index: number) => void;
+  topBar?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -61,6 +62,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   chapter,
   config,
   onActiveVerseChange,
+  topBar,
   children,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -315,6 +317,9 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
   return (
     <div className="w-full max-w-[380px] sm:max-w-[395px] mx-auto rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-2xl shadow-slate-300/40 dark:shadow-black overflow-hidden flex flex-col relative transition-all">
+      {/* Joint Top Bar at the top of the video frame */}
+      {topBar}
+
       {/* Video Canvas Container (Top Half) */}
       <div
         className={`relative w-full flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 ease-in-out ${
