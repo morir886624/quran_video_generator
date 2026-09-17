@@ -63,10 +63,6 @@ public class MediaSaverPlugin extends Plugin {
     private static final String TAG = "MediaSaverPlugin";
     private static final int PERMISSION_REQ_CODE = 9081;
 
-    // Temporary chunk assembly state
-    private File tempChunkFile = null;
-    private FileOutputStream tempChunkFos = null;
-
     /**
      * Checks current status of Sound/Voice and Media/Storage permissions.
      */
@@ -157,22 +153,28 @@ public class MediaSaverPlugin extends Plugin {
     }
 
     /**
-     * Safely decodes Base64 string with automatic padding and URL-safe handling.
+     * Safely decodes Base64 string with automatic padding and standard NO_WRAP decoding.
      */
     private byte[] safeDecodeBase64(String input) {
         String clean = input.trim();
         if (clean.contains(",")) {
             clean = clean.substring(clean.indexOf(',') + 1);
         }
-        clean = clean.replaceAll("\\s+", "");
+        // Normalize any URL-safe characters to standard Base64 alphabet
+        clean = clean.replace('-', '+').replace('_', '/');
+        // Strip any whitespace or non-base64 characters
+        clean = clean.replaceAll("[^A-Za-z0-9+/=]", "");
+        // Pad to multiple of 4
         while (clean.length() % 4 != 0) {
             clean += "=";
         }
-        return Base64.decode(clean, Base64.NO_WRAP | Base64.URL_SAFE);
+        // Decode using standard alphabet (Base64.NO_WRAP)
+        return Base64.decode(clean, Base64.NO_WRAP);
     }
 
     /**
-     * Saves video chunk-by-chunk to prevent WebView bridge payload overflow and truncation.
+     * Saves video chunk-by-chunk directly into app cache and appends bytes.
+     * On final chunk, moves the complete file into MediaStore (Movies/QuranStudio).
      */
     @PluginMethod
     public void saveVideoChunk(PluginCall call) {
@@ -194,33 +196,33 @@ public class MediaSaverPlugin extends Plugin {
         }
         fileName = fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
 
+        File tempFile = null;
         try {
             byte[] decodedBytes = safeDecodeBase64(chunk);
             Context context = getContext();
+            File cacheDir = context.getCacheDir();
+            tempFile = new File(cacheDir, "temp_quran_" + fileName);
 
-            if (isFirst || tempChunkFile == null || tempChunkFos == null) {
-                if (tempChunkFos != null) {
-                    try { tempChunkFos.close(); } catch (Exception ignored) {}
-                }
-                tempChunkFile = new File(context.getCacheDir(), "temp_quran_chunk_" + System.currentTimeMillis() + ".mp4");
-                tempChunkFos = new FileOutputStream(tempChunkFile, false);
+            if (isFirst && tempFile.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                tempFile.delete();
             }
 
-            tempChunkFos.write(decodedBytes);
-            tempChunkFos.flush();
+            // Append chunk bytes to the temporary file
+            try (FileOutputStream fos = new FileOutputStream(tempFile, true)) {
+                fos.write(decodedBytes);
+                fos.flush();
+            }
 
             if (isLast) {
-                tempChunkFos.close();
-                tempChunkFos = null;
-
                 // Transfer assembled file directly to MediaStore
-                saveFileToGalleryInternal(tempChunkFile, fileName, call);
+                saveFileToGalleryInternal(tempFile, fileName, call);
 
                 // Clean up temp file
-                if (tempChunkFile != null && tempChunkFile.exists()) {
-                    tempChunkFile.delete();
+                if (tempFile.exists()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    tempFile.delete();
                 }
-                tempChunkFile = null;
             } else {
                 JSObject ret = new JSObject();
                 ret.put("chunkSaved", true);
@@ -228,13 +230,9 @@ public class MediaSaverPlugin extends Plugin {
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in saveVideoChunk", e);
-            if (tempChunkFos != null) {
-                try { tempChunkFos.close(); } catch (Exception ignored) {}
-                tempChunkFos = null;
-            }
-            if (tempChunkFile != null && tempChunkFile.exists()) {
-                tempChunkFile.delete();
-                tempChunkFile = null;
+            if (tempFile != null && tempFile.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                tempFile.delete();
             }
             call.reject("Failed to save video: " + e.getMessage());
         }
@@ -342,6 +340,7 @@ public class MediaSaverPlugin extends Plugin {
             File moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
             File quranDir = new File(moviesDir, "QuranStudio");
             if (!quranDir.exists()) {
+                //noinspection ResultOfMethodCallIgnored
                 quranDir.mkdirs();
             }
             File destFile = new File(quranDir, fileName);
