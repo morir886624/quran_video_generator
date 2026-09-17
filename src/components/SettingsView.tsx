@@ -1024,6 +1024,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               )}
 
+              {/* Quran.com Attribution Card */}
+              <div className="p-3.5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-950/20 border border-emerald-500/20 dark:border-emerald-500/25 space-y-1 text-slate-700 dark:text-slate-300">
+                <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white">
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Quran Data &amp; Attribution</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded font-bold">
+                    Powered by Quran.com API
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                  This application is an independent video creation studio built using the verified <strong>Quran.com Public REST API v4</strong> for authentic Mushaf calligraphy, ayah audio, translations, and tafsir.
+                </p>
+              </div>
+
               <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/90">
                 <span className="font-semibold text-slate-900 dark:text-white">
                   Privacy Policy

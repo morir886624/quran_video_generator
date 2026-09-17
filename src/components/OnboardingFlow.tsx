@@ -217,10 +217,10 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
         {/* =================================================================== */}
         {currentStep === 0 && (
           <div className="w-full flex flex-col items-center justify-center space-y-4 sm:space-y-5 animate-in fade-in zoom-in-95 duration-300">
-            {/* AI-Powered Tag */}
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/25 text-emerald-800 dark:text-emerald-300 text-[11px] font-extrabold uppercase tracking-wider shadow-sm">
+            {/* Quran Reels & Shorts Studio Tag */}
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/25 text-emerald-800 dark:text-emerald-300 text-[11px] font-extrabold uppercase tracking-wider shadow-sm">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>AI-Powered Video Studio</span>
+              <span>Quran Reels &amp; Shorts Studio</span>
             </div>
 
             {/* App Icon Rounded Container */}
@@ -246,14 +246,14 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 
             {/* Feature Specs Pills Row */}
             <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/25 text-emerald-700 dark:text-emerald-400 font-bold">
+                ✦ Powered by Quran.com API
+              </span>
               <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80">
                 ✦ 1080×1920 60FPS
               </span>
               <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80">
                 ✦ Gapless Reciters
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80">
-                ✦ 1-Click SEO
               </span>
             </div>
 
@@ -263,7 +263,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
                 Inspire with Every Ayah
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-sm mx-auto">
-                Transform sacred Quranic recitations into breathtaking 9:16 cinematic short videos for TikTok, Reels &amp; Shorts with zero hassle.
+                Create breathtaking 9:16 cinematic short videos for TikTok, Reels &amp; Shorts. Authentic verses, audio, and translations powered by the official Quran.com API.
               </p>
             </div>
           </div>
@@ -533,22 +533,27 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 
         {/* Sub-links Under Button */}
         {currentStep === 0 ? (
-          <div className="flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <button
-              onClick={handleGuest}
-              className="hover:text-slate-900 dark:hover:text-white transition-colors"
-            >
-              Explore as Guest
-            </button>
-            <span>•</span>
-            <a
-              href="/privacy.html"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-slate-900 dark:hover:text-white transition-colors"
-            >
-              Terms &amp; Privacy
-            </a>
+          <div className="flex flex-col items-center gap-1.5 text-center">
+            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <button
+                onClick={handleGuest}
+                className="hover:text-slate-900 dark:hover:text-white transition-colors"
+              >
+                Explore as Guest
+              </button>
+              <span>•</span>
+              <a
+                href="/privacy.html"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-slate-900 dark:hover:text-white transition-colors"
+              >
+                Terms &amp; Privacy
+              </a>
+            </div>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+              Independent video studio • Powered by Quran.com API
+            </p>
           </div>
         ) : (
           <div className="flex items-center justify-center gap-3 text-xs font-medium text-slate-500 dark:text-slate-400">
