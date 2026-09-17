@@ -31,6 +31,7 @@ interface VideoPreviewCanvasProps {
   chapter: Chapter | null;
   config: VideoConfig;
   onActiveVerseChange?: (verse: Verse, index: number) => void;
+  children?: React.ReactNode;
 }
 
 export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
@@ -39,6 +40,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   chapter,
   config,
   onActiveVerseChange,
+  children,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const playerRef = useRef<StitchedAudioPlayer | null>(null);
@@ -278,118 +280,97 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const getContainerAspectStyle = () => {
     switch (config.aspectRatio) {
       case '9:16':
-        return 'aspect-[9/16] max-h-[68vh] w-auto max-w-[340px] sm:max-w-[380px]';
+        return 'aspect-[9/16] max-h-[42vh] sm:max-h-[46vh] w-auto max-w-[270px] sm:max-w-[310px]';
       case '1:1':
-        return 'aspect-square max-h-[50vh] w-full max-w-[420px]';
+        return 'aspect-square max-h-[36vh] sm:max-h-[40vh] w-full max-w-[320px]';
       case '16:9':
-        return 'aspect-[16/9] w-full max-w-[560px]';
+        return 'aspect-[16/9] max-h-[28vh] sm:max-h-[32vh] w-full max-w-[460px]';
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full">
-      {/* Video Container Shell */}
+    <div className="w-full max-w-[380px] sm:max-w-[395px] mx-auto rounded-[48px] border-[8px] border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-[#080E1C] shadow-2xl shadow-slate-300/60 dark:shadow-black overflow-hidden flex flex-col relative transition-all">
+      {/* Dynamic Island Notch */}
+      <div className="pt-2.5 pb-1 flex justify-center z-20">
+        <div className="w-24 h-5 bg-slate-900 dark:bg-black rounded-full shadow-inner" />
+      </div>
+
+      {/* Video Canvas Container (Top Half) */}
       <div
-        className={`relative overflow-hidden rounded-3xl bg-black border-2 border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-300/40 dark:shadow-2xl dark:shadow-black/90 mx-auto flex items-center justify-center transition-all ${getContainerAspectStyle()}`}
+        className="relative w-full h-[260px] sm:h-[285px] flex items-center justify-center overflow-hidden bg-slate-900/10 dark:bg-transparent cursor-pointer"
+        onClick={togglePlay}
       >
         <canvas
           ref={canvasRef}
-          className="w-full h-full object-contain cursor-pointer"
-          onClick={togglePlay}
+          className="w-full h-full object-contain"
         />
 
         {/* Loading / Audio Stitching Badge */}
         {isStitchingAudio && (
-          <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-semibold text-emerald-400 shadow-md">
+          <div className="absolute top-2 right-4 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-semibold text-emerald-400 shadow-md">
             <Loader2 className="w-3 h-3 animate-spin" />
             <span>Optimizing audio...</span>
           </div>
         )}
-
-        {/* Floating Play Button on Pause */}
-        {!isPlaying && (
-          <button
-            onClick={togglePlay}
-            className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-emerald-500/80 hover:bg-emerald-500 backdrop-blur-md text-white flex items-center justify-center shadow-xl shadow-emerald-950/60 transition-transform active:scale-90 z-10"
-            title="Play Video"
-          >
-            <Play className="w-7 h-7 fill-current ml-1" />
-          </button>
-        )}
-
-        {/* Seamless Continuous Sound Badge */}
-        <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[11px] font-semibold text-white">
-          <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
-          <span>Ayah {currentAyahIndex + 1} of {verses.length}</span>
-        </div>
       </div>
 
-      {/* Modern Studio Playback Controls Bar */}
-      <div className="w-full max-w-sm sm:max-w-md mt-4 p-3.5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 flex flex-col gap-2.5 shadow-md dark:shadow-lg transition-colors">
-        {/* Continuous Scrubber Track */}
-        <div className="space-y-1">
-          <input
-            type="range"
-            min="0"
-            max="100"
-            step="0.1"
-            value={totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0}
-            onChange={handleScrubberChange}
-            className="w-full accent-emerald-500 bg-slate-200 dark:bg-slate-800 h-2 rounded-lg cursor-pointer transition-colors"
-          />
-          <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400">
-            <span>{formatSeconds(currentTime)}</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[10px] tracking-wide uppercase">
-              Gapless Continuous Sound
-            </span>
-            <span>{formatSeconds(totalDuration)}</span>
-          </div>
-        </div>
+      {/* Docked Mobile Studio Editor Console (Bottom Half) */}
+      <div className="rounded-t-[32px] bg-white dark:bg-[#0E1626] border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-3 pb-3 flex flex-col gap-2.5 shadow-xl dark:shadow-2xl z-10 transition-colors">
+        {/* Category Tabs & Tool Options passed from VideoStudio */}
+        {children}
 
-        {/* Control Buttons */}
-        <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-1">
+        {/* Integrated Gapless Audio Player & Scrubber */}
+        <div className="pt-2 border-t border-slate-200 dark:border-slate-800/70 space-y-2 transition-colors">
+          {/* Scrubber Track */}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 min-w-[28px]">
+              {formatSeconds(currentTime)}
+            </span>
+            <div className="relative flex-1 flex items-center">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="0.1"
+                value={totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0}
+                onChange={handleScrubberChange}
+                className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-full cursor-pointer transition-colors"
+              />
+            </div>
+            <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 min-w-[28px] text-right">
+              {formatSeconds(totalDuration)}
+            </span>
+          </div>
+
+          {/* Subtitle */}
+          <div className="text-center -mt-1">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 tracking-wide">
+              Gapless Sound
+            </span>
+          </div>
+
+          {/* Transport Buttons */}
+          <div className="flex items-center justify-between px-3 pt-0.5">
             <button
               onClick={handleRestart}
-              className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
+              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
               title="Restart"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
 
             <button
-              onClick={() => {
-                const nextMuted = !isMuted;
-                setIsMuted(nextMuted);
-                if (playerRef.current) {
-                  playerRef.current.setVolume(nextMuted ? 0 : 1);
-                }
-              }}
-              className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
-              title={isMuted ? 'Unmute' : 'Mute'}
-            >
-              {isMuted ? (
-                <VolumeX className="w-4 h-4 text-rose-500 dark:text-rose-400" />
-              ) : (
-                <Volume2 className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-
-          {/* Center: Prev, Play/Pause, Next */}
-          <div className="flex items-center gap-2">
-            <button
               onClick={handlePrev}
               disabled={currentAyahIndex === 0}
-              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800 disabled:opacity-30 transition-colors"
+              className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
               title="Previous Ayah"
             >
-              <SkipBack className="w-4 h-4" />
+              <SkipBack className="w-4 h-4 fill-current" />
             </button>
 
             <button
               onClick={togglePlay}
-              className="p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-950/30 dark:shadow-emerald-950/50 transition-all active:scale-95"
+              className="w-12 h-12 rounded-full bg-emerald-500 dark:bg-emerald-400 hover:bg-emerald-600 dark:hover:bg-emerald-300 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/25 active:scale-95 transition-all"
               title={isPlaying ? 'Pause' : 'Play'}
             >
               {isPlaying ? (
@@ -401,18 +382,36 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
             <button
               onClick={handleNext}
-              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
+              disabled={currentAyahIndex >= verses.length - 1}
+              className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
               title="Next Ayah"
             >
-              <SkipForward className="w-4 h-4" />
+              <SkipForward className="w-4 h-4 fill-current" />
+            </button>
+
+            <button
+              onClick={() => {
+                const nextMuted = !isMuted;
+                setIsMuted(nextMuted);
+                if (playerRef.current) {
+                  playerRef.current.setVolume(nextMuted ? 0 : 1);
+                }
+              }}
+              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+              title={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? (
+                <VolumeX className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+              ) : (
+                <Volume2 className="w-4 h-4" />
+              )}
             </button>
           </div>
 
-          {/* Right: Ayah Key Badge */}
-          <div className="text-right">
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              {currentVerse?.verse_key || ''}
-            </span>
+          {/* Status line */}
+          <div className="flex items-center justify-end gap-3 text-[11px] font-mono text-slate-400 dark:text-slate-500 pr-1 -mt-0.5">
+            <span>1.0x</span>
+            <span>{currentAyahIndex + 1}:{verses.length}</span>
           </div>
         </div>
       </div>

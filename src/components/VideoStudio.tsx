@@ -1,15 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Chapter, Reciter, Verse, VideoConfig } from '@/types/quran';
+import React, { useState, useRef } from 'react';
+import { Chapter, Reciter, Verse, VideoConfig, BackgroundPresetId } from '@/types/quran';
 import { VideoPreviewCanvas } from './VideoPreviewCanvas';
-import { BackgroundPicker } from './BackgroundPicker';
-import { TypographyCustomizer } from './TypographyCustomizer';
 import { VideoExportModal } from './VideoExportModal';
 import { ReciterModal } from './ReciterModal';
 import { ProjectsModal } from './ProjectsModal';
 import { ProjectDraft } from '@/lib/storage-db';
 import { useBackButton } from '@/lib/back-button';
+import { BACKGROUND_PRESETS, POPULAR_RECITERS, DEFAULT_VIDEO_CONFIG } from '@/lib/constants';
 import {
   Download,
   Mic2,
@@ -17,6 +16,18 @@ import {
   Type,
   BookOpen,
   FolderKanban,
+  RotateCcw,
+  Smartphone,
+  Square,
+  Monitor,
+  Check,
+  Upload,
+  Sparkles,
+  Settings,
+  CircleDot,
+  CheckCircle2,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 interface VideoStudioProps {
@@ -33,7 +44,21 @@ interface VideoStudioProps {
   onLoadProject?: (project: ProjectDraft) => void;
   onResetNewProject?: () => void;
   onViewInCreations?: () => void;
+  theme?: 'dark' | 'light';
+  onToggleTheme?: () => void;
 }
+
+const PRESET_COLORS = [
+  { name: 'Pure White', value: '#FFFFFF' },
+  { name: 'Warm Gold', value: '#FEF08A' },
+  { name: 'Deep Gold', value: '#FCD34D' },
+  { name: 'Emerald', value: '#10B981' },
+  { name: 'Mint Green', value: '#6EE7B7' },
+  { name: 'Cyan Blue', value: '#38BDF8' },
+  { name: 'Lavender', value: '#C084FC' },
+  { name: 'Soft Slate', value: '#CBD5E1' },
+  { name: 'Rose', value: '#FB7185' },
+];
 
 export const VideoStudio: React.FC<VideoStudioProps> = ({
   chapter,
@@ -49,13 +74,21 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   onLoadProject,
   onResetNewProject,
   onViewInCreations,
+  theme,
+  onToggleTheme,
 }) => {
-  const [activeTab, setActiveTab] = useState<'background' | 'typography' | 'reciter'>('background');
+  // Main Tabs matching mockup: 'background' | 'typography' | 'color' | 'more'
+  const [activeTab, setActiveTab] = useState<'background' | 'typography' | 'color' | 'more'>('background');
+
+  // Sub-sections
+  const [colorTarget, setColorTarget] = useState<'arabic' | 'translation' | 'accent'>('arabic');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isReciterModalOpen, setIsReciterModalOpen] = useState(false);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
 
-  // Wire hardware back button for modals inside VideoStudio
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Wire hardware back button for modals
   useBackButton(isExportModalOpen, () => setIsExportModalOpen(false), 25);
   useBackButton(isReciterModalOpen, () => setIsReciterModalOpen(false), 25);
   useBackButton(isProjectsModalOpen, () => setIsProjectsModalOpen(false), 25);
@@ -63,139 +96,668 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   const startAyah = verses[0]?.verse_number || 1;
   const endAyah = verses[verses.length - 1]?.verse_number || 1;
 
+  // Local fallback theme toggle if not passed from parent
+  const handleThemeToggle = () => {
+    if (onToggleTheme) {
+      onToggleTheme();
+    } else {
+      const isDark = document.documentElement.classList.contains('dark');
+      if (isDark) {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.setAttribute('data-theme', 'light');
+        try { localStorage.setItem('quran_theme', 'light'); } catch {}
+      } else {
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        try { localStorage.setItem('quran_theme', 'dark'); } catch {}
+      }
+    }
+  };
+
+  // Reset adjustments to defaults
+  const handleResetDefaults = () => {
+    onChangeConfig({
+      arabicFontSize: DEFAULT_VIDEO_CONFIG.arabicFontSize,
+      translationFontSize: DEFAULT_VIDEO_CONFIG.translationFontSize,
+      arabicTextColor: DEFAULT_VIDEO_CONFIG.arabicTextColor,
+      translationTextColor: DEFAULT_VIDEO_CONFIG.translationTextColor,
+      badgeTextColor: DEFAULT_VIDEO_CONFIG.badgeTextColor,
+      surahTitleColor: DEFAULT_VIDEO_CONFIG.surahTitleColor,
+      progressBarColor: DEFAULT_VIDEO_CONFIG.progressBarColor,
+      backgroundPreset: 'midnight',
+      customMediaUrl: null,
+      customMediaType: null,
+    });
+  };
+
+  // Custom background file upload handler
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+    if (!isVideo && !isImage) return;
+
+    const objectUrl = URL.createObjectURL(file);
+    onChangeConfig({
+      customMediaUrl: objectUrl,
+      customMediaType: isVideo ? 'video' : 'image',
+    });
+  };
+
+  // Six visual themes matching screenshot
+  const THEMES: {
+    id: BackgroundPresetId;
+    title: string;
+    subtitle: string;
+    particleType: 'stars' | 'geometric' | 'dust' | 'rain' | 'glow' | 'minimal';
+    cardStyle: React.CSSProperties;
+    hasWhiteDots?: boolean;
+    hasGoldDots?: boolean;
+  }[] = [
+    {
+      id: 'midnight',
+      title: 'Midnight',
+      subtitle: 'Stars',
+      particleType: 'stars',
+      cardStyle: {
+        background: 'radial-gradient(circle at 50% 50%, #13224B 0%, #080D1D 100%)',
+      },
+      hasWhiteDots: true,
+    },
+    {
+      id: 'emerald',
+      title: 'Emerald',
+      subtitle: 'Geometric',
+      particleType: 'geometric',
+      cardStyle: {
+        background:
+          'linear-gradient(135deg, #04382B 0%, #021C16 100%), repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.06) 6px, rgba(255,255,255,0.06) 12px)',
+      },
+    },
+    {
+      id: 'gold',
+      title: 'Golden',
+      subtitle: 'Dust',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'radial-gradient(circle at 60% 40%, #4D2605 0%, #1A0B02 100%)',
+      },
+      hasGoldDots: true,
+    },
+    {
+      id: 'rain',
+      title: 'Rain',
+      subtitle: 'Rain',
+      particleType: 'rain',
+      cardStyle: {
+        background:
+          'linear-gradient(180deg, #062835 0%, #03141B 100%), repeating-linear-gradient(105deg, transparent, transparent 7px, rgba(56,189,248,0.12) 7px, rgba(56,189,248,0.12) 9px)',
+      },
+    },
+    {
+      id: 'desert',
+      title: 'Glow',
+      subtitle: 'Ambient',
+      particleType: 'glow',
+      cardStyle: {
+        background: 'radial-gradient(circle at 50% 50%, #3B234A 0%, #140C1A 85%)',
+      },
+    },
+    {
+      id: 'oled',
+      title: 'Minimal',
+      subtitle: 'Plain',
+      particleType: 'minimal',
+      cardStyle: {
+        background: '#121829',
+      },
+    },
+  ];
+
   return (
-    <div className="w-full max-w-6xl mx-auto px-3.5 sm:px-6 py-4 pb-32">
-      {/* Studio Header Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl transition-colors">
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span>{chapter?.name_simple || 'Surah'}</span>
-              <span className="text-emerald-600 dark:text-emerald-400 text-sm">
-                ({startAyah === endAyah ? `Ayah ${startAyah}` : `Ayahs ${startAyah}–${endAyah}`})
-              </span>
-            </h2>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {verses.length} {verses.length === 1 ? 'verse' : 'verses'} selected • Reciter: {currentReciter.name}
-          </p>
+    <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 py-2 pb-24 transition-colors">
+      {/* Top Header Bar */}
+      <div className="flex items-center justify-between gap-2 mb-3 p-2.5 sm:p-3 rounded-2xl bg-white/95 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-xs dark:shadow-md transition-colors">
+        <button
+          onClick={onBackToReader}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all shadow-2xs"
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          <span>Ayahs</span>
+        </button>
+
+        <div className="text-center">
+          <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center justify-center gap-1.5">
+            <span>{chapter?.name_simple || 'Surah'}</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-mono text-xs">
+              ({startAyah === endAyah ? `Ayah ${startAyah}` : `Ayahs ${startAyah}–${endAyah}`})
+            </span>
+          </h2>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-1.5">
+          {/* Quick Light/Dark Toggle Button */}
           <button
-            onClick={() => setIsProjectsModalOpen(true)}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-all"
+            onClick={handleThemeToggle}
+            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all shadow-2xs"
+            title="Toggle Light / Dark Theme"
           >
-            <FolderKanban className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Projects</span>
+            <Sun className="w-3.5 h-3.5 hidden dark:block text-amber-400" />
+            <Moon className="w-3.5 h-3.5 block dark:hidden text-slate-700" />
           </button>
 
           <button
-            onClick={onBackToReader}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-all"
+            onClick={() => setIsProjectsModalOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all shadow-2xs"
+            title="Projects"
           >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Ayahs</span>
+            <FolderKanban className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="hidden sm:inline">Projects</span>
           </button>
 
           <button
             onClick={() => setIsExportModalOpen(true)}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-950/20 dark:shadow-emerald-950/60 transition-all active:scale-95"
+            className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition-all active:scale-95"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
             <span>Export</span>
           </button>
         </div>
       </div>
 
-      {/* Main Studio Grid: Left Canvas Player, Right Controls */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Canvas Preview Player (Mobile 9:16 Focused) */}
-        <div className="lg:col-span-6 xl:col-span-5 flex flex-col items-center">
-          <VideoPreviewCanvas
-            verses={verses}
-            audioUrls={audioUrls}
-            chapter={chapter}
-            config={config}
-          />
+      {/* Main Studio Frame Mockup (Responsive to Light & Dark Mode) */}
+      <VideoPreviewCanvas
+        verses={verses}
+        audioUrls={audioUrls}
+        chapter={chapter}
+        config={config}
+      >
+        {/* Top 4 Segmented Category Tabs Bar */}
+        <div className="grid grid-cols-4 gap-1 pb-1">
+          {/* TAB 1: BACKGROUND */}
+          <button
+            onClick={() => setActiveTab('background')}
+            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+              activeTab === 'background'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <div className="w-5 h-5 flex items-center justify-center mb-0.5">
+              <Palette className={`w-4 h-4 ${activeTab === 'background' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+            </div>
+            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+              Background
+            </span>
+            {activeTab === 'background' && (
+              <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            )}
+          </button>
+
+          {/* TAB 2: TYPOGRAPHY */}
+          <button
+            onClick={() => setActiveTab('typography')}
+            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+              activeTab === 'typography'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <div className="w-5 h-5 flex items-center justify-center mb-0.5">
+              <Type className={`w-4 h-4 ${activeTab === 'typography' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+            </div>
+            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+              Typography
+            </span>
+            {activeTab === 'typography' && (
+              <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            )}
+          </button>
+
+          {/* TAB 3: COLOR */}
+          <button
+            onClick={() => setActiveTab('color')}
+            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+              activeTab === 'color'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <div className="w-5 h-5 flex items-center justify-center mb-0.5">
+              <CircleDot className={`w-4 h-4 ${activeTab === 'color' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+            </div>
+            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+              Color
+            </span>
+            {activeTab === 'color' && (
+              <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            )}
+          </button>
+
+          {/* TAB 4: MORE */}
+          <button
+            onClick={() => setActiveTab('more')}
+            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+              activeTab === 'more'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <div className="w-5 h-5 flex items-center justify-center mb-0.5">
+              <Settings className={`w-4 h-4 ${activeTab === 'more' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+            </div>
+            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+              More
+            </span>
+            {activeTab === 'more' && (
+              <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            )}
+          </button>
         </div>
 
-        {/* Right Column: Customization Panel Tabs */}
-        <div className="lg:col-span-6 xl:col-span-7 bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm dark:shadow-2xl transition-colors">
-          {/* Tabs Selector */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl mb-6 border border-slate-200 dark:border-slate-700/60">
-            <button
-              onClick={() => setActiveTab('background')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                activeTab === 'background'
-                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-950/30'
-                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-              }`}
-            >
-              <Palette className="w-4 h-4" />
-              <span>Background</span>
-            </button>
+        {/* TAB 1: BACKGROUND */}
+        {activeTab === 'background' && (
+          <div className="space-y-2 animate-in fade-in duration-150">
+            {/* Theme label */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900 dark:text-white tracking-wide">
+                Theme
+              </span>
+            </div>
 
-            <button
-              onClick={() => setActiveTab('typography')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                activeTab === 'typography'
-                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-950/30'
-                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-              }`}
-            >
-              <Type className="w-4 h-4" />
-              <span>Typography</span>
-            </button>
+            {/* 3x2 Grid with Scrollbar on Right matching Screenshot */}
+            <div className="flex items-stretch gap-1.5 relative">
+              <div className="grid grid-cols-3 gap-2 flex-1">
+                {THEMES.map((th) => {
+                  const isSelected = config.backgroundPreset === th.id && !config.customMediaUrl;
+                  return (
+                    <button
+                      key={th.id}
+                      onClick={() =>
+                        onChangeConfig({
+                          backgroundPreset: th.id,
+                          customMediaUrl: null,
+                          customMediaType: null,
+                        })
+                      }
+                      className={`relative flex flex-col justify-end p-2.5 rounded-2xl h-[78px] text-left transition-all overflow-hidden border ${
+                        isSelected
+                          ? 'border-2 border-emerald-500 dark:border-emerald-400 ring-2 ring-emerald-500/25 dark:ring-emerald-400/25 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+                          : 'border-slate-200 dark:border-slate-800/80 shadow-xs hover:border-slate-300 dark:hover:border-slate-700'
+                      }`}
+                      style={th.cardStyle}
+                    >
+                      {/* Decorative star specks for Midnight */}
+                      {th.hasWhiteDots && (
+                        <div className="absolute inset-0 pointer-events-none">
+                          <span className="absolute top-3 left-4 w-1 h-1 rounded-full bg-white/70" />
+                          <span className="absolute top-2.5 right-6 w-0.5 h-0.5 rounded-full bg-white/60" />
+                          <span className="absolute bottom-5 right-3 w-0.5 h-0.5 rounded-full bg-white/50" />
+                        </div>
+                      )}
 
-            <button
-              onClick={() => setIsReciterModalOpen(true)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-all hover:bg-slate-200/50 dark:hover:bg-slate-700/50"
-            >
-              <Mic2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span className="truncate">{currentReciter.name.split(' ')[0]}</span>
-            </button>
-          </div>
+                      {/* Decorative gold specks for Golden */}
+                      {th.hasGoldDots && (
+                        <div className="absolute inset-0 pointer-events-none">
+                          <span className="absolute top-4 left-5 w-1 h-1 rounded-full bg-amber-400/80" />
+                          <span className="absolute top-3 right-4 w-0.5 h-0.5 rounded-full bg-amber-300/60" />
+                        </div>
+                      )}
 
-          {/* Active Tab Panel */}
-          {activeTab === 'background' && (
-            <BackgroundPicker config={config} onChangeConfig={onChangeConfig} />
-          )}
+                      {/* Selected green circle with checkmark badge on top right */}
+                      {isSelected && (
+                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-emerald-500 dark:bg-emerald-400 text-white dark:text-slate-950 flex items-center justify-center font-bold shadow-sm">
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                      )}
 
-          {activeTab === 'typography' && (
-            <TypographyCustomizer
-              config={config}
-              onChangeConfig={onChangeConfig}
-            />
-          )}
-
-          {/* Reciter Info Pill in Tab Panel */}
-          <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <Mic2 className="w-4 h-4" />
+                      {/* Labels with drop shadow for guaranteed readability */}
+                      <span className="text-xs font-bold text-white leading-tight z-10 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                        {th.title}
+                      </span>
+                      <span className="text-[10px] text-slate-300 dark:text-slate-400 z-10 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                        {th.subtitle}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-              <div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white">
-                  {currentReciter.name}
-                </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {currentReciter.description}
-                </div>
+
+              {/* Sleek Vertical Scrollbar matching screenshot */}
+              <div className="w-2 rounded-full bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-transparent flex flex-col justify-between items-center py-1 shrink-0">
+                <span className="text-[6px] text-slate-400">▲</span>
+                <div className="w-1.5 h-10 rounded-full bg-slate-400/80 dark:bg-slate-400/70" />
+                <span className="text-[6px] text-slate-400">▼</span>
               </div>
             </div>
 
-            <button
-              onClick={() => setIsReciterModalOpen(true)}
-              className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 text-xs font-semibold transition-colors border border-slate-200 dark:border-transparent"
-            >
-              Change
-            </button>
+            {/* Atmosphere & Particles Sub-Card */}
+            <div className="rounded-2xl bg-slate-50 dark:bg-[#08101E] border border-slate-200/90 dark:border-slate-800/80 p-2.5 space-y-2 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Atmosphere &amp; Particles
+                  </span>
+                </div>
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Active</span>
+              </div>
+
+              {/* Pills row */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                {(['none', 'stars', 'geometric', 'dust', 'rain', 'glow', 'minimal'] as const).map(
+                  (pType) => {
+                    const activePreset = BACKGROUND_PRESETS.find((x) => x.id === config.backgroundPreset);
+                    const isSelected = activePreset?.particleType === pType || (pType === 'none' && !activePreset);
+                    return (
+                      <button
+                        key={pType}
+                        onClick={() => {
+                          if (pType === 'none') {
+                            const p = BACKGROUND_PRESETS.find((x) => x.id === config.backgroundPreset);
+                            if (p) p.particleType = 'minimal';
+                          } else {
+                            const p = BACKGROUND_PRESETS.find((x) => x.id === config.backgroundPreset);
+                            if (p) p.particleType = pType;
+                          }
+                          onChangeConfig({});
+                        }}
+                        className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all shrink-0 capitalize border ${
+                          isSelected
+                            ? 'border-emerald-500 dark:border-emerald-400 text-emerald-700 dark:text-emerald-400 bg-emerald-500/15'
+                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white shadow-2xs'
+                        }`}
+                      >
+                        {pType}
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        )}
+
+        {/* TAB 2: TYPOGRAPHY */}
+        {activeTab === 'typography' && (
+          <div className="space-y-2.5 animate-in fade-in duration-150">
+            <span className="text-xs font-bold text-slate-900 dark:text-white tracking-wide block">
+              Arabic Font Style
+            </span>
+            <div className="grid grid-cols-3 gap-2">
+              {(['Amiri Quran', 'Scheherazade New', 'Amiri'] as const).map((font) => {
+                const isSelected = config.arabicFontFamily === font;
+                return (
+                  <button
+                    key={font}
+                    onClick={() => onChangeConfig({ arabicFontFamily: font })}
+                    className={`p-2 rounded-xl border text-center transition-all ${
+                      isSelected
+                        ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 ring-1 ring-emerald-500/30'
+                        : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <span className="block text-sm font-quran font-bold mb-0.5">
+                      بِسْمِ اللَّهِ
+                    </span>
+                    <span className="text-[9px] truncate block">{font}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Arabic Font Size Slider */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <span>Arabic Calligraphy Size</span>
+                <span className="font-mono text-emerald-600 dark:text-emerald-400 text-[11px]">{config.arabicFontSize}px</span>
+              </div>
+              <input
+                type="range"
+                min={22}
+                max={52}
+                value={config.arabicFontSize}
+                onChange={(e) => onChangeConfig({ arabicFontSize: Number(e.target.value) })}
+                className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-lg cursor-pointer"
+              />
+            </div>
+
+            {/* Translation Size Slider */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <span>Translation Subtitle Size</span>
+                <span className="font-mono text-emerald-600 dark:text-emerald-400 text-[11px]">{config.translationFontSize}px</span>
+              </div>
+              <input
+                type="range"
+                min={12}
+                max={26}
+                value={config.translationFontSize}
+                onChange={(e) => onChangeConfig({ translationFontSize: Number(e.target.value) })}
+                className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-lg cursor-pointer"
+              />
+            </div>
+
+            {/* Ayah End Marker Toggle */}
+            <div className="flex items-center justify-between pt-1 text-xs text-slate-700 dark:text-slate-300">
+              <span>Ayah Marker Symbol (۝)</span>
+              <button
+                onClick={() => onChangeConfig({ showAyahNumber: !config.showAyahNumber })}
+                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${
+                  config.showAyahNumber !== false
+                    ? 'bg-emerald-500/15 border-emerald-500 dark:border-emerald-400 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {config.showAyahNumber !== false ? 'Shown (۝)' : 'Hidden'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: COLOR */}
+        {activeTab === 'color' && (
+          <div className="space-y-2.5 animate-in fade-in duration-150">
+            {/* Target selector */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setColorTarget('arabic')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                  colorTarget === 'arabic'
+                    ? 'bg-emerald-500/20 border-emerald-500 dark:border-emerald-400 text-emerald-700 dark:text-emerald-300'
+                    : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                Arabic Text
+              </button>
+              <button
+                onClick={() => setColorTarget('translation')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                  colorTarget === 'translation'
+                    ? 'bg-emerald-500/20 border-emerald-500 dark:border-emerald-400 text-emerald-700 dark:text-emerald-300'
+                    : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                Translation
+              </button>
+              <button
+                onClick={() => setColorTarget('accent')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                  colorTarget === 'accent'
+                    ? 'bg-emerald-500/20 border-emerald-500 dark:border-emerald-400 text-emerald-700 dark:text-emerald-300'
+                    : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                Accents
+              </button>
+            </div>
+
+            {/* Swatches Row */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+              {PRESET_COLORS.map((c) => {
+                const currentVal =
+                  colorTarget === 'arabic'
+                    ? config.arabicTextColor
+                    : colorTarget === 'translation'
+                    ? config.translationTextColor
+                    : config.badgeTextColor;
+                const isSelected = currentVal?.toLowerCase() === c.value.toLowerCase();
+
+                return (
+                  <button
+                    key={c.value}
+                    onClick={() => {
+                      if (colorTarget === 'arabic') onChangeConfig({ arabicTextColor: c.value });
+                      else if (colorTarget === 'translation') onChangeConfig({ translationTextColor: c.value });
+                      else onChangeConfig({ badgeTextColor: c.value, surahTitleColor: c.value, progressBarColor: c.value });
+                    }}
+                    className={`flex flex-col items-center p-1.5 rounded-xl border min-w-[50px] text-center transition-all shrink-0 ${
+                      isSelected
+                        ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-50 dark:bg-emerald-400/10 ring-1 ring-emerald-500/50'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <div
+                      className="w-6 h-6 rounded-lg mb-1 border border-slate-300 dark:border-white/20 shadow-2xs flex items-center justify-center"
+                      style={{ backgroundColor: c.value }}
+                    >
+                      {isSelected && (
+                        <Check
+                          className={`w-3 h-3 stroke-[3] ${
+                            c.value === '#FFFFFF' || c.value === '#FEF08A' || c.value === '#FCD34D'
+                              ? 'text-slate-900'
+                              : 'text-white'
+                          }`}
+                        />
+                      )}
+                    </div>
+                    <span className="text-[9px] text-slate-600 dark:text-slate-300 truncate max-w-[45px]">{c.name.split(' ')[0]}</span>
+                  </button>
+                );
+              })}
+
+              {/* Native color picker */}
+              <label className="flex flex-col items-center p-1.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer min-w-[50px] shrink-0">
+                <div className="w-6 h-6 rounded-lg mb-1 border border-slate-300 dark:border-white/20 flex items-center justify-center text-slate-500 dark:text-slate-400">
+                  <Palette className="w-3 h-3" />
+                </div>
+                <span className="text-[9px] text-slate-600 dark:text-slate-300">Custom</span>
+                <input
+                  type="color"
+                  value={
+                    colorTarget === 'arabic'
+                      ? config.arabicTextColor
+                      : colorTarget === 'translation'
+                      ? config.translationTextColor
+                      : config.badgeTextColor
+                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (colorTarget === 'arabic') onChangeConfig({ arabicTextColor: v });
+                    else if (colorTarget === 'translation') onChangeConfig({ translationTextColor: v });
+                    else onChangeConfig({ badgeTextColor: v, surahTitleColor: v, progressBarColor: v });
+                  }}
+                  className="sr-only"
+                />
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: MORE */}
+        {activeTab === 'more' && (
+          <div className="space-y-2.5 animate-in fade-in duration-150">
+            {/* Reciter quick info */}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-700 dark:text-slate-300 font-semibold">Voice Reciter:</span>
+              <button
+                onClick={() => setIsReciterModalOpen(true)}
+                className="text-emerald-600 dark:text-emerald-400 hover:underline font-bold"
+              >
+                Change Reciter →
+              </button>
+            </div>
+            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mic2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <div>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white block">{currentReciter.name}</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">{currentReciter.style || 'Murattal'}</span>
+                </div>
+              </div>
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            </div>
+
+            {/* Aspect Ratio Framing */}
+            <div className="space-y-1">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">Aspect Ratio:</span>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => onChangeConfig({ aspectRatio: '9:16' })}
+                  className={`p-2 rounded-xl border text-center transition-all ${
+                    config.aspectRatio === '9:16'
+                      ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Smartphone className="w-4 h-4 mx-auto mb-0.5" />
+                  <span className="text-[10px] font-bold block">9:16 Reel</span>
+                </button>
+                <button
+                  onClick={() => onChangeConfig({ aspectRatio: '1:1' })}
+                  className={`p-2 rounded-xl border text-center transition-all ${
+                    config.aspectRatio === '1:1'
+                      ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Square className="w-4 h-4 mx-auto mb-0.5" />
+                  <span className="text-[10px] font-bold block">1:1 Square</span>
+                </button>
+                <button
+                  onClick={() => onChangeConfig({ aspectRatio: '16:9' })}
+                  className={`p-2 rounded-xl border text-center transition-all ${
+                    config.aspectRatio === '16:9'
+                      ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Monitor className="w-4 h-4 mx-auto mb-0.5" />
+                  <span className="text-[10px] font-bold block">16:9 Wide</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Custom media file or Reset */}
+            <div className="flex items-center justify-between pt-1">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Upload Media</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+
+              <button
+                onClick={handleResetDefaults}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset All</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </VideoPreviewCanvas>
 
       {/* Video Export Modal */}
       <VideoExportModal
@@ -235,4 +797,3 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
     </div>
   );
 };
-

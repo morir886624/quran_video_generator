@@ -604,6 +604,8 @@ export default function Home() {
                 onLoadProject={handleResumeSession}
                 onResetNewProject={handleResetNewProject}
                 onViewInCreations={() => setActiveTab('creations')}
+                theme={theme}
+                onToggleTheme={handleToggleTheme}
               />
             )}
 

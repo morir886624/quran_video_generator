@@ -274,46 +274,24 @@ function drawCenterVerse(
   const floatOffset = Math.sin(progress * Math.PI) * 8;
   const centerY = height * 0.48 + floatOffset;
 
-  // 1. Top Surah & Ayah Badge Pill
+  // 1. Top Surah & Ayah Header ("Ayah" & "Surah {name}, Ayah {number}")
   if (config.showSurahBadge && chapter) {
-    const badgeY = height * 0.16;
-    const badgeText = `${chapter.name_simple} • Ayah ${verse.verse_number}`;
-    const arabicBadge = chapter.name_arabic;
-
-    const badgeSize = config.badgeFontSize || 24;
-    ctx.font = `500 ${badgeSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
-    const textWidth = ctx.measureText(badgeText).width;
-    const pillWidth = Math.max(textWidth + 70, 260);
-    const pillHeight = Math.max(badgeSize * 1.8, 44);
-    const pillX = (width - pillWidth) / 2;
-
-    // Badge container pill
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(pillX, badgeY - pillHeight / 2, pillWidth, pillHeight, pillHeight / 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Emerald indicator dot
-    ctx.fillStyle = accentColor;
-    ctx.beginPath();
-    ctx.arc(pillX + 22, badgeY, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Badge English text
-    ctx.fillStyle = config.badgeTextColor || '#E2E8F0';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(badgeText, pillX + 38, badgeY);
-
-    // Arabic chapter title above badge
-    const surahTitleSize = config.surahTitleFontSize || 32;
-    ctx.font = `700 ${surahTitleSize}px "Amiri Quran", "Amiri", serif`;
+    const badgeY = height * 0.13;
+    const titleSize = config.surahTitleFontSize || 30;
+    ctx.font = `700 ${titleSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
+    ctx.fillStyle = config.surahTitleColor || '#FFFFFF';
     ctx.textAlign = 'center';
-    ctx.fillStyle = config.surahTitleColor || 'rgba(254, 240, 138, 0.9)';
-    ctx.fillText(arabicBadge, width / 2, badgeY - pillHeight / 2 - 20);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Ayah', width / 2, badgeY);
+
+    const subSize = config.badgeFontSize || 18;
+    ctx.font = `500 ${subSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
+    ctx.fillStyle = config.badgeTextColor || 'rgba(148, 163, 184, 0.9)';
+    ctx.fillText(
+      `Surah ${chapter.name_simple}, Ayah ${verse.verse_number}`,
+      width / 2,
+      badgeY + titleSize * 0.85
+    );
   }
 
   // 2. Center Arabic Verse Calligraphy
@@ -477,6 +455,12 @@ function drawCenterVerse(
     } else if (hasEnglish) {
       drawEnglishBlock();
     }
+
+    // Draw emerald accent pill under translation (matching user screenshot)
+    ctx.fillStyle = '#10B981';
+    ctx.beginPath();
+    ctx.roundRect(width / 2 - 24, currentY + 12, 48, 4, 2);
+    ctx.fill();
   }
 
   ctx.restore();
