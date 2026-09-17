@@ -314,7 +314,8 @@ function drawCenterVerse(
 
   // 3. Prepare English Translation Subtitle
   let englishLines: string[] = [];
-  const translationFontSize = config.translationFontSize || 20;
+  const subtitleFontSize = config.translationFontSize || config.persianFontSize || 20;
+  const translationFontSize = subtitleFontSize;
   const englishLineHeight = translationFontSize * 1.5;
   let totalEnglishHeight = 0;
 
@@ -329,9 +330,9 @@ function drawCenterVerse(
     }
   }
 
-  // 4. Prepare Persian Tafsir Subtitle
+  // 4. Prepare Persian Tafsir Subtitle (shares exact same size as translation)
   let persianLines: string[] = [];
-  const persianFontSize = config.persianFontSize || 17;
+  const persianFontSize = subtitleFontSize;
   const persianLineHeight = persianFontSize * 1.6;
   let totalPersianHeight = 0;
   const activePersianText = persianTafsirText || verse.persianTafsir || '';

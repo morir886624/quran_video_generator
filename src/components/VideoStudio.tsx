@@ -654,7 +654,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               />
             </div>
 
-            {/* Translation Size Slider */}
+            {/* Translation Size Slider (Controls Both Translation Languages) */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <span>Translation Subtitle Size</span>
@@ -663,9 +663,15 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               <input
                 type="range"
                 min={12}
-                max={26}
+                max={34}
                 value={config.translationFontSize}
-                onChange={(e) => onChangeConfig({ translationFontSize: Number(e.target.value) })}
+                onChange={(e) => {
+                  const size = Number(e.target.value);
+                  onChangeConfig({
+                    translationFontSize: size,
+                    persianFontSize: size,
+                  });
+                }}
                 className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-lg cursor-pointer"
               />
             </div>
