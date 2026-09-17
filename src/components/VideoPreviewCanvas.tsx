@@ -366,7 +366,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
         {/* Category Tabs & Tool Options passed from VideoStudio */}
         {isToolsOpen && (
-          <div className="flex flex-col gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex flex-col gap-2.5 max-h-[310px] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-200">
             {children}
           </div>
         )}

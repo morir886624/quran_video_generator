@@ -214,6 +214,34 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         background: '#121829',
       },
     },
+    {
+      id: 'midnight',
+      title: 'Galaxy',
+      subtitle: 'Nebula',
+      particleType: 'stars',
+      cardStyle: {
+        background: 'radial-gradient(circle at 50% 50%, #1E1B4B 0%, #0B0F19 100%)',
+      },
+      hasWhiteDots: true,
+    },
+    {
+      id: 'desert',
+      title: 'Sunset',
+      subtitle: 'Warm Dusk',
+      particleType: 'glow',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #4A1D2F 0%, #1A0B16 100%)',
+      },
+    },
+    {
+      id: 'rain',
+      title: 'Deep Ocean',
+      subtitle: 'Aquatic',
+      particleType: 'rain',
+      cardStyle: {
+        background: 'linear-gradient(180deg, #042533 0%, #02111A 100%)',
+      },
+    },
   ];
 
   return (
@@ -351,14 +379,14 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </span>
             </div>
 
-            {/* 3x2 Grid with Scrollbar on Right matching Screenshot */}
-            <div className="flex items-stretch gap-1.5 relative">
-              <div className="grid grid-cols-3 gap-2 flex-1">
-                {THEMES.map((th) => {
+            {/* Smoothly Scrollable Theme Grid with hidden scrollbar icons */}
+            <div className="max-h-[164px] overflow-y-auto no-scrollbar scroll-smooth pr-0.5">
+              <div className="grid grid-cols-3 gap-2">
+                {THEMES.map((th, index) => {
                   const isSelected = config.backgroundPreset === th.id && !config.customMediaUrl;
                   return (
                     <button
-                      key={th.id}
+                      key={`${th.id}-${index}`}
                       onClick={() =>
                         onChangeConfig({
                           backgroundPreset: th.id,
@@ -373,7 +401,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                       }`}
                       style={th.cardStyle}
                     >
-                      {/* Decorative star specks for Midnight */}
+                      {/* Decorative star specks for Midnight / Galaxy */}
                       {th.hasWhiteDots && (
                         <div className="absolute inset-0 pointer-events-none">
                           <span className="absolute top-3 left-4 w-1 h-1 rounded-full bg-white/70" />
@@ -408,13 +436,6 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                   );
                 })}
               </div>
-
-              {/* Sleek Vertical Scrollbar matching screenshot */}
-              <div className="w-2 rounded-full bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-transparent flex flex-col justify-between items-center py-1 shrink-0">
-                <span className="text-[6px] text-slate-400">▲</span>
-                <div className="w-1.5 h-10 rounded-full bg-slate-400/80 dark:bg-slate-400/70" />
-                <span className="text-[6px] text-slate-400">▼</span>
-              </div>
             </div>
 
             {/* Atmosphere & Particles Sub-Card */}
@@ -429,8 +450,15 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Active</span>
               </div>
 
-              {/* Pills row */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+              {/* Pills row with hidden scrollbar and wheel support */}
+              <div
+                className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5"
+                onWheel={(e) => {
+                  if (e.deltaY !== 0) {
+                    e.currentTarget.scrollLeft += e.deltaY;
+                  }
+                }}
+              >
                 {(['none', 'stars', 'geometric', 'dust', 'rain', 'glow', 'minimal'] as const).map(
                   (pType) => {
                     const activePreset = BACKGROUND_PRESETS.find((x) => x.id === config.backgroundPreset);
