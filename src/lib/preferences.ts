@@ -22,6 +22,7 @@ export interface UserPreferences {
   // Reading Experience Toggles
   showWordByWord: boolean;
   showAyahNumber: boolean;
+  tafsirEdition?: string;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -37,6 +38,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   accentColor: '#10B981',
   showWordByWord: false,
   showAyahNumber: true,
+  tafsirEdition: 'persian-mokhtasar',
 };
 
 export const POPULAR_TRANSLATIONS: Array<{

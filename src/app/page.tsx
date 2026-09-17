@@ -280,6 +280,19 @@ export default function Home() {
     [currentChapterId]
   );
 
+  const handleSelectAllVerses = useCallback(() => {
+    if (!verses || verses.length === 0) return;
+    const keys = new Set<string>();
+    verses.forEach((v) => keys.add(v.verse_key));
+    setSelectedVerseKeys(keys);
+  }, [verses]);
+
+  const handleClearVerses = useCallback(() => {
+    if (verses.length > 0) {
+      setSelectedVerseKeys(new Set([verses[0].verse_key]));
+    }
+  }, [verses]);
+
   // Single ayah playback inside reader
   const handlePlayAyahAudio = useCallback(
     (verseKey: string) => {
@@ -566,7 +579,11 @@ export default function Home() {
                 currentTranslationName={selectedTranslationName}
                 onOpenReciters={() => setIsRecitersModalOpen(true)}
                 currentReciterName={currentReciter.name}
+                currentReciter={currentReciter}
+                chapterAudioMap={chapterAudioMap}
                 preferences={preferences}
+                onSelectAllVerses={handleSelectAllVerses}
+                onClearVerses={handleClearVerses}
               />
             )}
 

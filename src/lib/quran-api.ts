@@ -292,4 +292,58 @@ export async function fetchPersianTafsirAyah(
   return surahMap[ayahNumber] || '';
 }
 
+const tafsirTextCache = new Map<string, string>();
+
+/**
+ * Unified helper to fetch Tafsir for any Ayah from Persian CDN or Quran.com API
+ */
+export async function fetchAyahTafsirText(
+  verseKey: string,
+  source: string = 'persian-mokhtasar'
+): Promise<string> {
+  const cacheKey = `${source}_${verseKey}`;
+  if (tafsirTextCache.has(cacheKey)) {
+    return tafsirTextCache.get(cacheKey)!;
+  }
+
+  const [surahStr, ayahStr] = verseKey.split(':');
+  const surahId = parseInt(surahStr, 10);
+  const ayahNum = parseInt(ayahStr, 10);
+
+  if (source === 'persian-mokhtasar' || source === 'fr-tafsir-as-saadi') {
+    const map = await fetchPersianTafsirSurah(surahId, source as PersianTafsirEdition);
+    const text = map[ayahNum] || '';
+    tafsirTextCache.set(cacheKey, text);
+    return text;
+  }
+
+  // Quran.com API mappings
+  let quranComId = 169; // Ibn Kathir English
+  if (source === 'muyassar') quranComId = 16;
+  else if (source === 'jalalayn') quranComId = 168;
+
+  try {
+    const res = await fetchTafsir(verseKey, quranComId);
+    const clean = cleanTranslationText(res.text);
+    tafsirTextCache.set(cacheKey, clean);
+    return clean;
+  } catch (err) {
+    console.error(`Error fetching tafsir for ${verseKey} (${source}):`, err);
+    return '';
+  }
+}
+
+/**
+ * Prefetches tafsir for an entire surah if supported (e.g. Persian editions)
+ */
+export async function prefetchSurahTafsir(
+  surahId: number,
+  source: string = 'persian-mokhtasar'
+): Promise<Record<number, string>> {
+  if (source === 'persian-mokhtasar' || source === 'fr-tafsir-as-saadi') {
+    return await fetchPersianTafsirSurah(surahId, source as PersianTafsirEdition);
+  }
+  return {};
+}
+
 

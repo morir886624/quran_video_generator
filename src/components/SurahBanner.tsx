@@ -15,20 +15,20 @@ export const SurahBanner: React.FC<SurahBannerProps> = ({ chapter }) => {
     <div className="w-full mb-6">
       {/* Quran.com Signature Surah Decorative Card */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-emerald-50/50 via-white to-slate-50 dark:from-[#162544] dark:to-[#0E1830] border border-slate-200 dark:border-slate-700/80 p-5 sm:p-7 text-center shadow-lg shadow-slate-200/50 dark:shadow-slate-950/30 transition-colors">
-        {/* Subtle geometric background watermark */}
-        <div className="absolute inset-0 opacity-5 pointer-events-none flex items-center justify-center text-slate-900 dark:text-white">
-          <svg className="w-96 h-96" viewBox="0 0 100 100" fill="currentColor">
-            <polygon points="50,0 61,35 98,35 68,57 79,91 50,70 21,91 32,57 2,35 39,35" />
+        {/* Subtle geometric background watermark matching reference image */}
+        <div className="absolute inset-0 opacity-[0.04] dark:opacity-[0.06] pointer-events-none flex items-center justify-center text-slate-800 dark:text-emerald-300">
+          <svg className="w-80 h-80 max-w-full" viewBox="0 0 200 200" fill="currentColor">
+            <polygon points="100,10 120,70 180,50 145,100 180,150 120,130 100,190 80,130 20,150 55,100 20,50 80,70" />
           </svg>
         </div>
 
-        {/* Revelation Badge */}
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-3">
-          <MapPin className="w-3 h-3" />
+        {/* Revelation Badge matching reference image */}
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-400 text-[11px] sm:text-xs font-bold uppercase tracking-wider mb-4 shadow-xs">
+          <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
           <span>{chapter.revelation_place}</span>
-          <span className="text-emerald-600">•</span>
-          <Hash className="w-3 h-3" />
-          <span>{chapter.verses_count} Verses</span>
+          <span className="text-emerald-500 font-bold">•</span>
+          <Hash className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <span>{chapter.verses_count} VERSES</span>
         </div>
 
         {/* Grand Arabic Surah Calligraphy */}

@@ -1,4 +1,4 @@
-import { BackgroundPreset, Reciter, VideoConfig } from '@/types/quran';
+import { BackgroundPreset, Reciter, VideoConfig, TafsirOption } from '@/types/quran';
 
 export const POPULAR_RECITERS: Reciter[] = [
   {
@@ -303,4 +303,42 @@ export const getReciterPreviewUrl = (reciter: Reciter): string => {
       return 'https://verses.quran.com/Alafasy/mp3/001001.mp3';
   }
 };
+
+export const AVAILABLE_TAFSIRS: TafsirOption[] = [
+  {
+    id: 'persian-mokhtasar',
+    name: 'تفسیر المختصر (Persian Al-Mukhtasar)',
+    language: 'Persian',
+    direction: 'rtl',
+    description: 'خلاصه و روان از معانی آیات قرآن کریم',
+  },
+  {
+    id: 'fr-tafsir-as-saadi',
+    name: 'تفسیر السعدی (Tafsir As-Sa\'di)',
+    language: 'Persian',
+    direction: 'rtl',
+    description: 'تفسیر تیسیر الکریم الرحمن فی تفسیر کلام المنان',
+  },
+  {
+    id: 'ibn-kathir',
+    name: 'Tafsir Ibn Kathir (English)',
+    language: 'English',
+    direction: 'ltr',
+    description: 'Renowned classical exegesis translated to English',
+  },
+  {
+    id: 'muyassar',
+    name: 'تفسير الميسر (Tafsir Al-Muyassar)',
+    language: 'Arabic',
+    direction: 'rtl',
+    description: 'التفسير الميسر الصادر عن مجمع الملك فهد',
+  },
+  {
+    id: 'jalalayn',
+    name: 'تفسير الجلالين (Tafsir Al-Jalalayn)',
+    language: 'Arabic',
+    direction: 'rtl',
+    description: 'تفسير الجلالين المحلي والسيوطي',
+  },
+];
 

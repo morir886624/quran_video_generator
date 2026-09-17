@@ -81,6 +81,21 @@ export interface BackgroundPreset {
 export type PersianTafsirPosition = 'under' | 'above';
 export type PersianTafsirEdition = 'persian-mokhtasar' | 'fr-tafsir-as-saadi';
 
+export type TafsirEditionId =
+  | 'persian-mokhtasar'
+  | 'fr-tafsir-as-saadi'
+  | 'ibn-kathir'
+  | 'muyassar'
+  | 'jalalayn';
+
+export interface TafsirOption {
+  id: TafsirEditionId;
+  name: string;
+  language: string;
+  direction: 'rtl' | 'ltr';
+  description: string;
+}
+
 export interface VideoConfig {
   aspectRatio: AspectRatio;
   backgroundPreset: BackgroundPresetId;
