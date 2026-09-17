@@ -24,6 +24,27 @@ import {
   Loader2,
   Radio,
 } from 'lucide-react';
+import { useBackButton } from '@/lib/back-button';
+
+/**
+ * Solid rounded triangle icon matching user uploaded media
+ * (pointing down for collapse, pointing up for expand)
+ */
+export const TriangleIcon: React.FC<{ direction: 'down' | 'up'; className?: string }> = ({
+  direction,
+  className = 'w-3.5 h-3.5 fill-current',
+}) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={`${className} transition-transform duration-200 origin-center ${
+      direction === 'up' ? 'rotate-180' : ''
+    }`}
+    aria-hidden="true"
+  >
+    <path d="M12 17.5a1.3 1.3 0 0 1-1.08-.58L3.42 6.92A1.25 1.25 0 0 1 4.5 5h15a1.25 1.25 0 0 1 1.08 1.92l-7.5 10a1.3 1.3 0 0 1-1.08.58z" />
+  </svg>
+);
 
 interface VideoPreviewCanvasProps {
   verses: Verse[];
@@ -56,6 +77,10 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const [totalDuration, setTotalDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
+  const [isToolsOpen, setIsToolsOpen] = useState(true);
+
+  // Close editing drawer on back button if open
+  useBackButton(isToolsOpen, () => setIsToolsOpen(false), 20);
 
   const currentStitchKey = `${audioUrls.join(',')}|${verses.map((v) => v.verse_key).join(',')}`;
   const isStitchingAudio = audioUrls.length > 0 && verses.length > 0 && stitchedKey !== currentStitchKey;
@@ -297,7 +322,9 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
       {/* Video Canvas Container (Top Half) */}
       <div
-        className="relative w-full h-[260px] sm:h-[285px] flex items-center justify-center overflow-hidden bg-slate-900/10 dark:bg-transparent cursor-pointer"
+        className={`relative w-full flex items-center justify-center overflow-hidden bg-slate-900/10 dark:bg-transparent cursor-pointer transition-all duration-300 ease-in-out ${
+          isToolsOpen ? 'h-[260px] sm:h-[285px]' : 'h-[430px] sm:h-[460px]'
+        }`}
         onClick={togglePlay}
       >
         <canvas
@@ -315,9 +342,34 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       </div>
 
       {/* Docked Mobile Studio Editor Console (Bottom Half) */}
-      <div className="rounded-t-[32px] bg-white dark:bg-[#0E1626] border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-3 pb-3 flex flex-col gap-2.5 shadow-xl dark:shadow-2xl z-10 transition-colors">
+      <div className="rounded-t-[32px] bg-white dark:bg-[#0E1626] border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-2.5 pb-3 flex flex-col gap-2.5 shadow-xl dark:shadow-2xl z-10 transition-colors">
+        {/* Modal Open/Close Header Button matching user attached icons */}
+        <div className="flex items-center justify-between px-1 -mt-0.5 pb-0.5">
+          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+            {isToolsOpen ? 'Editing Tools' : 'Video Mode'}
+          </span>
+          <button
+            type="button"
+            onClick={() => setIsToolsOpen(!isToolsOpen)}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all shadow-xs border active:scale-95 ${
+              isToolsOpen
+                ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+            }`}
+            title={isToolsOpen ? 'Close editing panel' : 'Open editing panel'}
+            aria-label={isToolsOpen ? 'Close editing panel' : 'Open editing panel'}
+          >
+            <span>{isToolsOpen ? 'Close' : 'Open'}</span>
+            <TriangleIcon direction={isToolsOpen ? 'down' : 'up'} className="w-2.5 h-2.5 fill-current" />
+          </button>
+        </div>
+
         {/* Category Tabs & Tool Options passed from VideoStudio */}
-        {children}
+        {isToolsOpen && (
+          <div className="flex flex-col gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+            {children}
+          </div>
+        )}
 
         {/* Integrated Gapless Audio Player & Scrubber */}
         <div className="pt-2 border-t border-slate-200 dark:border-slate-800/70 space-y-2 transition-colors">
