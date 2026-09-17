@@ -521,14 +521,15 @@ function drawIslamicAccents(
     ctx.fill();
   }
 
-  // Subtle watermark / branding at bottom: "Quran.com Video Studio"
+  // Subtle watermark / branding at bottom: "Powered by Quran.com"
   if (config.showWatermark) {
     const wmFontSize = config.watermarkFontSize || 18;
     ctx.font = `500 ${wmFontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillStyle = config.watermarkColor || 'rgba(255, 255, 255, 0.4)';
-    ctx.fillText('Quran.com Video Studio', width / 2, barY - 14);
+    const wmText = config.watermarkText || 'Powered by Quran.com';
+    ctx.fillText(wmText, width / 2, barY - 14);
   }
 
   ctx.restore();

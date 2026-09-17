@@ -135,7 +135,7 @@ ${fullTranslationText}
 ${config.showPersianTafsir && fullPersianText ? `\n\n🕌 PERSIAN TAFSIR (تفسیر فارسی):\n${fullPersianText}` : ''}
 
 ---
-Generated via Quran.com Video Studio
+Created with Quran Video Studio • Powered by Quran.com API
 #Quran #Shorts #Reels #QuranRecitation #Islam #Muslim #AlQuran #IslamicShorts`;
 
   useEffect(() => {

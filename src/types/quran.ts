@@ -100,6 +100,7 @@ export interface VideoConfig {
   surahTitleColor: string;
   badgeTextColor: string;
   watermarkColor: string;
+  watermarkText?: string;
   progressBarColor: string;
 
   // Typography & Toggles

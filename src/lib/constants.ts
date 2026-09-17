@@ -244,6 +244,7 @@ export const DEFAULT_VIDEO_CONFIG: VideoConfig = {
   surahTitleColor: 'rgba(254, 240, 138, 0.9)',
   badgeTextColor: '#E2E8F0',
   watermarkColor: 'rgba(255, 255, 255, 0.4)',
+  watermarkText: 'Powered by Quran.com',
   progressBarColor: '#10B981',
 
   arabicFontFamily: 'Amiri Quran',

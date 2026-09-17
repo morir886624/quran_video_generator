@@ -943,10 +943,10 @@ export const TypographyCustomizer: React.FC<TypographyCustomizerProps> = ({
               <Eye className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <div>
                 <div className="text-xs font-bold text-slate-900 dark:text-white">
-                  Show Branding Watermark
+                  Show Attribution Watermark
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Displays &quot;Quran.com Video Studio&quot; at the bottom
+                  Displays &quot;Powered by Quran.com&quot; at the bottom
                 </div>
               </div>
             </div>
@@ -970,6 +970,22 @@ export const TypographyCustomizer: React.FC<TypographyCustomizerProps> = ({
 
           {config.showWatermark && (
             <>
+              {/* Watermark Custom Text Input */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  Attribution / Watermark Text
+                </label>
+                <input
+                  type="text"
+                  value={config.watermarkText !== undefined ? config.watermarkText : 'Powered by Quran.com'}
+                  placeholder="Powered by Quran.com"
+                  onChange={(e) =>
+                    onChangeConfig({ watermarkText: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
               {/* Watermark Font Size */}
               <div>
                 <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">
