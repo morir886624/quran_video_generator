@@ -63,6 +63,10 @@ public class MediaSaverPlugin extends Plugin {
     private static final String TAG = "MediaSaverPlugin";
     private static final int PERMISSION_REQ_CODE = 9081;
 
+    // Temporary chunk assembly state
+    private File tempChunkFile = null;
+    private FileOutputStream tempChunkFos = null;
+
     /**
      * Checks current status of Sound/Voice and Media/Storage permissions.
      */
@@ -153,8 +157,92 @@ public class MediaSaverPlugin extends Plugin {
     }
 
     /**
+     * Safely decodes Base64 string with automatic padding and URL-safe handling.
+     */
+    private byte[] safeDecodeBase64(String input) {
+        String clean = input.trim();
+        if (clean.contains(",")) {
+            clean = clean.substring(clean.indexOf(',') + 1);
+        }
+        clean = clean.replaceAll("\\s+", "");
+        while (clean.length() % 4 != 0) {
+            clean += "=";
+        }
+        return Base64.decode(clean, Base64.NO_WRAP | Base64.URL_SAFE);
+    }
+
+    /**
+     * Saves video chunk-by-chunk to prevent WebView bridge payload overflow and truncation.
+     */
+    @PluginMethod
+    public void saveVideoChunk(PluginCall call) {
+        String chunk = call.getString("chunk");
+        String fileName = call.getString("fileName");
+        boolean isFirst = Boolean.TRUE.equals(call.getBoolean("isFirst", false));
+        boolean isLast = Boolean.TRUE.equals(call.getBoolean("isLast", false));
+
+        if (chunk == null) {
+            call.reject("Chunk data is required");
+            return;
+        }
+
+        if (fileName == null || fileName.trim().isEmpty()) {
+            fileName = "quran_video_" + System.currentTimeMillis() + ".mp4";
+        }
+        if (!fileName.endsWith(".mp4") && !fileName.endsWith(".webm")) {
+            fileName += ".mp4";
+        }
+        fileName = fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
+
+        try {
+            byte[] decodedBytes = safeDecodeBase64(chunk);
+            Context context = getContext();
+
+            if (isFirst || tempChunkFile == null || tempChunkFos == null) {
+                if (tempChunkFos != null) {
+                    try { tempChunkFos.close(); } catch (Exception ignored) {}
+                }
+                tempChunkFile = new File(context.getCacheDir(), "temp_quran_chunk_" + System.currentTimeMillis() + ".mp4");
+                tempChunkFos = new FileOutputStream(tempChunkFile, false);
+            }
+
+            tempChunkFos.write(decodedBytes);
+            tempChunkFos.flush();
+
+            if (isLast) {
+                tempChunkFos.close();
+                tempChunkFos = null;
+
+                // Transfer assembled file directly to MediaStore
+                saveFileToGalleryInternal(tempChunkFile, fileName, call);
+
+                // Clean up temp file
+                if (tempChunkFile != null && tempChunkFile.exists()) {
+                    tempChunkFile.delete();
+                }
+                tempChunkFile = null;
+            } else {
+                JSObject ret = new JSObject();
+                ret.put("chunkSaved", true);
+                call.resolve(ret);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in saveVideoChunk", e);
+            if (tempChunkFos != null) {
+                try { tempChunkFos.close(); } catch (Exception ignored) {}
+                tempChunkFos = null;
+            }
+            if (tempChunkFile != null && tempChunkFile.exists()) {
+                tempChunkFile.delete();
+                tempChunkFile = null;
+            }
+            call.reject("Failed to save video: " + e.getMessage());
+        }
+    }
+
+    /**
      * Saves video directly to Android Gallery (Movies/QuranStudio) via MediaStore or public directory.
-     * Supports both direct base64Data (no intermediate file overhead) and filePath.
+     * Supports single-payload base64Data or filePath.
      */
     @PluginMethod
     public void saveVideoToGallery(PluginCall call) {
@@ -173,18 +261,12 @@ public class MediaSaverPlugin extends Plugin {
         if (!fileName.endsWith(".mp4") && !fileName.endsWith(".webm")) {
             fileName += ".mp4";
         }
-        // Clean safe filename
         fileName = fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
 
         InputStream inputStream = null;
         try {
             if (base64Data != null && !base64Data.trim().isEmpty()) {
-                String cleanBase64 = base64Data.trim();
-                if (cleanBase64.contains(",")) {
-                    cleanBase64 = cleanBase64.split(",")[1];
-                }
-                cleanBase64 = cleanBase64.replaceAll("\\s+", "");
-                byte[] decodedBytes = Base64.decode(cleanBase64, Base64.DEFAULT);
+                byte[] decodedBytes = safeDecodeBase64(base64Data);
                 inputStream = new ByteArrayInputStream(decodedBytes);
             } else {
                 String cleanPath = filePath.trim();
@@ -199,80 +281,7 @@ public class MediaSaverPlugin extends Plugin {
                 inputStream = new FileInputStream(sourceFile);
             }
 
-            Context context = getContext();
-            ContentResolver resolver = context.getContentResolver();
-            Uri savedUri = null;
-            String savedPathDescription = "Movies/QuranStudio/" + fileName;
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // Android 10+ (API 29+) MediaStore scoped storage - direct gallery entry
-                ContentValues values = new ContentValues();
-                values.put(MediaStore.Video.Media.DISPLAY_NAME, fileName);
-                values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
-                values.put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/QuranStudio");
-                values.put(MediaStore.Video.Media.IS_PENDING, 1);
-
-                Uri collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
-                savedUri = resolver.insert(collection, values);
-
-                if (savedUri == null) {
-                    call.reject("Failed to create MediaStore entry for video");
-                    return;
-                }
-
-                try (OutputStream out = resolver.openOutputStream(savedUri)) {
-                    if (out == null) {
-                        call.reject("Failed to open output stream for MediaStore");
-                        return;
-                    }
-                    byte[] buffer = new byte[65536];
-                    int bytesRead;
-                    while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        out.write(buffer, 0, bytesRead);
-                    }
-                    out.flush();
-                }
-
-                values.clear();
-                values.put(MediaStore.Video.Media.IS_PENDING, 0);
-                resolver.update(savedUri, values, null, null);
-            } else {
-                // Legacy Android 9 and lower
-                File moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
-                File quranDir = new File(moviesDir, "QuranStudio");
-                if (!quranDir.exists()) {
-                    //noinspection ResultOfMethodCallIgnored
-                    quranDir.mkdirs();
-                }
-                File destFile = new File(quranDir, fileName);
-
-                try (OutputStream out = new FileOutputStream(destFile)) {
-                    byte[] buffer = new byte[65536];
-                    int bytesRead;
-                    while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        out.write(buffer, 0, bytesRead);
-                    }
-                    out.flush();
-                }
-
-                savedUri = Uri.fromFile(destFile);
-                savedPathDescription = destFile.getAbsolutePath();
-
-                MediaScannerConnection.scanFile(
-                    context,
-                    new String[]{destFile.getAbsolutePath()},
-                    new String[]{"video/mp4"},
-                    null
-                );
-            }
-
-            Log.i(TAG, "Video successfully saved to gallery: " + savedPathDescription);
-            JSObject ret = new JSObject();
-            ret.put("success", true);
-            ret.put("uri", savedUri != null ? savedUri.toString() : "");
-            ret.put("path", savedPathDescription);
-            ret.put("message", "Video saved to Gallery (Movies/QuranStudio)");
-            call.resolve(ret);
+            saveStreamToGalleryInternal(inputStream, fileName, call);
 
         } catch (Exception e) {
             Log.e(TAG, "Error saving video to gallery", e);
@@ -284,5 +293,85 @@ public class MediaSaverPlugin extends Plugin {
                 } catch (Exception ignored) {}
             }
         }
+    }
+
+    private void saveFileToGalleryInternal(File sourceFile, String fileName, PluginCall call) throws Exception {
+        try (InputStream in = new FileInputStream(sourceFile)) {
+            saveStreamToGalleryInternal(in, fileName, call);
+        }
+    }
+
+    private void saveStreamToGalleryInternal(InputStream inputStream, String fileName, PluginCall call) throws Exception {
+        Context context = getContext();
+        ContentResolver resolver = context.getContentResolver();
+        Uri savedUri = null;
+        String savedPathDescription = "Movies/QuranStudio/" + fileName;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Video.Media.DISPLAY_NAME, fileName);
+            values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
+            values.put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/QuranStudio");
+            values.put(MediaStore.Video.Media.IS_PENDING, 1);
+
+            Uri collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+            savedUri = resolver.insert(collection, values);
+
+            if (savedUri == null) {
+                call.reject("Failed to create MediaStore entry for video");
+                return;
+            }
+
+            try (OutputStream out = resolver.openOutputStream(savedUri)) {
+                if (out == null) {
+                    call.reject("Failed to open output stream for MediaStore");
+                    return;
+                }
+                byte[] buffer = new byte[65536];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+                out.flush();
+            }
+
+            values.clear();
+            values.put(MediaStore.Video.Media.IS_PENDING, 0);
+            resolver.update(savedUri, values, null, null);
+        } else {
+            File moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
+            File quranDir = new File(moviesDir, "QuranStudio");
+            if (!quranDir.exists()) {
+                quranDir.mkdirs();
+            }
+            File destFile = new File(quranDir, fileName);
+
+            try (OutputStream out = new FileOutputStream(destFile)) {
+                byte[] buffer = new byte[65536];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+                out.flush();
+            }
+
+            savedUri = Uri.fromFile(destFile);
+            savedPathDescription = destFile.getAbsolutePath();
+
+            MediaScannerConnection.scanFile(
+                context,
+                new String[]{destFile.getAbsolutePath()},
+                new String[]{"video/mp4"},
+                null
+            );
+        }
+
+        Log.i(TAG, "Video successfully saved to gallery: " + savedPathDescription);
+        JSObject ret = new JSObject();
+        ret.put("success", true);
+        ret.put("uri", savedUri != null ? savedUri.toString() : "");
+        ret.put("path", savedPathDescription);
+        ret.put("message", "Video saved to Gallery (Movies/QuranStudio)");
+        call.resolve(ret);
     }
 }

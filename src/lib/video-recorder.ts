@@ -332,6 +332,66 @@ export async function writeLargeBase64File(
 }
 
 /**
+ * Saves video safely to Android Gallery in 256KB chunks to prevent
+ * WebView bridge payload overflow, Base64 truncation, and 'bad base-64' decode errors.
+ */
+export async function saveVideoChunkedToAndroid(
+  filename: string,
+  base64Data: string
+): Promise<{ success: boolean; message: string; uri?: string }> {
+  // Ensure clean Base64 data without data-URL prefix or whitespace
+  const rawBase64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+  const cleanBase64 = rawBase64.replace(/\s+/g, '');
+
+  // 256KB = 262,144 characters (multiple of 4 for clean, valid Base64 chunks)
+  const CHUNK_SIZE = 256 * 1024;
+  const totalLength = cleanBase64.length;
+
+  if (totalLength <= CHUNK_SIZE) {
+    const res = await MediaSaver.saveVideoChunk({
+      chunk: cleanBase64,
+      fileName: filename,
+      isFirst: true,
+      isLast: true,
+    });
+    return {
+      success: true,
+      message: res.message || 'Saved to Gallery (Movies/QuranStudio)!',
+      uri: res.uri,
+    };
+  }
+
+  let offset = 0;
+  let isFirst = true;
+
+  while (offset < totalLength) {
+    const nextOffset = Math.min(offset + CHUNK_SIZE, totalLength);
+    const chunk = cleanBase64.slice(offset, nextOffset);
+    const isLast = nextOffset >= totalLength;
+
+    const res = await MediaSaver.saveVideoChunk({
+      chunk,
+      fileName: filename,
+      isFirst,
+      isLast,
+    });
+
+    if (isLast) {
+      return {
+        success: true,
+        message: res.message || 'Saved to Gallery (Movies/QuranStudio)!',
+        uri: res.uri,
+      };
+    }
+
+    isFirst = false;
+    offset = nextOffset;
+  }
+
+  return { success: true, message: 'Saved to Gallery (Movies/QuranStudio)!' };
+}
+
+/**
  * Saves video file directly to device storage on mobile or triggers browser download on web
  */
 export async function saveVideoToDevice({
@@ -359,11 +419,8 @@ export async function saveVideoToDevice({
           // Request storage & audio permissions like standard Android apps
           await requestAppPermissions();
 
-          // Save directly to Gallery via native MediaStore using Base64 bytes (no Filesystem EACCES issues)
-          const res = await MediaSaver.saveVideoToGallery({
-            base64Data,
-            fileName: filename,
-          });
+          // Save directly to Gallery via native MediaStore in safe chunks (no WebView bridge overflow & no bad base-64)
+          const res = await saveVideoChunkedToAndroid(filename, base64Data);
 
           return {
             success: true,
@@ -371,7 +428,7 @@ export async function saveVideoToDevice({
             uri: res.uri,
           };
         } catch (androidErr: unknown) {
-          console.warn('Direct MediaSaver save failed, attempting cache fallback:', androidErr);
+          console.warn('Chunked MediaSaver save failed, attempting cache fallback:', androidErr);
 
           let fileUri: string | undefined;
           try {
