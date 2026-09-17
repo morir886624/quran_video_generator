@@ -314,15 +314,10 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   };
 
   return (
-    <div className="w-full max-w-[380px] sm:max-w-[395px] mx-auto rounded-[48px] border-[8px] border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-[#080E1C] shadow-2xl shadow-slate-300/60 dark:shadow-black overflow-hidden flex flex-col relative transition-all">
-      {/* Dynamic Island Notch */}
-      <div className="pt-2.5 pb-1 flex justify-center z-20">
-        <div className="w-24 h-5 bg-slate-900 dark:bg-black rounded-full shadow-inner" />
-      </div>
-
+    <div className="w-full max-w-[380px] sm:max-w-[395px] mx-auto rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-2xl shadow-slate-300/40 dark:shadow-black overflow-hidden flex flex-col relative transition-all">
       {/* Video Canvas Container (Top Half) */}
       <div
-        className={`relative w-full flex items-center justify-center overflow-hidden bg-slate-900/10 dark:bg-transparent cursor-pointer transition-all duration-300 ease-in-out ${
+        className={`relative w-full flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 ease-in-out ${
           isToolsOpen ? 'h-[260px] sm:h-[285px]' : 'h-[430px] sm:h-[460px]'
         }`}
         onClick={togglePlay}
