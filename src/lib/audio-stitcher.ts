@@ -100,6 +100,7 @@ export class StitchedAudioPlayer {
   private isPlaying = false;
   private currentVolume = 1.0;
   private isMuted = false;
+  private playbackRate = 1.0;
   private segments: VerseTimeSegment[] = [];
   private totalDuration = 0;
   private animFrameId: number | null = null;
@@ -273,11 +274,13 @@ export class StitchedAudioPlayer {
     if (!audio) return;
 
     audio.volume = this.isMuted ? 0 : this.currentVolume;
+    audio.playbackRate = this.playbackRate;
 
     // Preload next Ayah audio in the background for zero gap
     if (this.currentAyahIndex + 1 < this.audioUrls.length) {
       this.nextAudioEl = new Audio(this.audioUrls[this.currentAyahIndex + 1]);
       this.nextAudioEl.preload = 'auto';
+      this.nextAudioEl.playbackRate = this.playbackRate;
     } else {
       this.nextAudioEl = null;
     }
@@ -380,6 +383,7 @@ export class StitchedAudioPlayer {
       this.cleanupAudioElement(this.currentAudioEl);
       this.currentAudioEl = new Audio(url);
       this.currentAudioEl.volume = this.isMuted ? 0 : this.currentVolume;
+      this.currentAudioEl.playbackRate = this.playbackRate;
     }
 
     if (this.currentAudioEl) {
@@ -403,6 +407,7 @@ export class StitchedAudioPlayer {
     this.cleanupAudioElement(this.currentAudioEl);
     this.currentAudioEl = new Audio(url);
     this.currentAudioEl.volume = this.isMuted ? 0 : this.currentVolume;
+    this.currentAudioEl.playbackRate = this.playbackRate;
 
     if (this.isPlaying) {
       this.playCurrentAyah();
@@ -419,6 +424,16 @@ export class StitchedAudioPlayer {
     }
     if (this.nextAudioEl) {
       this.nextAudioEl.volume = this.currentVolume;
+    }
+  }
+
+  public setPlaybackRate(rate: number) {
+    this.playbackRate = Math.max(0.25, Math.min(rate, 4.0));
+    if (this.currentAudioEl) {
+      this.currentAudioEl.playbackRate = this.playbackRate;
+    }
+    if (this.nextAudioEl) {
+      this.nextAudioEl.playbackRate = this.playbackRate;
     }
   }
 
