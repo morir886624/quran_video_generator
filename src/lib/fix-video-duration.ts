@@ -208,3 +208,4 @@ export async function fixVideoDuration(blob: Blob, durationSeconds: number): Pro
     return blob;
   }
 }
+
