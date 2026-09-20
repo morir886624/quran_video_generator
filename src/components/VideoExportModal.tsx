@@ -242,6 +242,7 @@ Created with Quran Video Studio • Powered by Quran.com API
         url: exportResult.url,
         filename: exportResult.filename,
         blob: exportResult.blob,
+        durationMs: exportResult.duration ? Math.round(exportResult.duration * 1000) : undefined,
         title: youtubeTitle,
         text: `${chapter?.name_simple || 'Quran'} (${rangeStr}) - Recited by ${reciterName}`,
       });

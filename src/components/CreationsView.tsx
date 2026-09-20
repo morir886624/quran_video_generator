@@ -195,8 +195,9 @@ export const CreationsView: React.FC<CreationsViewProps> = ({
     const actionKey = `save_${video.id}`;
     setIsProcessingAction(actionKey);
     try {
+      const ext = video.mimeType?.includes('webm') || video.videoBlob?.type?.includes('webm') ? 'webm' : 'mp4';
       const url = videoUrls[video.id] || URL.createObjectURL(video.videoBlob);
-      const filename = `${video.chapterName.toLowerCase().replace(/\s+/g, '-')}-${video.id}.mp4`;
+      const filename = `${video.chapterName.toLowerCase().replace(/\s+/g, '-')}-${video.id}.${ext}`;
       const res = await saveVideoToDevice({
         url,
         filename,
@@ -233,12 +234,14 @@ export const CreationsView: React.FC<CreationsViewProps> = ({
     const actionKey = `share_${video.id}`;
     setIsProcessingAction(actionKey);
     try {
+      const ext = video.mimeType?.includes('webm') || video.videoBlob?.type?.includes('webm') ? 'webm' : 'mp4';
       const url = videoUrls[video.id] || URL.createObjectURL(video.videoBlob);
-      const filename = `${video.chapterName.toLowerCase().replace(/\s+/g, '-')}-${video.id}.mp4`;
+      const filename = `${video.chapterName.toLowerCase().replace(/\s+/g, '-')}-${video.id}.${ext}`;
       const res = await shareVideo({
         url,
         filename,
         blob: video.videoBlob,
+        durationMs: video.duration ? Math.round(video.duration * 1000) : undefined,
         title: video.youtubeTitle || video.title,
         text: `${video.chapterName} (${video.verseRange}) - ${video.reciterName}`,
       });

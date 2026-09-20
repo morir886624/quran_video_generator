@@ -2,7 +2,7 @@ import { Chapter, Verse, VideoConfig } from '@/types/quran';
 import { createParticles, getCanvasDimensions, renderVideoFrame } from './video-engine';
 import { stitchAudioBuffers, StitchedAudioResult } from './audio-stitcher';
 import { fetchPersianTafsirSurah } from './quran-api';
-import { fixWebmDuration } from './fix-webm-duration';
+import { fixVideoDuration } from './fix-video-duration';
 import { Share } from '@capacitor/share';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -249,14 +249,14 @@ export async function exportVideo({
     recorder.stop();
   });
 
-  // Inject exact duration metadata into WebM header so Gallery, WhatsApp,
-  // VLC, and players display and seek the full duration instead of 3s / 0s
+  // Inject exact duration metadata into MP4 (mvhd, tkhd, mdhd, mehd) or WebM header
+  // so Android Gallery, Google Photos, WhatsApp, VLC, and all players display and seek the full duration instead of 3s / 0s
   let finalBlob = rawBlob;
-  if (!isMp4 && totalDuration > 0) {
+  if (totalDuration > 0) {
     try {
-      finalBlob = await fixWebmDuration(rawBlob, totalDuration * 1000);
+      finalBlob = await fixVideoDuration(rawBlob, totalDuration);
     } catch (durationErr) {
-      console.warn('Failed to patch WebM duration header, using raw blob:', durationErr);
+      console.warn('Failed to patch video duration header, using raw blob:', durationErr);
     }
   }
 
@@ -515,12 +515,14 @@ export async function shareVideo({
   url,
   filename,
   blob,
+  durationMs,
   title = 'Quran Video',
   text = 'Created with Quran Video Studio',
 }: {
   url: string;
   filename: string;
   blob?: Blob;
+  durationMs?: number;
   title?: string;
   text?: string;
 }): Promise<ShareVideoResult> {
@@ -540,8 +542,8 @@ export async function shareVideo({
     if (platform === 'android') {
       try {
         if (targetBlob) {
-          // Stream chunks to ensure file exists in native storage
-          await saveVideoChunkedToAndroid(filename, targetBlob);
+          // Stream chunks to ensure file exists in native storage with exact duration
+          await saveVideoChunkedToAndroid(filename, targetBlob, durationMs);
         }
         // Invoke native Android chooser directly via MediaSaverPlugin
         await MediaSaver.shareVideo({
