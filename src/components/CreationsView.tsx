@@ -201,6 +201,7 @@ export const CreationsView: React.FC<CreationsViewProps> = ({
         url,
         filename,
         blob: video.videoBlob,
+        durationMs: video.duration ? Math.round(video.duration * 1000) : undefined,
       });
       setActionFeedback((prev) => ({ ...prev, [video.id]: res.message }));
       setTimeout(() => {

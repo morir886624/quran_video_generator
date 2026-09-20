@@ -52,7 +52,7 @@ export async function exportVideo({
   chapter: Chapter | null;
   config: VideoConfig;
   onProgress?: (p: ExportProgress) => void;
-}): Promise<{ blob: Blob; url: string; filename: string }> {
+}): Promise<{ blob: Blob; url: string; filename: string; duration: number }> {
   if (verses.length === 0) {
     throw new Error('No verses selected for video export.');
   }
@@ -270,7 +270,7 @@ export async function exportVideo({
   const chapterName = chapter ? chapter.name_simple.toLowerCase().replace(/\s+/g, '-') : 'quran';
   const filename = `${chapterName}-ayah-${verses[0]?.verse_number}-to-${verses[verses.length - 1]?.verse_number}.${extension}`;
 
-  return { blob: finalBlob, url, filename };
+  return { blob: finalBlob, url, filename, duration: totalDuration };
 }
 
 /**
@@ -350,7 +350,8 @@ export async function writeLargeBase64File(
  */
 export async function saveVideoChunkedToAndroid(
   filename: string,
-  targetBlob: Blob
+  targetBlob: Blob,
+  durationMs?: number
 ): Promise<{ success: boolean; message: string; uri?: string }> {
   // 256KB binary chunks
   const CHUNK_SIZE = 256 * 1024;
@@ -379,6 +380,7 @@ export async function saveVideoChunkedToAndroid(
       fileName: filename,
       isFirst,
       isLast,
+      duration: durationMs,
     });
 
     isFirst = false;
@@ -399,10 +401,12 @@ export async function saveVideoToDevice({
   url,
   filename,
   blob,
+  durationMs,
 }: {
   url: string;
   filename: string;
   blob?: Blob;
+  durationMs?: number;
 }): Promise<{ success: boolean; message: string; uri?: string }> {
   if (Capacitor.isNativePlatform()) {
     try {
@@ -419,8 +423,8 @@ export async function saveVideoToDevice({
           // Request storage & audio permissions like standard Android apps
           await requestAppPermissions();
 
-          // Stream binary Blob chunks directly to native MediaStore
-          const res = await saveVideoChunkedToAndroid(filename, targetBlob);
+          // Stream binary Blob chunks directly to native MediaStore with exact duration
+          const res = await saveVideoChunkedToAndroid(filename, targetBlob, durationMs);
 
           return {
             success: true,

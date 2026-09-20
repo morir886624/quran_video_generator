@@ -66,6 +66,7 @@ export const VideoExportModal: React.FC<VideoExportModalProps> = ({
     blob: Blob;
     url: string;
     filename: string;
+    duration?: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSavedToCreations, setIsSavedToCreations] = useState(false);
@@ -172,6 +173,7 @@ Created with Quran Video Studio • Powered by Quran.com API
               videoBlob: res.blob,
               mimeType: res.blob.type || 'video/mp4',
               size: res.blob.size,
+              duration: res.duration,
               createdAt: Date.now(),
               youtubeTitle,
               youtubeDescription,
@@ -217,6 +219,7 @@ Created with Quran Video Studio • Powered by Quran.com API
         url: exportResult.url,
         filename: exportResult.filename,
         blob: exportResult.blob,
+        durationMs: exportResult.duration ? Math.round(exportResult.duration * 1000) : undefined,
       });
       setStatusFeedback({ type: 'success', message: res.message });
       setTimeout(() => setStatusFeedback(null), 5000);

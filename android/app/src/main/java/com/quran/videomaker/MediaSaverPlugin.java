@@ -183,6 +183,7 @@ public class MediaSaverPlugin extends Plugin {
         String fileName = call.getString("fileName");
         boolean isFirst = Boolean.TRUE.equals(call.getBoolean("isFirst", false));
         boolean isLast = Boolean.TRUE.equals(call.getBoolean("isLast", false));
+        Long duration = call.getLong("duration", null);
 
         if (chunk == null) {
             call.reject("Chunk data is required");
@@ -216,8 +217,8 @@ public class MediaSaverPlugin extends Plugin {
             }
 
             if (isLast) {
-                // Transfer assembled file directly to MediaStore
-                saveFileToGalleryInternal(tempFile, fileName, call);
+                // Transfer assembled file directly to MediaStore with exact duration
+                saveFileToGalleryInternal(tempFile, fileName, duration, call);
 
                 // Clean up temp file
                 if (tempFile.exists()) {
@@ -248,6 +249,7 @@ public class MediaSaverPlugin extends Plugin {
         String base64Data = call.getString("base64Data");
         String filePath = call.getString("filePath");
         String fileName = call.getString("fileName");
+        Long duration = call.getLong("duration", null);
 
         if ((base64Data == null || base64Data.trim().isEmpty()) && (filePath == null || filePath.trim().isEmpty())) {
             call.reject("Either base64Data or filePath must be provided");
@@ -280,7 +282,7 @@ public class MediaSaverPlugin extends Plugin {
                 inputStream = new FileInputStream(sourceFile);
             }
 
-            saveStreamToGalleryInternal(inputStream, fileName, call);
+            saveStreamToGalleryInternal(inputStream, fileName, duration, call);
 
         } catch (Exception e) {
             Log.e(TAG, "Error saving video to gallery", e);
@@ -364,13 +366,13 @@ public class MediaSaverPlugin extends Plugin {
         }
     }
 
-    private void saveFileToGalleryInternal(File sourceFile, String fileName, PluginCall call) throws Exception {
+    private void saveFileToGalleryInternal(File sourceFile, String fileName, Long durationMs, PluginCall call) throws Exception {
         try (InputStream in = new FileInputStream(sourceFile)) {
-            saveStreamToGalleryInternal(in, fileName, call);
+            saveStreamToGalleryInternal(in, fileName, durationMs, call);
         }
     }
 
-    private void saveStreamToGalleryInternal(InputStream inputStream, String fileName, PluginCall call) throws Exception {
+    private void saveStreamToGalleryInternal(InputStream inputStream, String fileName, Long durationMs, PluginCall call) throws Exception {
         Context context = getContext();
         ContentResolver resolver = context.getContentResolver();
         Uri savedUri = null;
@@ -383,6 +385,9 @@ public class MediaSaverPlugin extends Plugin {
             values.put(MediaStore.Video.Media.MIME_TYPE, mimeType);
             values.put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/QuranStudio");
             values.put(MediaStore.Video.Media.IS_PENDING, 1);
+            if (durationMs != null && durationMs > 0) {
+                values.put(MediaStore.Video.Media.DURATION, durationMs);
+            }
 
             Uri collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
             savedUri = resolver.insert(collection, values);
@@ -407,6 +412,9 @@ public class MediaSaverPlugin extends Plugin {
 
             values.clear();
             values.put(MediaStore.Video.Media.IS_PENDING, 0);
+            if (durationMs != null && durationMs > 0) {
+                values.put(MediaStore.Video.Media.DURATION, durationMs);
+            }
             resolver.update(savedUri, values, null, null);
         } else {
             File moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
@@ -433,7 +441,15 @@ public class MediaSaverPlugin extends Plugin {
                 context,
                 new String[]{destFile.getAbsolutePath()},
                 new String[]{mimeType},
-                null
+                (path, uri) -> {
+                    if (uri != null && durationMs != null && durationMs > 0) {
+                        try {
+                            ContentValues updateValues = new ContentValues();
+                            updateValues.put(MediaStore.Video.Media.DURATION, durationMs);
+                            resolver.update(uri, updateValues, null, null);
+                        } catch (Exception ignored) {}
+                    }
+                }
             );
         }
 
