@@ -168,19 +168,34 @@ export default function Home() {
   const [activePlayingKey, setActivePlayingKey] = useState<string | null>(null);
   const [singleAyahAudio, setSingleAyahAudio] = useState<HTMLAudioElement | null>(null);
 
+  const currentReciterRef = useRef<Reciter>(currentReciter);
+  useEffect(() => {
+    currentReciterRef.current = currentReciter;
+  }, [currentReciter]);
+
+  const chaptersRef = useRef<Chapter[]>(chapters);
+  useEffect(() => {
+    chaptersRef.current = chapters;
+  }, [chapters]);
+
   // 1. Load Verses when Chapter or Translation Changes
   const loadChapterData = useCallback(
-    async (chapterId: number, startAyah?: number, endAyah?: number, transId?: number) => {
+    async (chapterId: number, startAyah?: number, endAyah?: number, transId?: number, rec?: Reciter) => {
       setIsLoadingVerses(true);
       const activeTransId = transId || selectedTranslationId;
+      const activeReciter = rec || currentReciterRef.current;
       try {
         const fetchedVerses = await fetchVerses(chapterId, undefined, undefined, activeTransId);
         setVerses(fetchedVerses);
         setCurrentChapterId(chapterId);
+        try {
+          localStorage.setItem('quran_current_chapter_id', String(chapterId));
+        } catch {}
 
         // Update current chapter object
-        if (chapters.length > 0) {
-          const chap = chapters.find((c) => c.id === chapterId) || null;
+        const allChapters = chaptersRef.current;
+        if (allChapters.length > 0) {
+          const chap = allChapters.find((c) => c.id === chapterId) || null;
           setCurrentChapter(chap);
         }
 
@@ -194,7 +209,7 @@ export default function Home() {
         setSelectedVerseKeys(initialKeys);
 
         // Fetch audio files for this chapter & reciter
-        const audioFiles = await fetchAudioFiles(currentReciter.id, chapterId, currentReciter.audioSubfolder);
+        const audioFiles = await fetchAudioFiles(activeReciter.id, chapterId, activeReciter.audioSubfolder);
         const map: Record<string, string> = {};
         audioFiles.forEach((f) => {
           map[f.verse_key] = f.url;
@@ -206,22 +221,37 @@ export default function Home() {
         setIsLoadingVerses(false);
       }
     },
-    [chapters, currentReciter, selectedTranslationId]
+    [selectedTranslationId]
   );
 
-  // 2. Initial load of all 114 Surahs and default Chapter
+  // 2. Initial load of all 114 Surahs and default/saved Chapter (runs strictly ONCE on mount)
   useEffect(() => {
     fetchChapters()
       .then((data) => {
         setChapters(data);
-        const fatihah = data.find((c) => c.id === 1) || data[0];
-        setCurrentChapter(fatihah);
-        loadChapterData(fatihah ? fatihah.id : 1);
+        chaptersRef.current = data;
+
+        // Restore saved chapter ID if available, otherwise default to Surah Al-Fatihah (1)
+        let initialChapterId = 1;
+        try {
+          const savedChapId = localStorage.getItem('quran_current_chapter_id');
+          if (savedChapId) {
+            const parsed = parseInt(savedChapId, 10);
+            if (!isNaN(parsed) && parsed >= 1 && parsed <= 114) {
+              initialChapterId = parsed;
+            }
+          }
+        } catch {}
+
+        const targetChapter = data.find((c) => c.id === initialChapterId) || data[0];
+        setCurrentChapter(targetChapter);
+        loadChapterData(targetChapter ? targetChapter.id : 1);
       })
       .catch((err) => console.error('Failed to load chapters:', err));
-  }, [loadChapterData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // 3. Reload audio map when reciter changes
+  // 3. Reload ONLY audio map when reciter changes (NEVER resets chapter or selected verses)
   useEffect(() => {
     if (currentChapterId) {
       let isCancelled = false;

@@ -2,6 +2,7 @@ import { Chapter, Verse, VideoConfig } from '@/types/quran';
 import { createParticles, getCanvasDimensions, renderVideoFrame } from './video-engine';
 import { stitchAudioBuffers, StitchedAudioResult } from './audio-stitcher';
 import { fetchPersianTafsirSurah } from './quran-api';
+import { fixWebmDuration } from './fix-webm-duration';
 import { Share } from '@capacitor/share';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -240,13 +241,24 @@ export async function exportVideo({
   });
 
   // Stop recorder
-  const finalBlob = await new Promise<Blob>((resolve) => {
+  const rawBlob = await new Promise<Blob>((resolve) => {
     recorder.onstop = () => {
       const blob = new Blob(recordedChunks, { type: mimeType });
       resolve(blob);
     };
     recorder.stop();
   });
+
+  // Inject exact duration metadata into WebM header so Gallery, WhatsApp,
+  // VLC, and players display and seek the full duration instead of 3s / 0s
+  let finalBlob = rawBlob;
+  if (!isMp4 && totalDuration > 0) {
+    try {
+      finalBlob = await fixWebmDuration(rawBlob, totalDuration * 1000);
+    } catch (durationErr) {
+      console.warn('Failed to patch WebM duration header, using raw blob:', durationErr);
+    }
+  }
 
   try {
     sourceNode.stop();
@@ -485,6 +497,16 @@ export async function saveVideoToDevice({
 /**
  * Triggers native mobile share sheet with attached video file, or Web Share API
  */
+export interface ShareVideoResult {
+  shared: boolean;
+  method: 'native' | 'web-share' | 'fallback';
+  error?: string;
+}
+
+/**
+ * Triggers native mobile share sheet with attached video file, or Web Share API.
+ * Returns the share result method so the caller can open a fallback modal if needed.
+ */
 export async function shareVideo({
   url,
   filename,
@@ -497,61 +519,100 @@ export async function shareVideo({
   blob?: Blob;
   title?: string;
   text?: string;
-}): Promise<void> {
-  if (Capacitor.isNativePlatform()) {
-    let targetBlob = blob;
-    if (!targetBlob) {
+}): Promise<ShareVideoResult> {
+  let targetBlob = blob;
+  if (!targetBlob && url) {
+    try {
       const response = await fetch(url);
       targetBlob = await response.blob();
+    } catch (e) {
+      console.warn('Could not fetch blob from url:', e);
     }
-
-    const base64Data = await blobToBase64(targetBlob);
-    const fileUri = await writeLargeBase64File(filename, base64Data, Directory.Cache);
-
-    try {
-      await Share.share({
-        title,
-        text,
-        files: [fileUri],
-        dialogTitle: 'Share Quran Video',
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (
-        msg.toLowerCase().includes('cancel') ||
-        msg.toLowerCase().includes('dismiss')
-      ) {
-        return;
-      }
-      console.warn('Native share error:', err);
-    }
-    return;
   }
 
-  // Web Share API
-  if (blob && typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: blob.type || 'video/mp4' });
-    if (navigator.canShare({ files: [file] })) {
+  if (Capacitor.isNativePlatform()) {
+    const platform = Capacitor.getPlatform();
+
+    if (platform === 'android') {
       try {
+        if (targetBlob) {
+          // Stream chunks to ensure file exists in native storage
+          await saveVideoChunkedToAndroid(filename, targetBlob);
+        }
+        // Invoke native Android chooser directly via MediaSaverPlugin
+        await MediaSaver.shareVideo({
+          fileName: filename,
+          title,
+          text,
+        });
+        return { shared: true, method: 'native' };
+      } catch (androidErr) {
+        console.warn('MediaSaver.shareVideo failed, attempting Share plugin fallback:', androidErr);
+        try {
+          if (targetBlob) {
+            const base64Data = await blobToBase64(targetBlob);
+            const fileUri = await writeLargeBase64File(filename, base64Data, Directory.Cache);
+            await Share.share({
+              title,
+              text,
+              files: [fileUri],
+              dialogTitle: 'Share Quran Video',
+            });
+            return { shared: true, method: 'native' };
+          }
+        } catch (sharePluginErr: unknown) {
+          const msg = sharePluginErr instanceof Error ? sharePluginErr.message : String(sharePluginErr);
+          if (msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('dismiss')) {
+            return { shared: false, method: 'native' };
+          }
+          console.warn('Share plugin fallback error:', sharePluginErr);
+        }
+      }
+    } else if (platform === 'ios') {
+      try {
+        if (targetBlob) {
+          const base64Data = await blobToBase64(targetBlob);
+          const fileUri = await writeLargeBase64File(filename, base64Data, Directory.Cache);
+          await Share.share({
+            title,
+            text,
+            files: [fileUri],
+            dialogTitle: 'Share Quran Video',
+          });
+          return { shared: true, method: 'native' };
+        }
+      } catch (iosErr: unknown) {
+        const msg = iosErr instanceof Error ? iosErr.message : String(iosErr);
+        if (msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('dismiss')) {
+          return { shared: false, method: 'native' };
+        }
+        console.warn('iOS share error:', iosErr);
+      }
+    }
+  }
+
+  // Web Share API (Mobile Browsers or supported Desktop)
+  if (targetBlob && typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+    try {
+      const file = new File([targetBlob], filename, { type: targetBlob.type || 'video/mp4' });
+      if (navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
           title,
           text,
         });
-        return;
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name === 'AbortError') return;
+        return { shared: true, method: 'web-share' };
       }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        return { shared: false, method: 'web-share' };
+      }
+      console.warn('Web Share API error:', err);
     }
   }
 
-  // Fallback web download
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  // Fallback indicator so caller UI can present interactive ShareModal
+  return { shared: false, method: 'fallback' };
 }
 
 /**

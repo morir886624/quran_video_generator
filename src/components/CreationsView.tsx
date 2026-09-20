@@ -14,6 +14,7 @@ import {
 } from '@/lib/storage-db';
 import { saveVideoToDevice, shareVideo } from '@/lib/video-recorder';
 import { VideoConfig } from '@/types/quran';
+import { ShareModal } from './ShareModal';
 import {
   Film,
   Download,
@@ -66,6 +67,7 @@ export const CreationsView: React.FC<CreationsViewProps> = ({
 
   // YouTube modal state
   const [activeYoutubeVideo, setActiveYoutubeVideo] = useState<ExportedVideoItem | null>(null);
+  const [activeShareVideo, setActiveShareVideo] = useState<ExportedVideoItem | null>(null);
   const [copiedTitle, setCopiedTitle] = useState(false);
   const [copiedDesc, setCopiedDesc] = useState(false);
   const [copiedArabic, setCopiedArabic] = useState(false);
@@ -232,15 +234,19 @@ export const CreationsView: React.FC<CreationsViewProps> = ({
     try {
       const url = videoUrls[video.id] || URL.createObjectURL(video.videoBlob);
       const filename = `${video.chapterName.toLowerCase().replace(/\s+/g, '-')}-${video.id}.mp4`;
-      await shareVideo({
+      const res = await shareVideo({
         url,
         filename,
         blob: video.videoBlob,
         title: video.youtubeTitle || video.title,
         text: `${video.chapterName} (${video.verseRange}) - ${video.reciterName}`,
       });
+      if (res.method === 'fallback') {
+        setActiveShareVideo(video);
+      }
     } catch (err: unknown) {
-      console.warn('Share failed:', err);
+      console.warn('Share failed, opening share modal:', err);
+      setActiveShareVideo(video);
     } finally {
       setIsProcessingAction(null);
     }
@@ -713,6 +719,22 @@ export const CreationsView: React.FC<CreationsViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Interactive Share Modal (WhatsApp, Telegram, X, Facebook, Download) */}
+      {activeShareVideo && (
+        <ShareModal
+          isOpen={!!activeShareVideo}
+          onClose={() => setActiveShareVideo(null)}
+          videoUrl={videoUrls[activeShareVideo.id] || URL.createObjectURL(activeShareVideo.videoBlob)}
+          videoBlob={activeShareVideo.videoBlob}
+          filename={`${activeShareVideo.chapterName.toLowerCase().replace(/\s+/g, '-')}-${activeShareVideo.id}.mp4`}
+          title={activeShareVideo.youtubeTitle || activeShareVideo.title}
+          text={`${activeShareVideo.chapterName} (${activeShareVideo.verseRange}) - ${activeShareVideo.reciterName}`}
+          surahName={activeShareVideo.chapterName}
+          ayahRange={activeShareVideo.verseRange}
+          reciterName={activeShareVideo.reciterName}
+        />
       )}
     </div>
   );

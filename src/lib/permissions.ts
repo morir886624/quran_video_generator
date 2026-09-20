@@ -21,6 +21,12 @@ interface MediaSaverNativePlugin {
     isFirst: boolean;
     isLast: boolean;
   }): Promise<{ success: boolean; chunkSaved?: boolean; uri?: string; path?: string; message?: string }>;
+  shareVideo(options: {
+    filePath?: string;
+    fileName?: string;
+    title?: string;
+    text?: string;
+  }): Promise<{ success: boolean; message?: string }>;
 }
 
 export const MediaSaver = registerPlugin<MediaSaverNativePlugin>('MediaSaver');

@@ -293,6 +293,76 @@ public class MediaSaverPlugin extends Plugin {
         }
     }
 
+    /**
+     * Shares a video file using Android's native Intent.ACTION_SEND chooser with FileProvider.
+     * Supports either an existing filePath, a fileName in app cache, or streams.
+     */
+    @PluginMethod
+    public void shareVideo(PluginCall call) {
+        String filePath = call.getString("filePath");
+        String fileName = call.getString("fileName");
+        String title = call.getString("title", "Quran Video");
+        String text = call.getString("text", "Created with Quran Video Studio");
+
+        Context context = getContext();
+        File fileToShare = null;
+
+        if (filePath != null && !filePath.trim().isEmpty()) {
+            String cleanPath = filePath.trim();
+            if (cleanPath.startsWith("file://")) {
+                cleanPath = cleanPath.substring(7);
+            }
+            fileToShare = new File(cleanPath);
+        }
+
+        if (fileToShare == null || !fileToShare.exists()) {
+            if (fileName != null && !fileName.trim().isEmpty()) {
+                File cached = new File(context.getCacheDir(), fileName);
+                if (cached.exists()) {
+                    fileToShare = cached;
+                } else {
+                    File tempCached = new File(context.getCacheDir(), "temp_quran_" + fileName);
+                    if (tempCached.exists()) {
+                        fileToShare = tempCached;
+                    }
+                }
+            }
+        }
+
+        if (fileToShare == null || !fileToShare.exists()) {
+            call.reject("File to share does not exist");
+            return;
+        }
+
+        try {
+            Uri contentUri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                context.getPackageName() + ".fileprovider",
+                fileToShare
+            );
+
+            String mimeType = fileToShare.getName().endsWith(".webm") ? "video/webm" : "video/mp4";
+
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType(mimeType);
+            shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+            shareIntent.putExtra(Intent.EXTRA_SUBJECT, title);
+            shareIntent.putExtra(Intent.EXTRA_TEXT, text);
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            Intent chooser = Intent.createChooser(shareIntent, "Share Quran Video to...");
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(chooser);
+
+            JSObject ret = new JSObject();
+            ret.put("success", true);
+            call.resolve(ret);
+        } catch (Exception e) {
+            Log.e(TAG, "Error sharing video natively", e);
+            call.reject("Could not open share dialog: " + e.getMessage());
+        }
+    }
+
     private void saveFileToGalleryInternal(File sourceFile, String fileName, PluginCall call) throws Exception {
         try (InputStream in = new FileInputStream(sourceFile)) {
             saveStreamToGalleryInternal(in, fileName, call);
@@ -304,11 +374,12 @@ public class MediaSaverPlugin extends Plugin {
         ContentResolver resolver = context.getContentResolver();
         Uri savedUri = null;
         String savedPathDescription = "Movies/QuranStudio/" + fileName;
+        String mimeType = fileName.endsWith(".webm") ? "video/webm" : "video/mp4";
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ContentValues values = new ContentValues();
             values.put(MediaStore.Video.Media.DISPLAY_NAME, fileName);
-            values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
+            values.put(MediaStore.Video.Media.MIME_TYPE, mimeType);
             values.put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/QuranStudio");
             values.put(MediaStore.Video.Media.IS_PENDING, 1);
 
@@ -360,7 +431,7 @@ public class MediaSaverPlugin extends Plugin {
             MediaScannerConnection.scanFile(
                 context,
                 new String[]{destFile.getAbsolutePath()},
-                new String[]{"video/mp4"},
+                new String[]{mimeType},
                 null
             );
         }
