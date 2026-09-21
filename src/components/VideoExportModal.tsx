@@ -10,6 +10,7 @@ import {
 } from '@/lib/video-recorder';
 import { cleanTranslationText, fetchPersianTafsirSurah } from '@/lib/quran-api';
 import { saveExportedVideo } from '@/lib/storage-db';
+import { ShareModal } from './ShareModal';
 import {
   Download,
   Share2,
@@ -65,6 +66,7 @@ export const VideoExportModal: React.FC<VideoExportModalProps> = ({
     blob: Blob;
     url: string;
     filename: string;
+    duration?: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSavedToCreations, setIsSavedToCreations] = useState(false);
@@ -92,6 +94,7 @@ export const VideoExportModal: React.FC<VideoExportModalProps> = ({
   const [copiedDesc, setCopiedDesc] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [statusFeedback, setStatusFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
 
@@ -170,6 +173,7 @@ Created with Quran Video Studio • Powered by Quran.com API
               videoBlob: res.blob,
               mimeType: res.blob.type || 'video/mp4',
               size: res.blob.size,
+              duration: res.duration,
               createdAt: Date.now(),
               youtubeTitle,
               youtubeDescription,
@@ -215,6 +219,7 @@ Created with Quran Video Studio • Powered by Quran.com API
         url: exportResult.url,
         filename: exportResult.filename,
         blob: exportResult.blob,
+        durationMs: exportResult.duration ? Math.round(exportResult.duration * 1000) : undefined,
       });
       setStatusFeedback({ type: 'success', message: res.message });
       setTimeout(() => setStatusFeedback(null), 5000);
@@ -233,15 +238,20 @@ Created with Quran Video Studio • Powered by Quran.com API
     if (!exportResult || isSharing) return;
     setIsSharing(true);
     try {
-      await shareVideo({
+      const res = await shareVideo({
         url: exportResult.url,
         filename: exportResult.filename,
         blob: exportResult.blob,
+        durationMs: exportResult.duration ? Math.round(exportResult.duration * 1000) : undefined,
         title: youtubeTitle,
         text: `${chapter?.name_simple || 'Quran'} (${rangeStr}) - Recited by ${reciterName}`,
       });
+      if (res.method === 'fallback') {
+        setIsShareModalOpen(true);
+      }
     } catch (err: unknown) {
-      console.warn('Share error:', err);
+      console.warn('Share error, opening share modal:', err);
+      setIsShareModalOpen(true);
     } finally {
       setIsSharing(false);
     }
@@ -531,6 +541,22 @@ Created with Quran Video Studio • Powered by Quran.com API
           </div>
         )}
       </div>
+
+      {/* Interactive Share Modal (Social apps, Copy caption, Native chooser) */}
+      {exportResult && (
+        <ShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          videoUrl={exportResult.url}
+          videoBlob={exportResult.blob}
+          filename={exportResult.filename}
+          title={youtubeTitle}
+          text={`${chapter?.name_simple || 'Quran'} (${rangeStr}) - Recited by ${reciterName}`}
+          surahName={chapter?.name_simple}
+          ayahRange={rangeStr}
+          reciterName={reciterName}
+        />
+      )}
     </div>
   );
 };

@@ -2,15 +2,15 @@
 
 import React from 'react';
 import { Chapter } from '@/types/quran';
-import { BookOpen, ChevronDown, Video, Sun, Moon } from 'lucide-react';
+import { ChevronDown, Sun, Moon } from 'lucide-react';
 import { QuranLogo } from './QuranLogo';
 
 interface QuranNavbarProps {
   currentChapter: Chapter | null;
   onOpenSurahDrawer: () => void;
-  activeTab: 'reader' | 'studio' | 'creations' | 'settings';
+  activeTab?: 'reader' | 'studio' | 'creations' | 'settings';
   setActiveTab: (tab: 'reader' | 'studio' | 'creations' | 'settings') => void;
-  selectedVersesCount: number;
+  selectedVersesCount?: number;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
 }
@@ -18,17 +18,19 @@ interface QuranNavbarProps {
 export const QuranNavbar: React.FC<QuranNavbarProps> = ({
   currentChapter,
   onOpenSurahDrawer,
-  activeTab,
   setActiveTab,
-  selectedVersesCount,
   theme,
   onToggleTheme,
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 dark:bg-[#0B1329]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 transition-colors safe-top">
       <div className="max-w-7xl mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-        {/* Left: Quran Video Studio Logo */}
-        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 cursor-pointer select-none">
+        {/* Left: Quran Logo (Returns to Reader) */}
+        <button
+          onClick={() => setActiveTab('reader')}
+          title="Return to Reader"
+          className="flex items-center gap-2.5 sm:gap-3 shrink-0 cursor-pointer select-none hover:opacity-85 active:scale-95 transition-all text-left"
+        >
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/25 dark:border-emerald-500/30 flex items-center justify-center p-1 shadow-md shadow-emerald-950/10 dark:shadow-emerald-950/30">
             <QuranLogo variant="icon" className="w-full h-full" />
           </div>
@@ -43,7 +45,7 @@ export const QuranNavbar: React.FC<QuranNavbarProps> = ({
               Shorts &amp; Reels Creator
             </span>
           </div>
-        </div>
+        </button>
 
         {/* Center: Surah Selector Pill */}
         <button
@@ -62,9 +64,8 @@ export const QuranNavbar: React.FC<QuranNavbarProps> = ({
           <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-400" />
         </button>
 
-        {/* Right: Theme Toggle + Studio CTA or Switcher */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Theme Switcher Button */}
+        {/* Right: Theme Switcher Button */}
+        <div className="flex items-center">
           <button
             onClick={onToggleTheme}
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -83,33 +84,8 @@ export const QuranNavbar: React.FC<QuranNavbarProps> = ({
               </>
             )}
           </button>
-
-          {activeTab !== 'studio' ? (
-            <button
-              onClick={() => setActiveTab('studio')}
-              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs sm:text-sm font-semibold shadow-md shadow-emerald-950/20 dark:shadow-emerald-950/40 transition-all active:scale-95"
-            >
-              <Video className="w-3.5 h-3.5" />
-              <span>Studio</span>
-              {selectedVersesCount > 0 && (
-                <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-white text-emerald-700 font-bold text-[10px]">
-                  {selectedVersesCount}
-                </span>
-              )}
-            </button>
-          ) : (
-            <button
-              onClick={() => setActiveTab('reader')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-300 text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 transition-all"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden sm:inline">Back to</span>
-              <span>Reader</span>
-            </button>
-          )}
         </div>
       </div>
     </header>
   );
 };
-

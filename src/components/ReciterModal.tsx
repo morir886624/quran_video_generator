@@ -1,15 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Reciter } from '@/types/quran';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Reciter, Chapter } from '@/types/quran';
 import { POPULAR_RECITERS, getReciterPreviewUrl } from '@/lib/constants';
-import { Mic2, X, Check, Play, Pause, Search } from 'lucide-react';
+import {
+  isSurahAudioCached,
+  downloadSurahAudio,
+  deleteSurahAudioCache,
+} from '@/lib/audio-cache';
+import {
+  Mic2,
+  X,
+  Check,
+  Play,
+  Pause,
+  Search,
+  Download,
+  Loader2,
+  CheckCircle2,
+  Trash2,
+} from 'lucide-react';
 
 interface ReciterModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedReciterId: number;
   onSelectReciter: (reciter: Reciter) => void;
+  currentChapter?: Chapter | null;
 }
 
 export const ReciterModal: React.FC<ReciterModalProps> = ({
@@ -17,12 +34,22 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
   onClose,
   selectedReciterId,
   onSelectReciter,
+  currentChapter,
 }) => {
   const [previewAudio, setPreviewAudio] = useState<HTMLAudioElement | null>(null);
   const [playingReciterId, setPlayingReciterId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const stopPreviewAudio = React.useCallback(() => {
+  // Download & offline caching states
+  const [downloadingReciterId, setDownloadingReciterId] = useState<number | null>(null);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{
+    [reciterId: number]: { current: number; total: number; percent: number };
+  }>({});
+  const [cachedMap, setCachedMap] = useState<{ [reciterId: number]: boolean }>({});
+
+  const stopPreviewAudio = useCallback(() => {
     if (previewAudio) {
       try {
         previewAudio.onended = null;
@@ -38,17 +65,36 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
   }, [previewAudio]);
 
   // Clean up preview audio on unmount or if modal closes
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isOpen) {
       stopPreviewAudio();
     }
   }, [isOpen, stopPreviewAudio]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       stopPreviewAudio();
     };
   }, [stopPreviewAudio]);
+
+  // Check cache status for all reciters for the current Surah
+  const checkCacheStatus = useCallback(async () => {
+    if (!currentChapter?.id) return;
+    const totalAyahs = currentChapter.verses_count || 7;
+    const statusMap: { [reciterId: number]: boolean } = {};
+
+    for (const r of POPULAR_RECITERS) {
+      const res = await isSurahAudioCached(r, currentChapter.id, totalAyahs);
+      statusMap[r.id] = res.isFullyCached;
+    }
+    setCachedMap(statusMap);
+  }, [currentChapter]);
+
+  useEffect(() => {
+    if (isOpen) {
+      checkCacheStatus();
+    }
+  }, [isOpen, checkCacheStatus]);
 
   if (!isOpen) return null;
 
@@ -77,6 +123,70 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
 
     setPreviewAudio(audio);
     setPlayingReciterId(reciter.id);
+  };
+
+  const handleDownload = async (reciter: Reciter, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!currentChapter?.id) return;
+
+    const totalAyahs = currentChapter.verses_count || 7;
+
+    // If already fully cached, delete cache to free space
+    if (cachedMap[reciter.id]) {
+      await deleteSurahAudioCache(reciter, currentChapter.id, totalAyahs);
+      setCachedMap((prev) => ({ ...prev, [reciter.id]: false }));
+      return;
+    }
+
+    // Start downloading with AbortController for pause/cancel
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    setIsPaused(false);
+    setDownloadingReciterId(reciter.id);
+    setDownloadProgress((prev) => ({
+      ...prev,
+      [reciter.id]: prev[reciter.id] || { current: 0, total: totalAyahs, percent: 0 },
+    }));
+
+    try {
+      await downloadSurahAudio(
+        reciter,
+        currentChapter.id,
+        totalAyahs,
+        (current, total, percent) => {
+          setDownloadProgress((prev) => ({
+            ...prev,
+            [reciter.id]: { current, total, percent },
+          }));
+        },
+        controller.signal
+      );
+      setCachedMap((prev) => ({ ...prev, [reciter.id]: true }));
+      setDownloadingReciterId(null);
+      setIsPaused(false);
+    } catch (err) {
+      console.warn('Download paused or cancelled:', err);
+    }
+  };
+
+  const handleTogglePause = (reciter: Reciter, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isPaused) {
+      // Resume
+      handleDownload(reciter, e);
+    } else {
+      // Pause
+      abortControllerRef.current?.abort();
+      setIsPaused(true);
+    }
+  };
+
+  const handleCancelDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    abortControllerRef.current?.abort();
+    setDownloadingReciterId(null);
+    setIsPaused(false);
+    checkCacheStatus();
   };
 
   const handleClose = () => {
@@ -109,7 +219,17 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
                 Choose Reciter Voice
               </h3>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                {POPULAR_RECITERS.length} world-renowned Quran reciters available
+                {currentChapter ? (
+                  <>
+                    Download voice for{' '}
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                      Surah {currentChapter.name_simple}
+                    </span>{' '}
+                    to use offline anytime
+                  </>
+                ) : (
+                  `${POPULAR_RECITERS.length} world-renowned Quran reciters available`
+                )}
               </p>
             </div>
           </div>
@@ -153,6 +273,9 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
             filteredReciters.map((reciter) => {
               const isSelected = reciter.id === selectedReciterId;
               const isPlaying = playingReciterId === reciter.id;
+              const isDownloading = downloadingReciterId === reciter.id;
+              const progress = downloadProgress[reciter.id];
+              const isCached = cachedMap[reciter.id];
 
               return (
                 <div
@@ -187,14 +310,110 @@ export const ReciterModal: React.FC<ReciterModalProps> = ({
                             {reciter.style}
                           </span>
                         )}
+                        {isCached && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-semibold shrink-0">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>Downloaded</span>
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                         {reciter.description}
                       </p>
+
+                      {/* Download Progress Bar & Pause / Cancel Controls */}
+                      {isDownloading && progress && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-2 p-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-1.5 animate-in fade-in cursor-default"
+                        >
+                          <div className="flex items-center justify-between text-[10px] font-mono">
+                            <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                              {isPaused ? (
+                                <Pause className="w-3 h-3 text-amber-500" />
+                              ) : (
+                                <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
+                              )}
+                              <span>{isPaused ? 'Paused' : 'Downloading'}:</span>
+                              <span>{progress.current} / {progress.total} ayahs</span>
+                            </span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{progress.percent}%</span>
+                          </div>
+
+                          <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-200 ${
+                                isPaused ? 'bg-amber-500' : 'bg-emerald-500'
+                              }`}
+                              style={{ width: `${progress.percent}%` }}
+                            />
+                          </div>
+
+                          {/* Pause / Resume & Cancel Buttons */}
+                          <div className="flex items-center gap-2 pt-0.5">
+                            <button
+                              type="button"
+                              onClick={(e) => handleTogglePause(reciter, e)}
+                              className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 text-[10px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1 transition-all"
+                            >
+                              {isPaused ? (
+                                <>
+                                  <Play className="w-2.5 h-2.5 fill-current text-emerald-600 dark:text-emerald-400" />
+                                  <span>Resume</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Pause className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
+                                  <span>Pause</span>
+                                </>
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleCancelDownload}
+                              className="px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-800 text-[10px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1 transition-all"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                              <span>Cancel</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
+                    {/* Download / Cache Button */}
+                    {currentChapter && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleDownload(reciter, e)}
+                        disabled={isDownloading}
+                        className={`p-2 rounded-xl transition-all ${
+                          isCached
+                            ? 'bg-emerald-500/10 hover:bg-rose-500/15 text-emerald-600 dark:text-emerald-400 hover:text-rose-600 dark:hover:text-rose-400 border border-emerald-500/30 hover:border-rose-500/30'
+                            : isDownloading
+                            ? 'bg-emerald-500 text-white animate-pulse'
+                            : 'bg-white hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700'
+                        }`}
+                        title={
+                          isCached
+                            ? `Surah ${currentChapter.name_simple} downloaded offline. Click to remove.`
+                            : `Download Surah ${currentChapter.name_simple} voice offline`
+                        }
+                      >
+                        {isDownloading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : isCached ? (
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    )}
+
+                    {/* Preview Button */}
                     <button
                       type="button"
                       onClick={(e) => handlePreview(reciter, e)}

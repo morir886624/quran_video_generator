@@ -9,12 +9,13 @@ import {
   fetchAyahTafsirText,
   prefetchSurahTafsir,
 } from '@/lib/quran-api';
-import { AVAILABLE_TAFSIRS } from '@/lib/constants';
+import { AVAILABLE_TAFSIRS, getReciterAyahUrl, POPULAR_RECITERS } from '@/lib/constants';
 import {
   Play,
   Pause,
   SkipBack,
   SkipForward,
+  RotateCcw,
   Volume2,
   Volume1,
   VolumeX,
@@ -86,8 +87,18 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Format seconds to mm:ss
+  const formatSeconds = (sec: number) => {
+    if (!sec || isNaN(sec)) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   // Derive active verse key
   const activeVerse = verses[currentPlayingIndex] || verses[0];
@@ -99,12 +110,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       if (chapterAudioMap && chapterAudioMap[verseKey]) {
         return chapterAudioMap[verseKey];
       }
-      const padC = String(chapter.id).padStart(3, '0');
-      const padV = String(verseNum).padStart(3, '0');
-      if (currentReciter?.audioSubfolder) {
-        return `https://everyayah.com/data/${currentReciter.audioSubfolder}/${padC}${padV}.mp3`;
-      }
-      return `https://verses.quran.com/Alafasy/mp3/${padC}${padV}.mp3`;
+      return getReciterAyahUrl(currentReciter || POPULAR_RECITERS[0], chapter.id, verseNum);
     },
     [chapterAudioMap, chapter.id, currentReciter]
   );
@@ -127,6 +133,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       audio.src = url;
       audio.volume = isMuted ? 0 : volume;
       audio.playbackRate = playbackSpeed;
+      setCurrentTime(0);
+      setDuration(0);
 
       audio
         .play()
@@ -166,6 +174,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         } else {
           // Finished entire Surah
           setIsPlaying(false);
+          setCurrentTime(0);
           return 0;
         }
       });
@@ -180,20 +189,35 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           return nextIndex;
         } else {
           setIsPlaying(false);
+          setCurrentTime(0);
           return 0;
         }
       });
     };
 
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime || 0);
+    };
+
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration || 0);
+      audio.playbackRate = playbackSpeed;
+      audio.volume = isMuted ? 0 : volume;
+    };
+
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
 
     return () => {
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.pause();
     };
-  }, [verses, playVerseByIndex]);
+  }, [verses, playVerseByIndex, playbackSpeed, isMuted, volume]);
 
   // Reset audio when chapter changes
   useEffect(() => {
@@ -202,6 +226,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     }
     setIsPlaying(false);
     setCurrentPlayingIndex(0);
+    setCurrentTime(0);
+    setDuration(0);
     setRangeStart(1);
     setRangeEnd(Math.min(chapter.verses_count, 5));
   }, [chapter.id]);
@@ -244,17 +270,57 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     }
   }, [currentPlayingIndex, playVerseByIndex]);
 
-  // Toggle speed
-  const handleCycleSpeed = () => {
-    const speeds = [1.0, 1.25, 1.5, 0.75];
-    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
-    setPlaybackSpeed(speeds[nextIdx]);
+  // Restart current verse
+  const handleRestart = useCallback(() => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = 0;
+    setCurrentTime(0);
+  }, []);
+
+  // Scrubber seeking
+  const handleScrubberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!audioRef.current || duration === 0) return;
+    const seekTime = (parseFloat(e.target.value) / 100) * duration;
+    audioRef.current.currentTime = seekTime;
+    setCurrentTime(seekTime);
   };
 
+  // Toggle speed
+  const handleCycleSpeed = useCallback(() => {
+    const speeds = [1.0, 1.25, 1.5, 2.0, 0.75];
+    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
+    const nextSpeed = speeds[nextIdx];
+    setPlaybackSpeed(nextSpeed);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = nextSpeed;
+    }
+  }, [playbackSpeed]);
+
   // Toggle Mute
-  const handleToggleMute = () => {
-    setIsMuted((prev) => !prev);
-  };
+  const handleToggleMute = useCallback(() => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      if (audioRef.current) {
+        audioRef.current.volume = next ? 0 : volume;
+      }
+      return next;
+    });
+  }, [volume]);
+
+  // Volume slider change
+  const handleVolumeChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = parseFloat(e.target.value);
+      setVolume(val);
+      if (val > 0 && isMuted) {
+        setIsMuted(false);
+      }
+      if (audioRef.current) {
+        audioRef.current.volume = val;
+      }
+    },
+    [isMuted]
+  );
 
   // Single verse play button from verse card
   const handleVerseCardPlayToggle = (vIndex: number) => {
@@ -420,164 +486,174 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         {/* Surah Banner Card matching reference image */}
         <SurahBanner chapter={chapter} />
 
-        {/* Full Surah Audio Player & Recitation Controller */}
-        <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-md p-4 sm:p-5 mb-4 transition-colors">
-          <div className="flex flex-col gap-4">
-            {/* Player Top Status Row */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-3 w-3">
-                  {isPlaying ? (
-                    <>
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
-                    </>
-                  ) : (
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-slate-300 dark:bg-slate-600" />
-                  )}
-                </span>
-                <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                  {isPlaying ? 'Reciting Surah' : 'Surah Audio Player'}
-                </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                  • Ayah {currentPlayingIndex + 1} of {verses.length}
-                </span>
-              </div>
-
-              {/* Reciter Selector Button */}
-              {onOpenReciters && (
-                <button
-                  onClick={onOpenReciters}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700/80 transition-all shadow-xs"
-                >
-                  <Mic2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span className="truncate max-w-[150px]">
-                    {currentReciterName || currentReciter?.name || 'Reciter'}
-                  </span>
-                </button>
-              )}
+        {/* Integrated Gapless Audio Player & Recitation Controller matching Studio page */}
+        <div className="rounded-3xl bg-white dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-xl p-4 sm:p-5 mb-6 transition-colors">
+          {/* Top Bar inside Player: Reciter & Status */}
+          <div className="flex items-center justify-between gap-2 pb-3 mb-2 border-b border-slate-100 dark:border-slate-800/80">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                {isPlaying ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                  </>
+                ) : (
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-300 dark:bg-slate-600" />
+                )}
+              </span>
+              <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                {isPlaying ? `Reciting Surah ${chapter.name_simple}` : 'Surah Audio Player'}
+              </span>
             </div>
 
-            {/* Recitation Progress Bar across the Surah */}
-            <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-              <div
-                className="bg-emerald-500 h-full transition-all duration-300 rounded-full"
-                style={{
-                  width: `${((currentPlayingIndex + 1) / Math.max(1, verses.length)) * 100}%`,
-                }}
-              />
-            </div>
+            {/* Reciter Selector Button */}
+            {onOpenReciters && (
+              <button
+                onClick={onOpenReciters}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700/80 transition-all shadow-xs"
+              >
+                <Mic2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="truncate max-w-[150px]">
+                  {currentReciterName || currentReciter?.name || 'Reciter'}
+                </span>
+              </button>
+            )}
+          </div>
 
-            {/* Central Controls & Sound with Volume Level */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              {/* Skip & Main Play / Pause Controls */}
-              <div className="flex items-center gap-2 sm:gap-3">
-                <button
-                  onClick={handlePrevAyah}
-                  disabled={currentPlayingIndex === 0}
-                  className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:pointer-events-none transition-all"
-                  title="Previous Ayah"
-                >
-                  <SkipBack className="w-4 h-4" />
-                </button>
-
-                <button
-                  onClick={handleTogglePlaySurah}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm text-white shadow-md transition-all active:scale-95 ${
-                    isPlaying
-                      ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/30'
-                      : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/30'
-                  }`}
-                >
-                  {isPlaying ? (
-                    <>
-                      <Pause className="w-4 h-4 fill-current" />
-                      <span>Pause Surah</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4 fill-current" />
-                      <span>Play Surah {chapter.name_simple}</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  onClick={handleNextAyah}
-                  disabled={currentPlayingIndex >= verses.length - 1}
-                  className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:pointer-events-none transition-all"
-                  title="Next Ayah"
-                >
-                  <SkipForward className="w-4 h-4" />
-                </button>
-
-                {/* Speed Selector */}
-                <button
-                  onClick={handleCycleSpeed}
-                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-700 transition-all"
-                  title="Recitation speed"
-                >
-                  {playbackSpeed}x
-                </button>
-              </div>
-
-              {/* Sound with Volume Level Slider & Mute Toggle */}
-              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
-                <button
-                  onClick={handleToggleMute}
-                  className="text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors p-1"
-                  title={isMuted ? 'Unmute' : 'Mute'}
-                >
-                  {isMuted || volume === 0 ? (
-                    <VolumeX className="w-4 h-4 text-red-500" />
-                  ) : volume < 0.5 ? (
-                    <Volume1 className="w-4 h-4" />
-                  ) : (
-                    <Volume2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  )}
-                </button>
-
+          {/* Integrated Gapless Audio Player & Scrubber */}
+          <div className="space-y-2 transition-colors">
+            {/* Scrubber Track */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 min-w-[28px]">
+                {formatSeconds(currentTime)}
+              </span>
+              <div className="relative flex-1 flex items-center">
                 <input
                   type="range"
                   min="0"
-                  max="1"
-                  step="0.05"
-                  value={isMuted ? 0 : volume}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    setVolume(val);
-                    if (val > 0 && isMuted) setIsMuted(false);
-                  }}
-                  className="w-20 sm:w-28 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                  title="Sound Volume Level"
+                  max="100"
+                  step="0.1"
+                  value={duration > 0 ? (currentTime / duration) * 100 : 0}
+                  onChange={handleScrubberChange}
+                  className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-full cursor-pointer transition-colors"
                 />
+              </div>
+              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 min-w-[28px] text-right">
+                {formatSeconds(duration)}
+              </span>
+            </div>
 
-                <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400 w-7 text-right">
-                  {isMuted ? '0%' : `${Math.round(volume * 100)}%`}
-                </span>
+            {/* Subtitle */}
+            <div className="text-center -mt-1">
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 tracking-wide">
+                Gapless Sound
+              </span>
+            </div>
+
+            {/* Transport Buttons */}
+            <div className="grid grid-cols-3 items-center px-3 pt-0.5">
+              {/* Left: Restart & Prev */}
+              <div className="flex items-center justify-start gap-4">
+                <button
+                  onClick={handleRestart}
+                  className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                  title="Restart"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={handlePrevAyah}
+                  disabled={currentPlayingIndex === 0}
+                  className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
+                  title="Previous Ayah"
+                >
+                  <SkipBack className="w-4 h-4 fill-current" />
+                </button>
+              </div>
+
+              {/* Center: Play/Pause */}
+              <div className="flex items-center justify-center">
+                <button
+                  onClick={handleTogglePlaySurah}
+                  className="w-12 h-12 rounded-full bg-emerald-500 dark:bg-emerald-400 hover:bg-emerald-600 dark:hover:bg-emerald-300 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/25 active:scale-95 transition-all"
+                  title={isPlaying ? 'Pause' : 'Play'}
+                >
+                  {isPlaying ? (
+                    <Pause className="w-5 h-5 fill-current" />
+                  ) : (
+                    <Play className="w-5 h-5 fill-current ml-0.5" />
+                  )}
+                </button>
+              </div>
+
+              {/* Right: Next & Volume */}
+              <div className="flex items-center justify-end gap-2 sm:gap-3">
+                <button
+                  onClick={handleNextAyah}
+                  disabled={currentPlayingIndex >= verses.length - 1}
+                  className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
+                  title="Next Ayah"
+                >
+                  <SkipForward className="w-4 h-4 fill-current" />
+                </button>
+
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <button
+                    onClick={handleToggleMute}
+                    className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    title={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
+                  >
+                    {isMuted || volume === 0 ? (
+                      <VolumeX className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+                    ) : volume < 0.5 ? (
+                      <Volume1 className="w-4 h-4" />
+                    ) : (
+                      <Volume2 className="w-4 h-4" />
+                    )}
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={isMuted ? 0 : volume}
+                    onChange={handleVolumeChange}
+                    className="w-12 sm:w-16 accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-full cursor-pointer transition-colors"
+                    title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Sub-row: Auto-scroll pacing toggle */}
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
+            {/* Status line */}
+            <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 dark:text-slate-500 px-3 -mt-0.5">
+              {/* Auto scroll toggle on left */}
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={autoScroll}
                   onChange={(e) => setAutoScroll(e.target.checked)}
-                  className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
+                  className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 h-3 w-3"
                 />
-                <span className="font-medium">
-                  Follow recitation (auto-scroll to current reciting ayah)
+                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  Auto-scroll
                 </span>
               </label>
 
-              {activeVerse && isPlaying && (
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Playing Ayah {activeVerse.verse_key}
+              {/* Speed & Ayah count on right */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleCycleSpeed}
+                  className="hover:text-emerald-500 dark:hover:text-emerald-400 font-bold transition-colors cursor-pointer"
+                  title="Playback speed"
+                >
+                  {playbackSpeed.toFixed(1)}x
+                </button>
+                <span>
+                  {currentPlayingIndex + 1}:{verses.length}
                 </span>
-              )}
+              </div>
             </div>
           </div>
         </div>

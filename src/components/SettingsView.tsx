@@ -30,6 +30,7 @@ import {
   clearAllExportedVideos,
   formatBytes,
 } from '@/lib/storage-db';
+import { getAudioCacheStats, clearEntireAudioCache } from '@/lib/audio-cache';
 import { UserPreferences } from '@/lib/preferences';
 import { Reciter } from '@/types/quran';
 
@@ -76,6 +77,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   // Storage management
   const [storageUsage, setStorageUsage] = useState({ videoCount: 0, totalSizeBytes: 0 });
+  const [audioStats, setAudioStats] = useState<{
+    totalSizeBytes: number;
+    totalFiles: number;
+    reciterStats: Record<number, { name: string; count: number }>;
+  }>({ totalSizeBytes: 0, totalFiles: 0, reciterStats: {} });
   const [isLoadingStorage, setIsLoadingStorage] = useState<boolean>(true);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
@@ -89,6 +95,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     try {
       const summary = await getStorageUsageSummary();
       setStorageUsage(summary);
+      const aStats = await getAudioCacheStats();
+      setAudioStats(aStats);
     } catch {
       // ignore
     } finally {
@@ -108,6 +116,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       await loadStorage();
     } catch {
       showToast('Failed to clear video storage.');
+    }
+  };
+
+  const handleClearAudioCache = async () => {
+    try {
+      await clearEntireAudioCache();
+      showToast('All cached reciter voices cleared.');
+      await loadStorage();
+    } catch {
+      showToast('Failed to clear reciter audio cache.');
     }
   };
 
@@ -332,10 +350,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <HardDrive className="w-5 h-5 text-slate-700 dark:text-slate-300 stroke-[1.75]" />
                 <div>
                   <span className="text-[15px] font-medium text-slate-900 dark:text-white block">
-                    Storage &amp; Cached Videos
+                    Storage &amp; Offline Voices
                   </span>
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
-                    {storageUsage.videoCount} videos ({formatBytes(storageUsage.totalSizeBytes)})
+                    {storageUsage.videoCount} videos ({formatBytes(storageUsage.totalSizeBytes)}) • {audioStats.totalFiles} audio ({formatBytes(audioStats.totalSizeBytes)})
                   </span>
                 </div>
               </div>
@@ -684,29 +702,55 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Offline Video Storage
+                Offline Storage
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                You currently have <strong>{storageUsage.videoCount} videos</strong> saved locally taking{' '}
-                <strong>{formatBytes(storageUsage.totalSizeBytes)}</strong>.
+                Manage local videos and downloaded reciter voices
               </p>
+
+              <div className="space-y-2.5 mt-4 text-left">
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">Saved Videos</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                      {storageUsage.videoCount} videos ({formatBytes(storageUsage.totalSizeBytes)})
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleClearVideos}
+                    disabled={storageUsage.videoCount === 0}
+                    className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    title="Clear saved videos"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">Downloaded Voices</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                      {audioStats.totalFiles} ayahs ({formatBytes(audioStats.totalSizeBytes)})
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleClearAudioCache}
+                    disabled={audioStats.totalFiles === 0}
+                    className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    title="Clear cached reciter audio"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2 pt-2">
-              <button
-                onClick={handleClearVideos}
-                disabled={storageUsage.videoCount === 0}
-                className="w-full py-3 px-4 rounded-2xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:pointer-events-none active:scale-95 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md shadow-rose-600/20 cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Clear All Saved Videos</span>
-              </button>
-
+            <div className="pt-1">
               <button
                 onClick={() => setActiveModal(null)}
-                className="w-full py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors"
+                className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors"
               >
-                Cancel
+                Close
               </button>
             </div>
           </div>

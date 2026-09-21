@@ -24,6 +24,7 @@ export interface ExportedVideoItem {
   videoBlob: Blob;
   mimeType: string;
   size: number;
+  duration?: number;
   createdAt: number;
   youtubeTitle: string;
   youtubeDescription: string;

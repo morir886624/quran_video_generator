@@ -14,13 +14,21 @@ interface MediaSaverNativePlugin {
     base64Data?: string;
     filePath?: string;
     fileName?: string;
+    duration?: number;
   }): Promise<{ success: boolean; uri?: string; path?: string; message?: string }>;
   saveVideoChunk(options: {
     chunk: string;
     fileName: string;
     isFirst: boolean;
     isLast: boolean;
+    duration?: number;
   }): Promise<{ success: boolean; chunkSaved?: boolean; uri?: string; path?: string; message?: string }>;
+  shareVideo(options: {
+    filePath?: string;
+    fileName?: string;
+    title?: string;
+    text?: string;
+  }): Promise<{ success: boolean; message?: string }>;
 }
 
 export const MediaSaver = registerPlugin<MediaSaverNativePlugin>('MediaSaver');

@@ -20,6 +20,7 @@ import {
   SkipForward,
   RotateCcw,
   Volume2,
+  Volume1,
   VolumeX,
   Loader2,
   Radio,
@@ -79,7 +80,9 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const [verseProgress, setVerseProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
+  const [volume, setVolume] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
   const [isToolsOpen, setIsToolsOpen] = useState(true);
 
@@ -270,6 +273,35 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     playerRef.current.seek(seekTime);
   };
 
+  const handleToggleMute = useCallback(() => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    if (playerRef.current) {
+      playerRef.current.setVolume(nextMuted ? 0 : volume);
+    }
+  }, [isMuted, volume]);
+
+  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    setVolume(val);
+    if (val > 0 && isMuted) {
+      setIsMuted(false);
+    }
+    if (playerRef.current) {
+      playerRef.current.setVolume(val);
+    }
+  }, [isMuted]);
+
+  const handleCycleSpeed = useCallback(() => {
+    const speeds = [1.0, 1.25, 1.5, 2.0, 0.75];
+    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
+    const nextSpeed = speeds[nextIdx];
+    setPlaybackSpeed(nextSpeed);
+    if (playerRef.current) {
+      playerRef.current.setPlaybackRate(nextSpeed);
+    }
+  }, [playbackSpeed]);
+
   // Main Canvas Render Loop
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -423,67 +455,87 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
           </div>
 
           {/* Transport Buttons */}
-          <div className="flex items-center justify-between px-3 pt-0.5">
-            <button
-              onClick={handleRestart}
-              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-              title="Restart"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+          <div className="grid grid-cols-3 items-center px-3 pt-0.5">
+            <div className="flex items-center justify-start gap-4">
+              <button
+                onClick={handleRestart}
+                className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                title="Restart"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
 
-            <button
-              onClick={handlePrev}
-              disabled={currentAyahIndex === 0}
-              className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
-              title="Previous Ayah"
-            >
-              <SkipBack className="w-4 h-4 fill-current" />
-            </button>
+              <button
+                onClick={handlePrev}
+                disabled={currentAyahIndex === 0}
+                className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
+                title="Previous Ayah"
+              >
+                <SkipBack className="w-4 h-4 fill-current" />
+              </button>
+            </div>
 
-            <button
-              onClick={togglePlay}
-              className="w-12 h-12 rounded-full bg-emerald-500 dark:bg-emerald-400 hover:bg-emerald-600 dark:hover:bg-emerald-300 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/25 active:scale-95 transition-all"
-              title={isPlaying ? 'Pause' : 'Play'}
-            >
-              {isPlaying ? (
-                <Pause className="w-5 h-5 fill-current" />
-              ) : (
-                <Play className="w-5 h-5 fill-current ml-0.5" />
-              )}
-            </button>
+            <div className="flex items-center justify-center">
+              <button
+                onClick={togglePlay}
+                className="w-12 h-12 rounded-full bg-emerald-500 dark:bg-emerald-400 hover:bg-emerald-600 dark:hover:bg-emerald-300 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/25 active:scale-95 transition-all"
+                title={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? (
+                  <Pause className="w-5 h-5 fill-current" />
+                ) : (
+                  <Play className="w-5 h-5 fill-current ml-0.5" />
+                )}
+              </button>
+            </div>
 
-            <button
-              onClick={handleNext}
-              disabled={currentAyahIndex >= verses.length - 1}
-              className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
-              title="Next Ayah"
-            >
-              <SkipForward className="w-4 h-4 fill-current" />
-            </button>
+            <div className="flex items-center justify-end gap-2 sm:gap-3">
+              <button
+                onClick={handleNext}
+                disabled={currentAyahIndex >= verses.length - 1}
+                className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
+                title="Next Ayah"
+              >
+                <SkipForward className="w-4 h-4 fill-current" />
+              </button>
 
-            <button
-              onClick={() => {
-                const nextMuted = !isMuted;
-                setIsMuted(nextMuted);
-                if (playerRef.current) {
-                  playerRef.current.setVolume(nextMuted ? 0 : 1);
-                }
-              }}
-              className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-              title={isMuted ? 'Unmute' : 'Mute'}
-            >
-              {isMuted ? (
-                <VolumeX className="w-4 h-4 text-rose-500 dark:text-rose-400" />
-              ) : (
-                <Volume2 className="w-4 h-4" />
-              )}
-            </button>
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <button
+                  onClick={handleToggleMute}
+                  className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                  title={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
+                >
+                  {isMuted || volume === 0 ? (
+                    <VolumeX className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+                  ) : volume < 0.5 ? (
+                    <Volume1 className="w-4 h-4" />
+                  ) : (
+                    <Volume2 className="w-4 h-4" />
+                  )}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={isMuted ? 0 : volume}
+                  onChange={handleVolumeChange}
+                  className="w-12 sm:w-16 accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-full cursor-pointer transition-colors"
+                  title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                />
+              </div>
+            </div>
           </div>
 
           {/* Status line */}
           <div className="flex items-center justify-end gap-3 text-[11px] font-mono text-slate-400 dark:text-slate-500 pr-1 -mt-0.5">
-            <span>1.0x</span>
+            <button
+              onClick={handleCycleSpeed}
+              className="hover:text-emerald-500 dark:hover:text-emerald-400 font-bold transition-colors cursor-pointer"
+              title="Playback speed"
+            >
+              {playbackSpeed.toFixed(1)}x
+            </button>
             <span>{currentAyahIndex + 1}:{verses.length}</span>
           </div>
         </div>

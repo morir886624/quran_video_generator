@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
@@ -182,6 +183,7 @@ public class MediaSaverPlugin extends Plugin {
         String fileName = call.getString("fileName");
         boolean isFirst = Boolean.TRUE.equals(call.getBoolean("isFirst", false));
         boolean isLast = Boolean.TRUE.equals(call.getBoolean("isLast", false));
+        Long duration = call.getLong("duration", null);
 
         if (chunk == null) {
             call.reject("Chunk data is required");
@@ -215,8 +217,8 @@ public class MediaSaverPlugin extends Plugin {
             }
 
             if (isLast) {
-                // Transfer assembled file directly to MediaStore
-                saveFileToGalleryInternal(tempFile, fileName, call);
+                // Transfer assembled file directly to MediaStore with exact duration
+                saveFileToGalleryInternal(tempFile, fileName, duration, call);
 
                 // Clean up temp file
                 if (tempFile.exists()) {
@@ -247,6 +249,7 @@ public class MediaSaverPlugin extends Plugin {
         String base64Data = call.getString("base64Data");
         String filePath = call.getString("filePath");
         String fileName = call.getString("fileName");
+        Long duration = call.getLong("duration", null);
 
         if ((base64Data == null || base64Data.trim().isEmpty()) && (filePath == null || filePath.trim().isEmpty())) {
             call.reject("Either base64Data or filePath must be provided");
@@ -262,10 +265,22 @@ public class MediaSaverPlugin extends Plugin {
         fileName = fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
 
         InputStream inputStream = null;
+        File tempFileToClean = null;
         try {
             if (base64Data != null && !base64Data.trim().isEmpty()) {
                 byte[] decodedBytes = safeDecodeBase64(base64Data);
-                inputStream = new ByteArrayInputStream(decodedBytes);
+                if (duration != null && duration > 0) {
+                    Context context = getContext();
+                    tempFileToClean = new File(context.getCacheDir(), "temp_to_save_" + fileName);
+                    try (FileOutputStream fos = new FileOutputStream(tempFileToClean)) {
+                        fos.write(decodedBytes);
+                        fos.flush();
+                    }
+                    patchMp4DurationInFile(tempFileToClean, duration);
+                    inputStream = new FileInputStream(tempFileToClean);
+                } else {
+                    inputStream = new ByteArrayInputStream(decodedBytes);
+                }
             } else {
                 String cleanPath = filePath.trim();
                 if (cleanPath.startsWith("file://")) {
@@ -276,10 +291,13 @@ public class MediaSaverPlugin extends Plugin {
                     call.reject("Source file does not exist at: " + cleanPath);
                     return;
                 }
+                if (duration != null && duration > 0) {
+                    patchMp4DurationInFile(sourceFile, duration);
+                }
                 inputStream = new FileInputStream(sourceFile);
             }
 
-            saveStreamToGalleryInternal(inputStream, fileName, call);
+            saveStreamToGalleryInternal(inputStream, fileName, duration, call);
 
         } catch (Exception e) {
             Log.e(TAG, "Error saving video to gallery", e);
@@ -290,27 +308,113 @@ public class MediaSaverPlugin extends Plugin {
                     inputStream.close();
                 } catch (Exception ignored) {}
             }
+            if (tempFileToClean != null && tempFileToClean.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                tempFileToClean.delete();
+            }
         }
     }
 
-    private void saveFileToGalleryInternal(File sourceFile, String fileName, PluginCall call) throws Exception {
+    /**
+     * Shares a video file using Android's native Intent.ACTION_SEND chooser with FileProvider.
+     * Supports either an existing filePath, a fileName in app cache, or streams.
+     */
+    @PluginMethod
+    public void shareVideo(PluginCall call) {
+        String filePath = call.getString("filePath");
+        String fileName = call.getString("fileName");
+        String title = call.getString("title", "Quran Video");
+        String text = call.getString("text", "Created with Quran Video Studio");
+        Long duration = call.getLong("duration", null);
+
+        Context context = getContext();
+        File fileToShare = null;
+
+        if (filePath != null && !filePath.trim().isEmpty()) {
+            String cleanPath = filePath.trim();
+            if (cleanPath.startsWith("file://")) {
+                cleanPath = cleanPath.substring(7);
+            }
+            fileToShare = new File(cleanPath);
+        }
+
+        if (fileToShare == null || !fileToShare.exists()) {
+            if (fileName != null && !fileName.trim().isEmpty()) {
+                File cached = new File(context.getCacheDir(), fileName);
+                if (cached.exists()) {
+                    fileToShare = cached;
+                } else {
+                    File tempCached = new File(context.getCacheDir(), "temp_quran_" + fileName);
+                    if (tempCached.exists()) {
+                        fileToShare = tempCached;
+                    }
+                }
+            }
+        }
+
+        if (fileToShare == null || !fileToShare.exists()) {
+            call.reject("File to share does not exist");
+            return;
+        }
+
+        if (duration != null && duration > 0) {
+            patchMp4DurationInFile(fileToShare, duration);
+        }
+
+        try {
+            Uri contentUri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                context.getPackageName() + ".fileprovider",
+                fileToShare
+            );
+
+            String mimeType = fileToShare.getName().endsWith(".webm") ? "video/webm" : "video/mp4";
+
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType(mimeType);
+            shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+            shareIntent.putExtra(Intent.EXTRA_SUBJECT, title);
+            shareIntent.putExtra(Intent.EXTRA_TEXT, text);
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            Intent chooser = Intent.createChooser(shareIntent, "Share Quran Video to...");
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(chooser);
+
+            JSObject ret = new JSObject();
+            ret.put("success", true);
+            call.resolve(ret);
+        } catch (Exception e) {
+            Log.e(TAG, "Error sharing video natively", e);
+            call.reject("Could not open share dialog: " + e.getMessage());
+        }
+    }
+
+    private void saveFileToGalleryInternal(File sourceFile, String fileName, Long durationMs, PluginCall call) throws Exception {
+        if (durationMs != null && durationMs > 0) {
+            patchMp4DurationInFile(sourceFile, durationMs);
+        }
         try (InputStream in = new FileInputStream(sourceFile)) {
-            saveStreamToGalleryInternal(in, fileName, call);
+            saveStreamToGalleryInternal(in, fileName, durationMs, call);
         }
     }
 
-    private void saveStreamToGalleryInternal(InputStream inputStream, String fileName, PluginCall call) throws Exception {
+    private void saveStreamToGalleryInternal(InputStream inputStream, String fileName, Long durationMs, PluginCall call) throws Exception {
         Context context = getContext();
         ContentResolver resolver = context.getContentResolver();
         Uri savedUri = null;
         String savedPathDescription = "Movies/QuranStudio/" + fileName;
+        String mimeType = fileName.endsWith(".webm") ? "video/webm" : "video/mp4";
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ContentValues values = new ContentValues();
             values.put(MediaStore.Video.Media.DISPLAY_NAME, fileName);
-            values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
+            values.put(MediaStore.Video.Media.MIME_TYPE, mimeType);
             values.put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/QuranStudio");
             values.put(MediaStore.Video.Media.IS_PENDING, 1);
+            if (durationMs != null && durationMs > 0) {
+                values.put(MediaStore.Video.Media.DURATION, durationMs);
+            }
 
             Uri collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
             savedUri = resolver.insert(collection, values);
@@ -335,6 +439,9 @@ public class MediaSaverPlugin extends Plugin {
 
             values.clear();
             values.put(MediaStore.Video.Media.IS_PENDING, 0);
+            if (durationMs != null && durationMs > 0) {
+                values.put(MediaStore.Video.Media.DURATION, durationMs);
+            }
             resolver.update(savedUri, values, null, null);
         } else {
             File moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
@@ -360,8 +467,16 @@ public class MediaSaverPlugin extends Plugin {
             MediaScannerConnection.scanFile(
                 context,
                 new String[]{destFile.getAbsolutePath()},
-                new String[]{"video/mp4"},
-                null
+                new String[]{mimeType},
+                (path, uri) -> {
+                    if (uri != null && durationMs != null && durationMs > 0) {
+                        try {
+                            ContentValues updateValues = new ContentValues();
+                            updateValues.put(MediaStore.Video.Media.DURATION, durationMs);
+                            resolver.update(uri, updateValues, null, null);
+                        } catch (Exception ignored) {}
+                    }
+                }
             );
         }
 
@@ -372,5 +487,211 @@ public class MediaSaverPlugin extends Plugin {
         ret.put("path", savedPathDescription);
         ret.put("message", "Video saved to Gallery (Movies/QuranStudio)");
         call.resolve(ret);
+    }
+
+    /**
+     * In-place patches duration metadata in MP4 container headers (mvhd, tkhd, mdhd, mehd)
+     * directly in the file so Android's MPEG4Extractor / MediaScanner reads the exact duration
+     * instead of falling back to the 3-second first fragment.
+     */
+    private static void patchMp4DurationInFile(File file, long durationMs) {
+        if (file == null || !file.exists() || durationMs <= 0) return;
+        try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file, "rw")) {
+            long fileLength = raf.length();
+            if (fileLength < 16) return;
+
+            // Check if MP4 (ftyp at offset 4)
+            byte[] magic = new byte[8];
+            raf.seek(0);
+            raf.readFully(magic);
+            boolean isMp4 = (magic[4] == 'f' && magic[5] == 't' && magic[6] == 'y' && magic[7] == 'p');
+            if (!isMp4) return;
+
+            long pos = 0;
+            long mvhdTimescale = 1000;
+            double durationSec = durationMs / 1000.0;
+
+            // Find moov
+            while (pos + 8 <= fileLength) {
+                raf.seek(pos);
+                long boxSize = raf.readInt() & 0xFFFFFFFFL;
+                byte[] typeBytes = new byte[4];
+                raf.readFully(typeBytes);
+                String type = new String(typeBytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+                long headerSize = 8;
+                if (boxSize == 1) {
+                    boxSize = raf.readLong();
+                    headerSize = 16;
+                } else if (boxSize == 0) {
+                    boxSize = fileLength - pos;
+                }
+                if (boxSize < headerSize || pos + boxSize > fileLength) break;
+
+                if ("moov".equals(type)) {
+                    long moovDataPos = pos + headerSize;
+                    long moovEnd = pos + boxSize;
+
+                    // Pass 1: find mvhd to extract timescale and patch duration
+                    long subPos = moovDataPos;
+                    while (subPos + 8 <= moovEnd) {
+                        raf.seek(subPos);
+                        long subBoxSize = raf.readInt() & 0xFFFFFFFFL;
+                        byte[] subTypeBytes = new byte[4];
+                        raf.readFully(subTypeBytes);
+                        String subType = new String(subTypeBytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+                        long subHeaderSize = 8;
+                        if (subBoxSize == 1) {
+                            subBoxSize = raf.readLong();
+                            subHeaderSize = 16;
+                        } else if (subBoxSize == 0) {
+                            subBoxSize = moovEnd - subPos;
+                        }
+                        if (subBoxSize < subHeaderSize || subPos + subBoxSize > moovEnd) break;
+
+                        if ("mvhd".equals(subType)) {
+                            long dataPos = subPos + subHeaderSize;
+                            raf.seek(dataPos);
+                            int version = raf.readByte() & 0xFF;
+                            if (version == 0) {
+                                raf.seek(dataPos + 12);
+                                mvhdTimescale = raf.readInt() & 0xFFFFFFFFL;
+                                if (mvhdTimescale <= 0) mvhdTimescale = 1000;
+                                long targetDur = Math.round(durationSec * mvhdTimescale);
+                                raf.seek(dataPos + 16);
+                                raf.writeInt((int) targetDur);
+                            } else if (version == 1) {
+                                raf.seek(dataPos + 20);
+                                mvhdTimescale = raf.readInt() & 0xFFFFFFFFL;
+                                if (mvhdTimescale <= 0) mvhdTimescale = 1000;
+                                long targetDur = Math.round(durationSec * mvhdTimescale);
+                                raf.seek(dataPos + 24);
+                                raf.writeLong(targetDur);
+                            }
+                        }
+                        subPos += subBoxSize;
+                    }
+
+                    // Pass 2: trak (tkhd, mdhd) and mvex (mehd)
+                    subPos = moovDataPos;
+                    while (subPos + 8 <= moovEnd) {
+                        raf.seek(subPos);
+                        long subBoxSize = raf.readInt() & 0xFFFFFFFFL;
+                        byte[] subTypeBytes = new byte[4];
+                        raf.readFully(subTypeBytes);
+                        String subType = new String(subTypeBytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+                        long subHeaderSize = 8;
+                        if (subBoxSize == 1) {
+                            subBoxSize = raf.readLong();
+                            subHeaderSize = 16;
+                        } else if (subBoxSize == 0) {
+                            subBoxSize = moovEnd - subPos;
+                        }
+                        if (subBoxSize < subHeaderSize || subPos + subBoxSize > moovEnd) break;
+
+                        if ("trak".equals(subType)) {
+                            long trakDataPos = subPos + subHeaderSize;
+                            long trakEnd = subPos + subBoxSize;
+                            long p3 = trakDataPos;
+                            while (p3 + 8 <= trakEnd) {
+                                raf.seek(p3);
+                                long s3 = raf.readInt() & 0xFFFFFFFFL;
+                                byte[] t3Bytes = new byte[4];
+                                raf.readFully(t3Bytes);
+                                String t3 = new String(t3Bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+                                long h3 = 8;
+                                if (s3 == 1) { s3 = raf.readLong(); h3 = 16; }
+                                if (s3 < h3 || p3 + s3 > trakEnd) break;
+
+                                if ("tkhd".equals(t3)) {
+                                    long dPos = p3 + h3;
+                                    raf.seek(dPos);
+                                    int ver = raf.readByte() & 0xFF;
+                                    long targetDur = Math.round(durationSec * mvhdTimescale);
+                                    if (ver == 0) {
+                                        raf.seek(dPos + 20);
+                                        raf.writeInt((int) targetDur);
+                                    } else if (ver == 1) {
+                                        raf.seek(dPos + 28);
+                                        raf.writeLong(targetDur);
+                                    }
+                                } else if ("mdia".equals(t3)) {
+                                    long mdiaDataPos = p3 + h3;
+                                    long mdiaEnd = p3 + s3;
+                                    long p4 = mdiaDataPos;
+                                    while (p4 + 8 <= mdiaEnd) {
+                                        raf.seek(p4);
+                                        long s4 = raf.readInt() & 0xFFFFFFFFL;
+                                        byte[] t4Bytes = new byte[4];
+                                        raf.readFully(t4Bytes);
+                                        String t4 = new String(t4Bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+                                        long h4 = 8;
+                                        if (s4 == 1) { s4 = raf.readLong(); h4 = 16; }
+                                        if (s4 < h4 || p4 + s4 > mdiaEnd) break;
+
+                                        if ("mdhd".equals(t4)) {
+                                            long dPos = p4 + h4;
+                                            raf.seek(dPos);
+                                            int ver = raf.readByte() & 0xFF;
+                                            if (ver == 0) {
+                                                raf.seek(dPos + 12);
+                                                long mediaScale = raf.readInt() & 0xFFFFFFFFL;
+                                                if (mediaScale <= 0) mediaScale = mvhdTimescale;
+                                                long targetDur = Math.round(durationSec * mediaScale);
+                                                raf.seek(dPos + 16);
+                                                raf.writeInt((int) targetDur);
+                                            } else if (ver == 1) {
+                                                raf.seek(dPos + 20);
+                                                long mediaScale = raf.readInt() & 0xFFFFFFFFL;
+                                                if (mediaScale <= 0) mediaScale = mvhdTimescale;
+                                                long targetDur = Math.round(durationSec * mediaScale);
+                                                raf.seek(dPos + 24);
+                                                raf.writeLong(targetDur);
+                                            }
+                                        }
+                                        p4 += s4;
+                                    }
+                                }
+                                p3 += s3;
+                            }
+                        } else if ("mvex".equals(subType)) {
+                            long mvexDataPos = subPos + subHeaderSize;
+                            long mvexEnd = subPos + subBoxSize;
+                            long p3 = mvexDataPos;
+                            while (p3 + 8 <= mvexEnd) {
+                                raf.seek(p3);
+                                long s3 = raf.readInt() & 0xFFFFFFFFL;
+                                byte[] t3Bytes = new byte[4];
+                                raf.readFully(t3Bytes);
+                                String t3 = new String(t3Bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+                                long h3 = 8;
+                                if (s3 == 1) { s3 = raf.readLong(); h3 = 16; }
+                                if (s3 < h3 || p3 + s3 > mvexEnd) break;
+
+                                if ("mehd".equals(t3)) {
+                                    long dPos = p3 + h3;
+                                    raf.seek(dPos);
+                                    int ver = raf.readByte() & 0xFF;
+                                    long targetDur = Math.round(durationSec * mvhdTimescale);
+                                    if (ver == 0) {
+                                        raf.seek(dPos + 4);
+                                        raf.writeInt((int) targetDur);
+                                    } else if (ver == 1) {
+                                        raf.seek(dPos + 4);
+                                        raf.writeLong(targetDur);
+                                    }
+                                }
+                                p3 += s3;
+                            }
+                        }
+                        subPos += subBoxSize;
+                    }
+                    break;
+                }
+                pos += boxSize;
+            }
+            Log.i(TAG, "Successfully patched MP4 duration in file to " + durationMs + "ms");
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to patch MP4 duration in file: " + e.getMessage());
+        }
     }
 }
