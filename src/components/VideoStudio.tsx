@@ -28,7 +28,9 @@ import {
   CheckCircle2,
   Sun,
   Moon,
+  Loader2,
 } from 'lucide-react';
+import { isAyahAudioCached, downloadVerseKeysAudio } from '@/lib/audio-cache';
 
 interface VideoStudioProps {
   chapter: Chapter | null;
@@ -85,6 +87,38 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isReciterModalOpen, setIsReciterModalOpen] = useState(false);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
+  const [isAudioCached, setIsAudioCached] = useState<boolean>(false);
+  const [isDownloadingAudio, setIsDownloadingAudio] = useState<boolean>(false);
+
+  // Check if all selected verses audio are cached locally
+  React.useEffect(() => {
+    let isMounted = true;
+    if (audioUrls.length === 0) return;
+
+    Promise.all(audioUrls.map((url) => isAyahAudioCached(url))).then((results) => {
+      if (isMounted) {
+        setIsAudioCached(results.every(Boolean));
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [audioUrls]);
+
+  const handlePreDownloadAudio = async () => {
+    if (isDownloadingAudio || !chapter) return;
+    setIsDownloadingAudio(true);
+    try {
+      const verseKeys = verses.map((v) => v.verse_key);
+      await downloadVerseKeysAudio(currentReciter, verseKeys);
+      setIsAudioCached(true);
+    } catch (e) {
+      console.warn('Pre-download audio error:', e);
+    } finally {
+      setIsDownloadingAudio(false);
+    }
+  };
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -276,14 +310,45 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
             </button>
 
-            {/* Export Button */}
-            <button
-              onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export</span>
-            </button>
+            {/* Actions: Pre-download voice & Export */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={handlePreDownloadAudio}
+                disabled={isDownloadingAudio || isAudioCached}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                  isAudioCached
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
+                    : isDownloadingAudio
+                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-400 animate-pulse'
+                    : 'bg-slate-100 hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-emerald-600'
+                }`}
+                title={
+                  isAudioCached
+                    ? 'All recitation audio for selected ayahs is downloaded & offline-ready'
+                    : 'Pre-download recitation audio to guarantee 100% seamless offline playback'
+                }
+              >
+                {isDownloadingAudio ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : isAudioCached ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <Download className="w-3.5 h-3.5" />
+                )}
+                <span className="hidden sm:inline">
+                  {isDownloadingAudio ? 'Saving...' : isAudioCached ? 'Voice Ready' : 'Download Voice'}
+                </span>
+              </button>
+
+              {/* Export Button */}
+              <button
+                onClick={() => setIsExportModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export</span>
+              </button>
+            </div>
           </div>
         }
       >
@@ -935,6 +1000,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         onClose={() => setIsReciterModalOpen(false)}
         selectedReciterId={currentReciter.id}
         onSelectReciter={onSelectReciter}
+        currentChapter={chapter}
       />
 
       {/* Projects & Drafts Modal */}

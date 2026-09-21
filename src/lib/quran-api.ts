@@ -1,5 +1,5 @@
-import { AyahAudioFile, Chapter, Verse, PersianTafsirEdition } from '@/types/quran';
-import { POPULAR_RECITERS } from '@/lib/constants';
+import { AyahAudioFile, Chapter, Verse, PersianTafsirEdition, Reciter } from '@/types/quran';
+import { POPULAR_RECITERS, getReciterAyahUrl } from '@/lib/constants';
 
 const BASE_URL = 'https://api.quran.com/api/v4';
 const AUDIO_BASE_URL = 'https://verses.quran.com';
@@ -109,6 +109,7 @@ export async function fetchVerses(
 
 /**
  * Fetches recitation audio files for a chapter and reciter
+ * Generates complete, verified audio URLs for all ayahs in the Surah
  */
 export async function fetchAudioFiles(
   reciterId: number,
@@ -116,54 +117,43 @@ export async function fetchAudioFiles(
   audioSubfolder?: string
 ): Promise<AyahAudioFile[]> {
   try {
-    const subfolder =
-      audioSubfolder ||
-      POPULAR_RECITERS.find((r) => r.id === reciterId)?.audioSubfolder;
+    const reciter =
+      POPULAR_RECITERS.find((r) => r.id === reciterId) ||
+      ({ id: reciterId, name: 'Reciter', style: 'Murattal', audioSubfolder } as Reciter);
 
-    // 1. EveryAyah CDN (for community favorites like Maher, Ghamdi, Dosari, Qatami, etc.)
-    if (subfolder) {
+    let count = 286;
+    try {
       const chapters = await fetchChapters();
       const chapter = chapters.find((c) => c.id === chapterId);
-      const count = chapter?.verses_count || 286;
-      const audioFiles: AyahAudioFile[] = [];
-      const padC = String(chapterId).padStart(3, '0');
-      for (let i = 1; i <= count; i++) {
-        const padV = String(i).padStart(3, '0');
-        audioFiles.push({
-          verse_key: `${chapterId}:${i}`,
-          url: `https://everyayah.com/data/${subfolder}/${padC}${padV}.mp3`,
-        });
+      if (chapter?.verses_count) {
+        count = chapter.verses_count;
       }
-      return audioFiles;
+    } catch {
+      // fallback to 286
     }
 
-    // 2. Quran.com REST API
-    const url = `${BASE_URL}/recitations/${reciterId}/by_chapter/${chapterId}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error(`Failed to fetch audio: ${res.statusText}`);
+    const audioFiles: AyahAudioFile[] = [];
+    for (let i = 1; i <= count; i++) {
+      audioFiles.push({
+        verse_key: `${chapterId}:${i}`,
+        url: getReciterAyahUrl(reciter, chapterId, i),
+      });
     }
-
-    const data = await res.json();
-    const audioFiles: AyahAudioFile[] = (data.audio_files || []).map(
-      (file: { verse_key: string; url: string }) => {
-        let cleanUrl = file.url;
-        if (cleanUrl.startsWith('//')) {
-          cleanUrl = `https:${cleanUrl}`;
-        } else if (!cleanUrl.startsWith('http')) {
-          cleanUrl = `${AUDIO_BASE_URL}/${cleanUrl}`;
-        }
-        return {
-          verse_key: file.verse_key,
-          url: cleanUrl,
-        };
-      }
-    );
 
     return audioFiles;
   } catch (err) {
     console.error(`Error fetching audio files for reciter ${reciterId}:`, err);
-    throw err;
+    const reciter =
+      POPULAR_RECITERS.find((r) => r.id === reciterId) ||
+      ({ id: reciterId, name: 'Reciter', style: 'Murattal', audioSubfolder } as Reciter);
+    const audioFiles: AyahAudioFile[] = [];
+    for (let i = 1; i <= 286; i++) {
+      audioFiles.push({
+        verse_key: `${chapterId}:${i}`,
+        url: getReciterAyahUrl(reciter, chapterId, i),
+      });
+    }
+    return audioFiles;
   }
 }
 

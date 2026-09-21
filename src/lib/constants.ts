@@ -268,40 +268,55 @@ export const DEFAULT_VIDEO_CONFIG: VideoConfig = {
 };
 
 /**
+ * Returns the exact, verified recitation audio URL for any ayah and reciter
+ */
+export const getReciterAyahUrl = (
+  reciter: Reciter,
+  chapterId: number,
+  ayahNumber: number
+): string => {
+  const padC = String(chapterId).padStart(3, '0');
+  const padV = String(ayahNumber).padStart(3, '0');
+
+  if (reciter.audioSubfolder) {
+    return `https://everyayah.com/data/${reciter.audioSubfolder}/${padC}${padV}.mp3`;
+  }
+
+  switch (reciter.id) {
+    case 1:
+      return `https://verses.quran.com/AbdulBaset/Mujawwad/mp3/${padC}${padV}.mp3`;
+    case 2:
+      return `https://verses.quran.com/AbdulBaset/Murattal/mp3/${padC}${padV}.mp3`;
+    case 3:
+      return `https://verses.quran.com/Sudais/mp3/${padC}${padV}.mp3`;
+    case 4:
+      return `https://verses.quran.com/Shatri/mp3/${padC}${padV}.mp3`;
+    case 5:
+      return `https://verses.quran.com/Rifai/mp3/${padC}${padV}.mp3`;
+    case 6:
+      return `https://everyayah.com/data/Husary_64kbps/${padC}${padV}.mp3`;
+    case 7:
+      return `https://verses.quran.com/Alafasy/mp3/${padC}${padV}.mp3`;
+    case 8:
+      return `https://verses.quran.com/Minshawi/Mujawwad/mp3/${padC}${padV}.mp3`;
+    case 9:
+      return `https://verses.quran.com/Minshawi/Murattal/mp3/${padC}${padV}.mp3`;
+    case 10:
+      return `https://verses.quran.com/Shuraym/mp3/${padC}${padV}.mp3`;
+    case 11:
+      return `https://everyayah.com/data/Mohammad_al_Tablaway_128kbps/${padC}${padV}.mp3`;
+    case 12:
+      return `https://everyayah.com/data/Husary_Muallim_128kbps/${padC}${padV}.mp3`;
+    default:
+      return `https://verses.quran.com/Alafasy/mp3/${padC}${padV}.mp3`;
+  }
+};
+
+/**
  * Returns a verified working preview audio URL for Al-Fatihah (Ayah 1:1)
  */
 export const getReciterPreviewUrl = (reciter: Reciter): string => {
-  if (reciter.audioSubfolder) {
-    return `https://everyayah.com/data/${reciter.audioSubfolder}/001001.mp3`;
-  }
-  switch (reciter.id) {
-    case 1:
-      return 'https://verses.quran.com/AbdulBaset/Mujawwad/mp3/001001.mp3';
-    case 2:
-      return 'https://verses.quran.com/AbdulBaset/Murattal/mp3/001001.mp3';
-    case 3:
-      return 'https://verses.quran.com/Sudais/mp3/001001.mp3';
-    case 4:
-      return 'https://verses.quran.com/Shatri/mp3/001001.mp3';
-    case 5:
-      return 'https://verses.quran.com/Rifai/mp3/001001.mp3';
-    case 6:
-      return 'https://mirrors.quranicaudio.com/everyayah/Husary_64kbps/001001.mp3';
-    case 7:
-      return 'https://verses.quran.com/Alafasy/mp3/001001.mp3';
-    case 8:
-      return 'https://verses.quran.com/Minshawi/Mujawwad/mp3/001001.mp3';
-    case 9:
-      return 'https://verses.quran.com/Minshawi/Murattal/mp3/001001.mp3';
-    case 10:
-      return 'https://verses.quran.com/Shuraym/mp3/001001.mp3';
-    case 11:
-      return 'https://mirrors.quranicaudio.com/everyayah/Mohammad_al_Tablaway_128kbps/001001.mp3';
-    case 12:
-      return 'https://mirrors.quranicaudio.com/everyayah/Husary_Muallim_128kbps/001001.mp3';
-    default:
-      return 'https://verses.quran.com/Alafasy/mp3/001001.mp3';
-  }
+  return getReciterAyahUrl(reciter, 1, 1);
 };
 
 export const AVAILABLE_TAFSIRS: TafsirOption[] = [

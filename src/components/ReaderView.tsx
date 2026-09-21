@@ -9,7 +9,7 @@ import {
   fetchAyahTafsirText,
   prefetchSurahTafsir,
 } from '@/lib/quran-api';
-import { AVAILABLE_TAFSIRS } from '@/lib/constants';
+import { AVAILABLE_TAFSIRS, getReciterAyahUrl, POPULAR_RECITERS } from '@/lib/constants';
 import {
   Play,
   Pause,
@@ -110,12 +110,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       if (chapterAudioMap && chapterAudioMap[verseKey]) {
         return chapterAudioMap[verseKey];
       }
-      const padC = String(chapter.id).padStart(3, '0');
-      const padV = String(verseNum).padStart(3, '0');
-      if (currentReciter?.audioSubfolder) {
-        return `https://everyayah.com/data/${currentReciter.audioSubfolder}/${padC}${padV}.mp3`;
-      }
-      return `https://verses.quran.com/Alafasy/mp3/${padC}${padV}.mp3`;
+      return getReciterAyahUrl(currentReciter || POPULAR_RECITERS[0], chapter.id, verseNum);
     },
     [chapterAudioMap, chapter.id, currentReciter]
   );

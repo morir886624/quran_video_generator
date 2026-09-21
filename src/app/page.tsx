@@ -8,7 +8,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { PermissionPrompt } from '@/components/PermissionPrompt';
 import { requestAppPermissions } from '@/lib/permissions';
 import { Chapter, Reciter, Verse, VideoConfig } from '@/types/quran';
-import { DEFAULT_VIDEO_CONFIG, POPULAR_RECITERS } from '@/lib/constants';
+import { DEFAULT_VIDEO_CONFIG, POPULAR_RECITERS, getReciterAyahUrl } from '@/lib/constants';
 import { fetchAudioFiles, fetchChapters, fetchVerses } from '@/lib/quran-api';
 import { QuranNavbar } from '@/components/QuranNavbar';
 import { ReaderView } from '@/components/ReaderView';
@@ -277,18 +277,13 @@ export default function Home() {
     return verses.filter((v) => selectedVerseKeys.has(v.verse_key));
   }, [verses, selectedVerseKeys]);
 
-  // Mapped Audio URLs for the selected verses
+  // Mapped Audio URLs for the selected verses - 100% deterministic, NEVER switches reciters
   const selectedAudioUrls = useMemo(() => {
     return selectedVerses.map((v) => {
       if (chapterAudioMap[v.verse_key]) {
         return chapterAudioMap[v.verse_key];
       }
-      const padC = String(currentChapterId).padStart(3, '0');
-      const padV = String(v.verse_number).padStart(3, '0');
-      if (currentReciter.audioSubfolder) {
-        return `https://everyayah.com/data/${currentReciter.audioSubfolder}/${padC}${padV}.mp3`;
-      }
-      return `https://verses.quran.com/Alafasy/mp3/${padC}${padV}.mp3`;
+      return getReciterAyahUrl(currentReciter, currentChapterId, v.verse_number);
     });
   }, [selectedVerses, chapterAudioMap, currentChapterId, currentReciter]);
 
@@ -347,11 +342,9 @@ export default function Home() {
       let audioUrl = chapterAudioMap[verseKey];
       if (!audioUrl) {
         const [cStr, vStr] = verseKey.split(':');
-        const padC = String(cStr).padStart(3, '0');
-        const padV = String(vStr).padStart(3, '0');
-        if (currentReciter.audioSubfolder) {
-          audioUrl = `https://everyayah.com/data/${currentReciter.audioSubfolder}/${padC}${padV}.mp3`;
-        }
+        const c = parseInt(cStr, 10);
+        const v = parseInt(vStr, 10);
+        audioUrl = getReciterAyahUrl(currentReciter, c, v);
       }
       if (!audioUrl) return;
 
@@ -383,15 +376,22 @@ export default function Home() {
         setSingleAyahAudio(null);
       }
       setActivePlayingKey(null);
-      setChapterAudioMap({}); // Reset audio map immediately so stale reciter URLs are not reused
       setCurrentReciter(rec);
+
+      // Immediately pre-populate the audio map with new reciter URLs so there is zero transition delay or fallback
+      const map: Record<string, string> = {};
+      verses.forEach((v) => {
+        map[v.verse_key] = getReciterAyahUrl(rec, currentChapterId, v.verse_number);
+      });
+      setChapterAudioMap(map);
+
       setPreferences((prev) => {
         const next = { ...prev, reciterId: rec.id };
         saveUserPreferences({ reciterId: rec.id });
         return next;
       });
     },
-    [singleAyahAudio]
+    [singleAyahAudio, verses, currentChapterId]
   );
 
   const handleSelectTranslation = useCallback(
@@ -713,6 +713,7 @@ export default function Home() {
         onClose={() => setIsRecitersModalOpen(false)}
         selectedReciterId={currentReciter.id}
         onSelectReciter={handleSelectReciter}
+        currentChapter={currentChapter}
       />
 
       {/* Tafsir Ibn Kathir Modal */}

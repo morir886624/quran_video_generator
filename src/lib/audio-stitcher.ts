@@ -31,9 +31,21 @@ export async function stitchAudioBuffers(
     throw new Error('No audio URLs provided for stitching.');
   }
 
-  // 1. Fetch and decode each audio file in parallel
+  // 1. Fetch and decode each audio file in parallel (using local cache if available)
   const decodedBuffers = await Promise.all(
     audioUrls.map(async (url) => {
+      // Check cache first for instant offline stitching
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        try {
+          const cache = await window.caches.open('quran_audio_cache_v1');
+          const matched = await cache.match(url);
+          if (matched) {
+            const ab = await matched.arrayBuffer();
+            return await audioCtx.decodeAudioData(ab);
+          }
+        } catch {}
+      }
+
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to download audio from ${url}: ${response.statusText}`);
