@@ -60,15 +60,8 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           mkdir -p android/app
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "Decoding release keystore from GitHub Secrets..."
-            echo "$KEYSTORE_BASE64" | base64 --decode > android/app/quran-release-key.jks
-            echo "storeFile=quran-release-key.jks" > android/key.properties
-            echo "storePassword=$KEYSTORE_PASSWORD" >> android/key.properties
-            echo "keyAlias=$KEY_ALIAS" >> android/key.properties
-            echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
-          else
-            echo "No ANDROID_KEYSTORE_BASE64 secret found. Generating CI signing keystore for testing..."
+          setup_ci_keystore() {
+            echo "Generating CI signing keystore for testing..."
             keytool -genkeypair -v \
               -storetype JKS \
               -keystore android/app/quran-release-key.jks \
@@ -83,6 +76,24 @@ jobs:
             echo "storePassword=testpassword123" >> android/key.properties
             echo "keyAlias=quran-key" >> android/key.properties
             echo "keyPassword=testpassword123" >> android/key.properties
+          }
+
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Decoding release keystore from GitHub Secrets..."
+            CLEAN_KEYSTORE_BASE64="$(printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n[:space:]')"
+            if printf '%s' "$CLEAN_KEYSTORE_BASE64" | base64 --decode > android/app/quran-release-key.jks 2>/dev/null; then
+              echo "storeFile=quran-release-key.jks" > android/key.properties
+              echo "storePassword=$KEYSTORE_PASSWORD" >> android/key.properties
+              echo "keyAlias=$KEY_ALIAS" >> android/key.properties
+              echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
+            else
+              echo "::warning::ANDROID_KEYSTORE_BASE64 is invalid. Falling back to CI keystore."
+              rm -f android/app/quran-release-key.jks
+              setup_ci_keystore
+            fi
+          else
+            echo "No ANDROID_KEYSTORE_BASE64 secret found."
+            setup_ci_keystore
           fi
 
       - name: Make Gradlew Executable
@@ -123,4 +134,3 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
-
