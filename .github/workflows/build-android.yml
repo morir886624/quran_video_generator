@@ -81,13 +81,20 @@ jobs:
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "Decoding release keystore from GitHub Secrets..."
             CLEAN_KEYSTORE_BASE64="$(printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n[:space:]')"
-            if printf '%s' "$CLEAN_KEYSTORE_BASE64" | base64 --decode > android/app/quran-release-key.jks 2>/dev/null; then
-              echo "storeFile=quran-release-key.jks" > android/key.properties
-              echo "storePassword=$KEYSTORE_PASSWORD" >> android/key.properties
-              echo "keyAlias=$KEY_ALIAS" >> android/key.properties
-              echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
+            if printf '%s' "$CLEAN_KEYSTORE_BASE64" | base64 --decode > android/app/quran-release-key.jks 2>/dev/null && [ -s android/app/quran-release-key.jks ]; then
+              if keytool -list -keystore android/app/quran-release-key.jks -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1; then
+                echo "Release keystore verified successfully."
+                echo "storeFile=quran-release-key.jks" > android/key.properties
+                echo "storePassword=$KEYSTORE_PASSWORD" >> android/key.properties
+                echo "keyAlias=$KEY_ALIAS" >> android/key.properties
+                echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
+              else
+                echo "::warning::Keystore password verification failed. Falling back to CI keystore."
+                rm -f android/app/quran-release-key.jks
+                setup_ci_keystore
+              fi
             else
-              echo "::warning::ANDROID_KEYSTORE_BASE64 is invalid. Falling back to CI keystore."
+              echo "::warning::ANDROID_KEYSTORE_BASE64 is invalid or empty. Falling back to CI keystore."
               rm -f android/app/quran-release-key.jks
               setup_ci_keystore
             fi

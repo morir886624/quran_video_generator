@@ -137,6 +137,10 @@ export interface VideoConfig {
   overlayOpacity: number;
   glowEffect: boolean;
   fps: 30 | 60;
+
+  // Atmosphere & Particles
+  enableParticles?: boolean;
+  particleType?: 'none' | 'stars' | 'geometric' | 'dust' | 'rain' | 'glow' | 'minimal';
 }
 
 export interface Tafsir {

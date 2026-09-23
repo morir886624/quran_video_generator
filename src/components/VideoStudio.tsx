@@ -29,8 +29,10 @@ import {
   Sun,
   Moon,
   Loader2,
+  Save,
 } from 'lucide-react';
 import { isAyahAudioCached, downloadVerseKeysAudio } from '@/lib/audio-cache';
+import { saveVideoConfig, clearSavedVideoConfig } from '@/lib/video-config-storage';
 
 interface VideoStudioProps {
   chapter: Chapter | null;
@@ -149,16 +151,20 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   };
 
   // Reset adjustments to defaults
+  const [justSaved, setJustSaved] = useState<boolean>(false);
+
+  // Manually save style as default preset
+  const handleSaveStyle = () => {
+    saveVideoConfig(config);
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2200);
+  };
+
+  // Reset adjustments to defaults and clear persisted preferences
   const handleResetDefaults = () => {
+    clearSavedVideoConfig();
     onChangeConfig({
-      arabicFontSize: DEFAULT_VIDEO_CONFIG.arabicFontSize,
-      translationFontSize: DEFAULT_VIDEO_CONFIG.translationFontSize,
-      arabicTextColor: DEFAULT_VIDEO_CONFIG.arabicTextColor,
-      translationTextColor: DEFAULT_VIDEO_CONFIG.translationTextColor,
-      badgeTextColor: DEFAULT_VIDEO_CONFIG.badgeTextColor,
-      surahTitleColor: DEFAULT_VIDEO_CONFIG.surahTitleColor,
-      progressBarColor: DEFAULT_VIDEO_CONFIG.progressBarColor,
-      backgroundPreset: 'midnight',
+      ...DEFAULT_VIDEO_CONFIG,
       customMediaUrl: null,
       customMediaType: null,
     });
@@ -458,6 +464,8 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                           backgroundPreset: th.id,
                           customMediaUrl: null,
                           customMediaType: null,
+                          particleType: th.particleType,
+                          enableParticles: true,
                         })
                       }
                       className={`relative flex flex-col justify-end p-2.5 rounded-2xl h-[78px] text-left transition-all overflow-hidden border ${
@@ -513,7 +521,42 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                     Atmosphere &amp; Particles
                   </span>
                 </div>
-                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Active</span>
+                {/* Interactive ON / OFF Toggle Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const isCurrentlyActive =
+                      config.enableParticles !== false && config.particleType !== 'none';
+                    if (isCurrentlyActive) {
+                      onChangeConfig({ enableParticles: false, particleType: 'none' });
+                    } else {
+                      onChangeConfig({ enableParticles: true, particleType: 'stars' });
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition-all cursor-pointer ${
+                    config.enableParticles !== false && config.particleType !== 'none'
+                      ? 'bg-emerald-500/15 border-emerald-500 dark:border-emerald-400 text-emerald-700 dark:text-emerald-400 shadow-2xs'
+                      : 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400'
+                  }`}
+                  title={
+                    config.enableParticles !== false && config.particleType !== 'none'
+                      ? 'Click to turn off particles'
+                      : 'Click to turn on particles'
+                  }
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      config.enableParticles !== false && config.particleType !== 'none'
+                        ? 'bg-emerald-500 animate-pulse'
+                        : 'bg-slate-400'
+                    }`}
+                  />
+                  <span>
+                    {config.enableParticles !== false && config.particleType !== 'none'
+                      ? 'Active'
+                      : 'Off'}
+                  </span>
+                </button>
               </div>
 
               {/* Pills row with hidden scrollbar and wheel support */}
@@ -527,28 +570,27 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               >
                 {(['none', 'stars', 'geometric', 'dust', 'rain', 'glow', 'minimal'] as const).map(
                   (pType) => {
-                    const activePreset = BACKGROUND_PRESETS.find((x) => x.id === config.backgroundPreset);
-                    const isSelected = activePreset?.particleType === pType || (pType === 'none' && !activePreset);
+                    const isParticlesOff =
+                      config.enableParticles === false || config.particleType === 'none';
+                    const activeType = isParticlesOff ? 'none' : config.particleType || 'stars';
+                    const isSelected = activeType === pType;
                     return (
                       <button
                         key={pType}
                         onClick={() => {
                           if (pType === 'none') {
-                            const p = BACKGROUND_PRESETS.find((x) => x.id === config.backgroundPreset);
-                            if (p) p.particleType = 'minimal';
+                            onChangeConfig({ enableParticles: false, particleType: 'none' });
                           } else {
-                            const p = BACKGROUND_PRESETS.find((x) => x.id === config.backgroundPreset);
-                            if (p) p.particleType = pType;
+                            onChangeConfig({ enableParticles: true, particleType: pType });
                           }
-                          onChangeConfig({});
                         }}
-                        className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all shrink-0 capitalize border ${
+                        className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all shrink-0 capitalize border cursor-pointer ${
                           isSelected
-                            ? 'border-emerald-500 dark:border-emerald-400 text-emerald-700 dark:text-emerald-400 bg-emerald-500/15'
+                            ? 'border-emerald-500 dark:border-emerald-400 text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 font-semibold'
                             : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white shadow-2xs'
                         }`}
                       >
-                        {pType}
+                        {pType === 'none' ? '🚫 Off' : pType}
                       </button>
                     );
                   }
@@ -976,6 +1018,40 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Reset</span>
               </button>
+              <div className="flex items-center gap-1.5">
+                {/* Save Style Button */}
+                <button
+                  type="button"
+                  onClick={handleSaveStyle}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                    justSaved
+                      ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                      : 'bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                  }`}
+                  title="Save current font sizes, colors, and parameters as default for future videos"
+                >
+                  {justSaved ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Style Saved!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Save Style</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleResetDefaults}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                  title="Reset all parameters to default"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
