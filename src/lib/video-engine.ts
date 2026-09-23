@@ -121,6 +121,11 @@ export function renderVideoFrame({
 
   // 2. Draw Particles / Motion Effects
   drawParticles(ctx, width, height, particles, preset.id, time);
+  const particlesActive = config.enableParticles !== false && config.particleType !== 'none';
+  if (particlesActive) {
+    const activeParticleType = config.particleType || preset.particleType || preset.id;
+    drawParticles(ctx, width, height, particles, activeParticleType, time);
+  }
 
   // 3. Dark Overlay Vignette for Contrast & Readability
   drawOverlayVignette(ctx, width, height, config.overlayOpacity);
@@ -183,7 +188,7 @@ function drawParticles(
   width: number,
   height: number,
   particles: Particle[],
-  presetId: BackgroundPresetId,
+  particleType: string,
   time: number
 ) {
   ctx.save();
@@ -201,7 +206,7 @@ function drawParticles(
     const currentOpacity =
       p.opacity * (0.6 + 0.4 * Math.sin(p.angle + time * 0.002));
 
-    if (presetId === 'emerald') {
+    if (particleType === 'emerald' || particleType === 'geometric') {
       // Islamic 8-point geometric star motes
       ctx.strokeStyle = `rgba(16, 185, 129, ${currentOpacity * 0.5})`;
       ctx.lineWidth = 1;
@@ -213,15 +218,27 @@ function drawParticles(
       ctx.rotate(Math.PI / 4);
       ctx.strokeRect(-s / 2, -s / 2, s, s);
       ctx.restore();
-    } else if (presetId === 'rain') {
+    } else if (particleType === 'rain') {
       // Falling raindrops
       ctx.fillStyle = `rgba(6, 182, 212, ${currentOpacity * 0.65})`;
       ctx.fillRect(p.x, p.y, 1.5, p.size * 6);
-    } else if (presetId === 'gold') {
+    } else if (particleType === 'gold' || particleType === 'dust') {
       // Warm glowing golden dust
       ctx.fillStyle = `rgba(245, 158, 11, ${currentOpacity * 0.8})`;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (particleType === 'glow' || particleType === 'desert') {
+      // Soft ambient glowing orb
+      ctx.fillStyle = `rgba(216, 180, 254, ${currentOpacity * 0.7})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (particleType === 'minimal' || particleType === 'oled') {
+      // Minimal subtle motes
+      ctx.fillStyle = `rgba(255, 255, 255, ${currentOpacity * 0.35})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 0.7, 0, Math.PI * 2);
       ctx.fill();
     } else {
       // Cosmic stars

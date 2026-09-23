@@ -36,6 +36,11 @@ import {
   saveUserPreferences,
   resetUserPreferences,
 } from '@/lib/preferences';
+import {
+  loadSavedVideoConfig,
+  saveVideoConfig,
+  clearSavedVideoConfig,
+} from '@/lib/video-config-storage';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { Loader2 } from 'lucide-react';
 
@@ -159,10 +164,26 @@ export default function Home() {
       if (savedPrefs.translationName) {
         setSelectedTranslationName(savedPrefs.translationName);
       }
+
+      // Load saved video creation parameters (ayah text size, translation size, colors, effects, etc.)
+      const savedVideoCfg = loadSavedVideoConfig();
+      if (savedVideoCfg) {
+        setVideoConfig((prev) => ({ ...prev, ...savedVideoCfg }));
+      }
     } catch {
       // ignore
     }
   }, []);
+
+  // Auto-save video creation parameters whenever modified so they persist for all future videos
+  const hasLoadedConfigRef = useRef(false);
+  useEffect(() => {
+    if (!hasLoadedConfigRef.current) {
+      hasLoadedConfigRef.current = true;
+      return;
+    }
+    saveVideoConfig(videoConfig);
+  }, [videoConfig]);
 
   const [isLoadingVerses, setIsLoadingVerses] = useState<boolean>(true);
   const [activePlayingKey, setActivePlayingKey] = useState<string | null>(null);
@@ -538,6 +559,7 @@ export default function Home() {
   };
 
   const handleResetNewProject = () => {
+    clearSavedVideoConfig();
     setVideoConfig(DEFAULT_VIDEO_CONFIG);
     const initialKeys = new Set<string>();
     const maxAyahs = Math.min(verses.length || 5, 5);
