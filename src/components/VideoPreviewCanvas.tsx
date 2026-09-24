@@ -52,6 +52,7 @@ interface VideoPreviewCanvasProps {
   audioUrls: string[];
   chapter: Chapter | null;
   config: VideoConfig;
+  onChangeConfig?: (updates: Partial<VideoConfig>) => void;
   onActiveVerseChange?: (verse: Verse, index: number) => void;
   topBar?: React.ReactNode;
   children?: React.ReactNode;
@@ -63,6 +64,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   audioUrls,
   chapter,
   config,
+  onChangeConfig,
   onActiveVerseChange,
   topBar,
   children,
@@ -82,7 +84,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const [totalDuration, setTotalDuration] = useState(0);
   const [volume, setVolume] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+  const playbackSpeed = config.playbackSpeed || 1.0;
   const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
   const [isToolsOpen, setIsToolsOpen] = useState(true);
 
@@ -168,6 +170,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       playerRef.current = new StitchedAudioPlayer();
     }
     const player = playerRef.current;
+    player.setPlaybackRate(playbackSpeed);
 
     // Fully stop any existing playback and reset UI play state on audio change
     player.stop();
@@ -292,15 +295,28 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
   }, [isMuted]);
 
+  // Sync playback speed to player and background video whenever playbackSpeed changes
+  useEffect(() => {
+    if (playerRef.current) {
+      playerRef.current.setPlaybackRate(playbackSpeed);
+    }
+    if (customMediaElRef.current instanceof HTMLVideoElement) {
+      customMediaElRef.current.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed]);
+
   const handleCycleSpeed = useCallback(() => {
-    const speeds = [1.0, 1.25, 1.5, 2.0, 0.75];
+    const speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
     const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
     const nextSpeed = speeds[nextIdx];
-    setPlaybackSpeed(nextSpeed);
+    onChangeConfig?.({ playbackSpeed: nextSpeed });
     if (playerRef.current) {
       playerRef.current.setPlaybackRate(nextSpeed);
     }
-  }, [playbackSpeed]);
+    if (customMediaElRef.current instanceof HTMLVideoElement) {
+      customMediaElRef.current.playbackRate = nextSpeed;
+    }
+  }, [playbackSpeed, onChangeConfig]);
 
   // Main Canvas Render Loop
   useEffect(() => {

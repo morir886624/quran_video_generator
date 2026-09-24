@@ -133,6 +133,9 @@ export async function exportVideo({
   recorder.start(100);
 
   // 4. Load custom media if any
+  const speed = config.playbackSpeed && config.playbackSpeed > 0 ? config.playbackSpeed : 1.0;
+  const effectiveTotalDuration = totalDuration / speed;
+
   let customMediaElement: HTMLImageElement | HTMLVideoElement | null = null;
   if (config.customMediaUrl) {
     if (config.customMediaType === 'video') {
@@ -141,6 +144,7 @@ export async function exportVideo({
       videoEl.crossOrigin = 'anonymous';
       videoEl.muted = true;
       videoEl.loop = true;
+      videoEl.playbackRate = speed;
       await videoEl.play().catch(() => {});
       customMediaElement = videoEl;
     } else {
@@ -158,6 +162,7 @@ export async function exportVideo({
   // 5. Connect and start seamless master audio buffer source
   const sourceNode = audioCtx.createBufferSource();
   sourceNode.buffer = stitchedBuffer;
+  sourceNode.playbackRate.value = speed;
   sourceNode.connect(dest);
 
   await audioCtx.resume();
@@ -172,7 +177,7 @@ export async function exportVideo({
 
     const renderLoop = (now: number) => {
       const audioElapsed = audioCtx.currentTime - startAudioTime;
-      const t = Math.min(audioElapsed, totalDuration);
+      const t = Math.min(audioElapsed * speed, totalDuration);
 
       // Find active verse segment
       let activeIndex = 0;
@@ -214,15 +219,15 @@ export async function exportVideo({
       });
 
       // Progress reporting
-      const percent = Math.min(96, Math.round((t / totalDuration) * 90) + 6);
+      const percent = Math.min(96, Math.round((audioElapsed / effectiveTotalDuration) * 90) + 6);
       onProgress?.({
         percent,
         currentAyahIndex: activeIndex + 1,
         totalAyahs: verses.length,
-        status: `Rendering Ayah ${currentVerse.verse_number} (continuous audio)...`,
+        status: `Rendering Ayah ${currentVerse.verse_number}${speed !== 1 ? ` (${speed}x speed)` : ''}...`,
       });
 
-      if (audioElapsed < totalDuration + 0.3) {
+      if (audioElapsed < effectiveTotalDuration + 0.3) {
         animId = requestAnimationFrame(renderLoop);
       } else {
         cancelAnimationFrame(animId);
@@ -252,9 +257,9 @@ export async function exportVideo({
   // Inject exact duration metadata into MP4 (mvhd, tkhd, mdhd, mehd) or WebM header
   // so Android Gallery, Google Photos, WhatsApp, VLC, and all players display and seek the full duration instead of 3s / 0s
   let finalBlob = rawBlob;
-  if (totalDuration > 0) {
+  if (effectiveTotalDuration > 0) {
     try {
-      finalBlob = await fixVideoDuration(rawBlob, totalDuration);
+      finalBlob = await fixVideoDuration(rawBlob, effectiveTotalDuration);
     } catch (durationErr) {
       console.warn('Failed to patch video duration header, using raw blob:', durationErr);
     }
@@ -270,7 +275,7 @@ export async function exportVideo({
   const chapterName = chapter ? chapter.name_simple.toLowerCase().replace(/\s+/g, '-') : 'quran';
   const filename = `${chapterName}-ayah-${verses[0]?.verse_number}-to-${verses[verses.length - 1]?.verse_number}.${extension}`;
 
-  return { blob: finalBlob, url, filename, duration: totalDuration };
+  return { blob: finalBlob, url, filename, duration: effectiveTotalDuration };
 }
 
 /**

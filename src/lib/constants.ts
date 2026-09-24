@@ -265,6 +265,7 @@ export const DEFAULT_VIDEO_CONFIG: VideoConfig = {
   overlayOpacity: 0.55,
   glowEffect: true,
   fps: 30,
+  playbackSpeed: 1.0,
 
   enableParticles: true,
   particleType: 'stars',

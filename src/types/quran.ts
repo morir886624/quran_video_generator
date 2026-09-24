@@ -137,6 +137,7 @@ export interface VideoConfig {
   overlayOpacity: number;
   glowEffect: boolean;
   fps: 30 | 60;
+  playbackSpeed?: number;
 
   // Atmosphere & Particles
   enableParticles?: boolean;
