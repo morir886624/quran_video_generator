@@ -304,89 +304,90 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
             </button>
           </div>
         }
+        categoryTabs={
+          <div className="grid grid-cols-4 gap-1">
+            {/* TAB 1: BACKGROUND */}
+            <button
+              onClick={() => setActiveTab('background')}
+              className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+                activeTab === 'background'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <div className="w-5 h-5 flex items-center justify-center mb-0.5">
+                <Palette className={`w-4 h-4 ${activeTab === 'background' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+              </div>
+              <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+                Background
+              </span>
+              {activeTab === 'background' && (
+                <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              )}
+            </button>
+
+            {/* TAB 2: TYPOGRAPHY */}
+            <button
+              onClick={() => setActiveTab('typography')}
+              className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+                activeTab === 'typography'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <div className="w-5 h-5 flex items-center justify-center mb-0.5">
+                <Type className={`w-4 h-4 ${activeTab === 'typography' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+              </div>
+              <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+                Typography
+              </span>
+              {activeTab === 'typography' && (
+                <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              )}
+            </button>
+
+            {/* TAB 3: COLOR */}
+            <button
+              onClick={() => setActiveTab('color')}
+              className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+                activeTab === 'color'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <div className="w-5 h-5 flex items-center justify-center mb-0.5">
+                <CircleDot className={`w-4 h-4 ${activeTab === 'color' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+              </div>
+              <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+                Color
+              </span>
+              {activeTab === 'color' && (
+                <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              )}
+            </button>
+
+            {/* TAB 4: MORE */}
+            <button
+              onClick={() => setActiveTab('more')}
+              className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+                activeTab === 'more'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <div className="w-5 h-5 flex items-center justify-center mb-0.5">
+                <Settings className={`w-4 h-4 ${activeTab === 'more' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+              </div>
+              <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+                More
+              </span>
+              {activeTab === 'more' && (
+                <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              )}
+            </button>
+          </div>
+        }
       >
-        {/* Top 4 Segmented Category Tabs Bar */}
-        <div className="grid grid-cols-4 gap-1 pb-1">
-          {/* TAB 1: BACKGROUND */}
-          <button
-            onClick={() => setActiveTab('background')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
-              activeTab === 'background'
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <div className="w-5 h-5 flex items-center justify-center mb-0.5">
-              <Palette className={`w-4 h-4 ${activeTab === 'background' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
-            </div>
-            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
-              Background
-            </span>
-            {activeTab === 'background' && (
-              <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            )}
-          </button>
-
-          {/* TAB 2: TYPOGRAPHY */}
-          <button
-            onClick={() => setActiveTab('typography')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
-              activeTab === 'typography'
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <div className="w-5 h-5 flex items-center justify-center mb-0.5">
-              <Type className={`w-4 h-4 ${activeTab === 'typography' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
-            </div>
-            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
-              Typography
-            </span>
-            {activeTab === 'typography' && (
-              <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            )}
-          </button>
-
-          {/* TAB 3: COLOR */}
-          <button
-            onClick={() => setActiveTab('color')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
-              activeTab === 'color'
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <div className="w-5 h-5 flex items-center justify-center mb-0.5">
-              <CircleDot className={`w-4 h-4 ${activeTab === 'color' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
-            </div>
-            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
-              Color
-            </span>
-            {activeTab === 'color' && (
-              <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            )}
-          </button>
-
-          {/* TAB 4: MORE */}
-          <button
-            onClick={() => setActiveTab('more')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
-              activeTab === 'more'
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <div className="w-5 h-5 flex items-center justify-center mb-0.5">
-              <Settings className={`w-4 h-4 ${activeTab === 'more' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
-            </div>
-            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
-              More
-            </span>
-            {activeTab === 'more' && (
-              <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            )}
-          </button>
-        </div>
 
         {/* TAB 1: BACKGROUND */}
         {activeTab === 'background' && (

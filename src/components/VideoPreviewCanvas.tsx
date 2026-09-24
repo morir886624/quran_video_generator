@@ -55,6 +55,7 @@ interface VideoPreviewCanvasProps {
   onChangeConfig?: (updates: Partial<VideoConfig>) => void;
   onActiveVerseChange?: (verse: Verse, index: number) => void;
   topBar?: React.ReactNode;
+  categoryTabs?: React.ReactNode;
   children?: React.ReactNode;
   isModalOpen?: boolean;
 }
@@ -67,6 +68,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   onChangeConfig,
   onActiveVerseChange,
   topBar,
+  categoryTabs,
   children,
   isModalOpen = false,
 }) => {
@@ -410,32 +412,36 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         )}
       </div>
 
-      {/* Docked Mobile Studio Editor Console (Bottom Half) */}
-      <div className="rounded-t-[32px] bg-white dark:bg-[#0E1626] border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-2.5 pb-3 flex flex-col gap-2.5 shadow-xl dark:shadow-2xl z-10 transition-colors">
-        {/* Modal Open/Close Header Button matching user attached icons */}
-        <div className="flex items-center justify-between px-1 -mt-0.5 pb-0.5">
-          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-            {isToolsOpen ? 'Editing Tools' : 'Video Mode'}
-          </span>
-          <button
-            type="button"
-            onClick={() => setIsToolsOpen(!isToolsOpen)}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all shadow-xs border active:scale-95 ${
-              isToolsOpen
-                ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
-            }`}
-            title={isToolsOpen ? 'Close editing panel' : 'Open editing panel'}
-            aria-label={isToolsOpen ? 'Close editing panel' : 'Open editing panel'}
-          >
-            <span>{isToolsOpen ? 'Close' : 'Open'}</span>
-            <TriangleIcon direction={isToolsOpen ? 'down' : 'up'} className="w-2.5 h-2.5 fill-current" />
-          </button>
-        </div>
+      {/* Exterior Open/Close Button on Top Right of modal using relative positions */}
+      <div className="relative w-full flex justify-end px-3 -mb-3 z-20 pointer-events-none">
+        <button
+          type="button"
+          onClick={() => setIsToolsOpen(!isToolsOpen)}
+          className={`pointer-events-auto relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all shadow-md border active:scale-95 cursor-pointer ${
+            isToolsOpen
+              ? 'bg-white/95 dark:bg-[#0E1626]/95 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/90'
+              : 'bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 border-emerald-400 shadow-emerald-500/20'
+          }`}
+          title={isToolsOpen ? 'Close editing panel' : 'Open editing panel'}
+          aria-label={isToolsOpen ? 'Close editing panel' : 'Open editing panel'}
+        >
+          <span>{isToolsOpen ? 'Close' : 'Open'}</span>
+          <TriangleIcon direction={isToolsOpen ? 'down' : 'up'} className="w-2.5 h-2.5 fill-current" />
+        </button>
+      </div>
 
-        {/* Category Tabs & Tool Options passed from VideoStudio */}
+      {/* Docked Mobile Studio Editor Console (Bottom Half) */}
+      <div className="rounded-t-[32px] bg-white dark:bg-[#0E1626] border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-3 pb-3 flex flex-col gap-2 shadow-xl dark:shadow-2xl z-10 transition-colors">
+        {/* Fixed at the top of the tools modal: Category Tabs */}
+        {isToolsOpen && categoryTabs && (
+          <div className="shrink-0 border-b border-slate-200/80 dark:border-slate-800/80 pb-1.5">
+            {categoryTabs}
+          </div>
+        )}
+
+        {/* Scrollable Tool Options */}
         {isToolsOpen && (
-          <div className="flex flex-col gap-2.5 max-h-[310px] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex flex-col gap-2.5 max-h-[280px] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-200">
             {children}
           </div>
         )}
