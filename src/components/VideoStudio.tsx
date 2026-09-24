@@ -26,8 +26,6 @@ import {
   Settings,
   CircleDot,
   CheckCircle2,
-  Sun,
-  Moon,
   Loader2,
   Save,
 } from 'lucide-react';
@@ -131,24 +129,6 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
   const startAyah = verses[0]?.verse_number || 1;
   const endAyah = verses[verses.length - 1]?.verse_number || 1;
-
-  // Local fallback theme toggle if not passed from parent
-  const handleThemeToggle = () => {
-    if (onToggleTheme) {
-      onToggleTheme();
-    } else {
-      const isDark = document.documentElement.classList.contains('dark');
-      if (isDark) {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.setAttribute('data-theme', 'light');
-        try { localStorage.setItem('quran_theme', 'light'); } catch {}
-      } else {
-        document.documentElement.classList.add('dark');
-        document.documentElement.setAttribute('data-theme', 'dark');
-        try { localStorage.setItem('quran_theme', 'dark'); } catch {}
-      }
-    }
-  };
 
   // Reset adjustments to defaults
   const [justSaved, setJustSaved] = useState<boolean>(false);
@@ -1068,29 +1048,17 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
             </div>
 
-            {/* Projects, Theme & Reset Defaults */}
-            <div className="flex items-center justify-between gap-1.5 pt-1 flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setIsProjectsModalOpen(true)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
-                  title="Projects & Drafts"
-                >
-                  <FolderKanban className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Projects</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleThemeToggle}
-                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors"
-                  title="Toggle Light / Dark Theme"
-                >
-                  <Sun className="w-3.5 h-3.5 hidden dark:block text-amber-400" />
-                  <Moon className="w-3.5 h-3.5 block dark:hidden text-slate-700" />
-                </button>
-              </div>
+            {/* Projects & Reset Defaults */}
+            <div className="flex items-center justify-between gap-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsProjectsModalOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
+                title="Projects & Drafts"
+              >
+                <FolderKanban className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Projects</span>
+              </button>
 
               <button
                 type="button"
