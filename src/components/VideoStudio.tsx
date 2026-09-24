@@ -411,12 +411,81 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         {/* TAB 1: BACKGROUND */}
         {activeTab === 'background' && (
           <div className="space-y-2 animate-in fade-in duration-150">
-            {/* Theme label */}
+            {/* Header: Theme Presets label + Media & Save Style buttons */}
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900 dark:text-white tracking-wide">
-                Theme
+                Theme Presets
               </span>
+              <div className="flex items-center gap-1.5">
+                {/* Media Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    config.customMediaUrl
+                      ? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-400 font-bold'
+                      : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  }`}
+                  title="Upload custom background image or video"
+                >
+                  <Upload className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{config.customMediaUrl ? 'Media Active' : 'Media'}</span>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+
+                {/* Save Style Button */}
+                <button
+                  type="button"
+                  onClick={handleSaveStyle}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    justSaved
+                      ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                      : 'bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                  }`}
+                  title="Save current font sizes, colors, and parameters as default for future videos"
+                >
+                  {justSaved ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Saved!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Save Style</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
+
+            {/* Custom Media active banner */}
+            {config.customMediaUrl && (
+              <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-400">
+                <span className="font-semibold truncate">
+                  Custom {config.customMediaType === 'video' ? 'Video' : 'Image'} Background Active
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChangeConfig({
+                      customMediaUrl: null,
+                      customMediaType: null,
+                      backgroundPreset: config.backgroundPreset || 'midnight',
+                    })
+                  }
+                  className="text-[11px] font-bold underline hover:opacity-80 shrink-0 ml-2"
+                >
+                  Reset to Theme
+                </button>
+              </div>
+            )}
 
             {/* Smoothly Scrollable Theme Grid with hidden scrollbar icons */}
             <div className="max-h-[164px] overflow-y-auto no-scrollbar scroll-smooth pr-0.5">
@@ -999,25 +1068,11 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
             </div>
 
-            {/* Custom media file, Projects, Theme or Reset */}
+            {/* Projects, Theme & Reset Defaults */}
             <div className="flex items-center justify-between gap-1.5 pt-1 flex-wrap">
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
-                >
-                  <Upload className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Media</span>
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-
-                <button
+                  type="button"
                   onClick={() => setIsProjectsModalOpen(true)}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
                   title="Projects & Drafts"
@@ -1027,6 +1082,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 </button>
 
                 <button
+                  type="button"
                   onClick={handleThemeToggle}
                   className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors"
                   title="Toggle Light / Dark Theme"
@@ -1037,46 +1093,14 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
 
               <button
+                type="button"
                 onClick={handleResetDefaults}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                title="Reset all parameters to default"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Reset</span>
+                <span>Reset Defaults</span>
               </button>
-              <div className="flex items-center gap-1.5">
-                {/* Save Style Button */}
-                <button
-                  type="button"
-                  onClick={handleSaveStyle}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                    justSaved
-                      ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
-                      : 'bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                  }`}
-                  title="Save current font sizes, colors, and parameters as default for future videos"
-                >
-                  {justSaved ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                      <span>Style Saved!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Save Style</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  onClick={handleResetDefaults}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-                  title="Reset all parameters to default"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reset</span>
-                </button>
-              </div>
             </div>
           </div>
         )}
