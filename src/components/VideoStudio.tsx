@@ -295,66 +295,32 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         isModalOpen={isReciterModalOpen || isExportModalOpen || isProjectsModalOpen}
         topBar={
           <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white/95 dark:bg-[#0E1626] border-b border-slate-200/90 dark:border-slate-800/80 transition-colors z-20">
-            {/* Verses Selector */}
+            {/* Range of Ayahs Selector (Left) */}
             <button
               onClick={onBackToReader}
-              className="flex items-center gap-1.5 min-w-0 hover:opacity-85 active:scale-95 transition-all text-left"
-              title="Change selected verses"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 border border-slate-200/70 dark:border-slate-700/70 active:scale-95 transition-all text-left min-w-0 max-w-[calc(100%-105px)] shadow-2xs group"
+              title="Click to change selected verses in Reader"
             >
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0 shadow-2xs border border-slate-200/60 dark:border-slate-700/60 transition-colors">
-                <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Ayahs</span>
-              </div>
-
-              <div className="flex items-baseline gap-1 min-w-0 truncate pl-0.5">
+              <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform" />
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
                 <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
                   {chapter?.name_simple || 'Surah'}
                 </span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-mono text-[11px] font-semibold shrink-0">
-                  ({startAyah === endAyah ? `Ayah ${startAyah}` : `Ayahs ${startAyah}–${endAyah}`})
+                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 font-mono shrink-0 bg-emerald-500/10 dark:bg-emerald-400/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
+                  {startAyah === endAyah ? `Ayah ${startAyah}` : `Ayahs ${startAyah}–${endAyah}`}
                 </span>
               </div>
             </button>
 
-            {/* Actions: Pre-download voice & Export */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                onClick={handlePreDownloadAudio}
-                disabled={isDownloadingAudio || isAudioCached}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                  isAudioCached
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
-                    : isDownloadingAudio
-                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-400 animate-pulse'
-                    : 'bg-slate-100 hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-emerald-600'
-                }`}
-                title={
-                  isAudioCached
-                    ? 'All recitation audio for selected ayahs is downloaded & offline-ready'
-                    : 'Pre-download recitation audio to guarantee 100% seamless offline playback'
-                }
-              >
-                {isDownloadingAudio ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : isAudioCached ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                ) : (
-                  <Download className="w-3.5 h-3.5" />
-                )}
-                <span className="hidden sm:inline">
-                  {isDownloadingAudio ? 'Saving...' : isAudioCached ? 'Voice Ready' : 'Download Voice'}
-                </span>
-              </button>
-
-              {/* Export Button */}
-              <button
-                onClick={() => setIsExportModalOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export</span>
-              </button>
-            </div>
+            {/* Export Button (Right) */}
+            <button
+              onClick={() => setIsExportModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0"
+              title="Export video"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export</span>
+            </button>
           </div>
         }
       >
@@ -931,7 +897,39 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 block">{currentReciter.style || 'Murattal'}</span>
                 </div>
               </div>
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <button
+                onClick={handlePreDownloadAudio}
+                disabled={isDownloadingAudio || isAudioCached}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+                  isAudioCached
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 cursor-default'
+                    : isDownloadingAudio
+                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-400 animate-pulse'
+                    : 'bg-white dark:bg-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-600 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200'
+                }`}
+                title={
+                  isAudioCached
+                    ? 'Recitation audio is cached for offline playback'
+                    : 'Pre-download recitation audio for offline playback'
+                }
+              >
+                {isDownloadingAudio ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : isAudioCached ? (
+                  <>
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                    <span>Voice Ready</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3 h-3" />
+                    <span>Cache Voice</span>
+                  </>
+                )}
+              </button>
             </div>
 
             {/* Aspect Ratio Framing */}
