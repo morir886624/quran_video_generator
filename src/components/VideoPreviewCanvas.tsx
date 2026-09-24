@@ -88,7 +88,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const playbackSpeed = config.playbackSpeed || 1.0;
   const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
-  const [isToolsOpen, setIsToolsOpen] = useState(true);
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
 
   // Close editing drawer on back button if open
   useBackButton(isToolsOpen, () => setIsToolsOpen(false), 20);
@@ -393,9 +393,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
       {/* Video Canvas Container (Top Half) */}
       <div
-        className={`relative w-full flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 ease-in-out ${
-          isToolsOpen ? 'h-[260px] sm:h-[285px]' : 'h-[430px] sm:h-[460px]'
-        }`}
+        className="relative w-full flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 ease-in-out h-[430px] sm:h-[460px] bg-slate-950"
         onClick={togglePlay}
       >
         <canvas
@@ -413,41 +411,45 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       </div>
 
       {/* Exterior Open/Close Button on Top Right of modal using relative positions */}
-      <div className="relative w-full flex justify-end px-3 -mb-3 z-20 pointer-events-none">
+      <div className={`relative w-full flex justify-end px-4 -mb-px z-30 pointer-events-none transition-all duration-300 ease-in-out ${
+        isToolsOpen ? '-mt-[175px] sm:-mt-[185px]' : '-mt-8'
+      }`}>
         <button
           type="button"
           onClick={() => setIsToolsOpen(!isToolsOpen)}
-          className={`pointer-events-auto relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all shadow-md border active:scale-95 cursor-pointer ${
+          className={`pointer-events-auto relative flex items-center gap-1.5 px-3 py-1.5 rounded-t-xl rounded-b-none text-xs font-bold transition-all shadow-md border active:scale-95 cursor-pointer ${
             isToolsOpen
-              ? 'bg-white/95 dark:bg-[#0E1626]/95 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/90'
-              : 'bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 border-emerald-400 shadow-emerald-500/20'
+              ? 'bg-white/95 dark:bg-[#0E1626]/95 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/90 border-b-0'
+              : 'bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 border-emerald-400 border-b-0 shadow-emerald-500/20'
           }`}
-          title={isToolsOpen ? 'Close editing panel' : 'Open editing panel'}
-          aria-label={isToolsOpen ? 'Close editing panel' : 'Open editing panel'}
+          title={isToolsOpen ? 'Close Tools' : 'Open Tools'}
+          aria-label={isToolsOpen ? 'Close Tools' : 'Open Tools'}
         >
-          <span>{isToolsOpen ? 'Close' : 'Open'}</span>
+          <span>{isToolsOpen ? 'Close Tools' : 'Open Tools'}</span>
           <TriangleIcon direction={isToolsOpen ? 'down' : 'up'} className="w-2.5 h-2.5 fill-current" />
         </button>
       </div>
 
-      {/* Docked Mobile Studio Editor Console (Bottom Half) */}
-      <div className="rounded-t-[32px] bg-white dark:bg-[#0E1626] border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-3 pb-3 flex flex-col gap-2 shadow-xl dark:shadow-2xl z-10 transition-colors">
-        {/* Fixed at the top of the tools modal: Category Tabs */}
+      {/* Docked Mobile Studio Editor & Audio Console */}
+      <div className={`rounded-t-[32px] bg-white/95 dark:bg-[#0E1626]/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-3 pb-3 flex flex-col gap-2 z-20 transition-all duration-300 ease-in-out ${
+        isToolsOpen ? 'shadow-[0_-12px_30px_rgba(0,0,0,0.3)]' : 'shadow-xl dark:shadow-2xl'
+      }`}>
+        {/* Fixed at top of tools modal: Category Tabs */}
         {isToolsOpen && categoryTabs && (
           <div className="shrink-0 border-b border-slate-200/80 dark:border-slate-800/80 pb-1.5">
             {categoryTabs}
           </div>
         )}
 
-        {/* Scrollable Tool Options */}
+        {/* Scrollable Tool Options using space at bottom of page like before */}
         {isToolsOpen && (
-          <div className="flex flex-col gap-2.5 max-h-[280px] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex flex-col gap-2.5 max-h-[260px] sm:max-h-[280px] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-200">
             {children}
           </div>
         )}
 
         {/* Integrated Gapless Audio Player & Scrubber */}
-        <div className="pt-2 border-t border-slate-200 dark:border-slate-800/70 space-y-2 transition-colors">
+        <div className={`space-y-2 transition-colors ${isToolsOpen ? 'pt-2 border-t border-slate-200/80 dark:border-slate-800/80' : ''}`}>
           {/* Scrubber Track */}
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 min-w-[28px]">
