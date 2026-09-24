@@ -1022,29 +1022,29 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
             </div>
 
-            {/* Video & Voice Speed Selector */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-700 dark:text-slate-300">Video & Voice Speed:</span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-[11px] bg-emerald-500/10 dark:bg-emerald-400/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                  {config.playbackSpeed || 1.0}x
-                </span>
-              </div>
-              <div className="grid grid-cols-5 gap-1.5">
-                {[0.75, 1.0, 1.25, 1.5, 2.0].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => onChangeConfig({ playbackSpeed: s })}
-                    className={`py-1.5 rounded-xl border text-center transition-all text-xs font-semibold ${
-                      (config.playbackSpeed || 1.0) === s
-                        ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shadow-2xs font-bold'
-                        : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                  >
-                    {s}x
-                  </button>
-                ))}
+            {/* Video & Voice Speed Selector in a Single Row */}
+            <div className="flex items-center justify-between gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 shrink-0">
+                <span className="hidden sm:inline">Video &amp; Voice </span>Speed:
+              </span>
+              <div className="flex items-center gap-1 shrink-0">
+                {[0.75, 1.0, 1.25, 1.5, 2.0].map((s) => {
+                  const isSelected = (config.playbackSpeed || 1.0) === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => onChangeConfig({ playbackSpeed: s })}
+                      className={`py-1 px-2 rounded-lg text-center transition-all text-xs font-semibold border ${
+                        isSelected
+                          ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shadow-2xs font-bold'
+                          : 'border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {s}x
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
