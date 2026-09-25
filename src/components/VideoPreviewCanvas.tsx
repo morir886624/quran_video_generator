@@ -411,13 +411,19 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       </div>
 
       {/* Exterior Open/Close Button on Top Right of modal using relative positions */}
-      <div className={`relative w-full flex justify-end px-4 -mb-px z-30 pointer-events-none transition-all duration-300 ease-in-out ${
+      <div className={`relative w-full flex justify-end  -mb-px z-30 pointer-events-none transition-all duration-300 ease-in-out ${
         isToolsOpen ? '-mt-[175px] sm:-mt-[185px]' : '-mt-8'
       }`}>
         <button
           type="button"
           onClick={() => setIsToolsOpen(!isToolsOpen)}
-          className={`pointer-events-auto relative flex items-center gap-1.5 px-3 py-1.5 rounded-t-xl rounded-b-none text-xs font-bold transition-all shadow-md border active:scale-95 cursor-pointer ${
+          style={{
+            borderTopLeftRadius: '14px',
+            borderTopRightRadius: '14px',
+            borderBottomLeftRadius: '0px',
+            borderBottomRightRadius: '0px',
+          }}
+          className={`pointer-events-auto relative flex items-center gap-1.5 px-3 py-1.5 rounded-tab-top rounded-t-2xl rounded-b-none text-xs font-bold transition-all shadow-md border active:scale-95 cursor-pointer ${
             isToolsOpen
               ? 'bg-white/95 dark:bg-[#0E1626]/95 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/90 border-b-0'
               : 'bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 border-emerald-400 border-b-0 shadow-emerald-500/20'
@@ -431,7 +437,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       </div>
 
       {/* Docked Mobile Studio Editor & Audio Console */}
-      <div className={`rounded-t-[32px] bg-white/95 dark:bg-[#0E1626]/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-3 pb-3 flex flex-col gap-2 z-20 transition-all duration-300 ease-in-out ${
+      <div className={` bg-white/95 dark:bg-[#0E1626]/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-3 pb-3 flex flex-col gap-2 z-20 transition-all duration-300 ease-in-out ${
         isToolsOpen ? 'shadow-[0_-12px_30px_rgba(0,0,0,0.3)]' : 'shadow-xl dark:shadow-2xl'
       }`}>
         {/* Fixed at top of tools modal: Category Tabs */}
@@ -443,7 +449,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
         {/* Scrollable Tool Options using space at bottom of page like before */}
         {isToolsOpen && (
-          <div className="flex flex-col gap-2.5 max-h-[260px] sm:max-h-[280px] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex flex-col gap-2.5 max-h-[260px] sm:max-h-[280px] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-200 rounded-t-lg">
             {children}
           </div>
         )}
