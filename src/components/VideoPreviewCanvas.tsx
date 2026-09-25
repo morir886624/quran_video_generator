@@ -52,8 +52,10 @@ interface VideoPreviewCanvasProps {
   audioUrls: string[];
   chapter: Chapter | null;
   config: VideoConfig;
+  onChangeConfig?: (updates: Partial<VideoConfig>) => void;
   onActiveVerseChange?: (verse: Verse, index: number) => void;
   topBar?: React.ReactNode;
+  categoryTabs?: React.ReactNode;
   children?: React.ReactNode;
   isModalOpen?: boolean;
 }
@@ -63,8 +65,10 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   audioUrls,
   chapter,
   config,
+  onChangeConfig,
   onActiveVerseChange,
   topBar,
+  categoryTabs,
   children,
   isModalOpen = false,
 }) => {
@@ -82,9 +86,9 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const [totalDuration, setTotalDuration] = useState(0);
   const [volume, setVolume] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+  const playbackSpeed = config.playbackSpeed || 1.0;
   const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
-  const [isToolsOpen, setIsToolsOpen] = useState(true);
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
 
   // Close editing drawer on back button if open
   useBackButton(isToolsOpen, () => setIsToolsOpen(false), 20);
@@ -168,6 +172,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       playerRef.current = new StitchedAudioPlayer();
     }
     const player = playerRef.current;
+    player.setPlaybackRate(playbackSpeed);
 
     // Fully stop any existing playback and reset UI play state on audio change
     player.stop();
@@ -292,15 +297,44 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
   }, [isMuted]);
 
+  // Sync playback speed to player and background video whenever playbackSpeed changes
+  useEffect(() => {
+    if (playerRef.current) {
+      playerRef.current.setPlaybackRate(playbackSpeed);
+    }
+    if (customMediaElRef.current instanceof HTMLVideoElement) {
+      customMediaElRef.current.playbackRate = playbackSpeed;
+      const vid = customMediaElRef.current;
+      vid.preservesPitch = true;
+      (vid as any).webkitPreservesPitch = true;
+      (vid as any).mozPreservesPitch = true;
+      vid.playbackRate = playbackSpeed;
+      vid.preservesPitch = true;
+      (vid as any).webkitPreservesPitch = true;
+      (vid as any).mozPreservesPitch = true;
+    }
+  }, [playbackSpeed]);
+
   const handleCycleSpeed = useCallback(() => {
-    const speeds = [1.0, 1.25, 1.5, 2.0, 0.75];
+    const speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
     const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
     const nextSpeed = speeds[nextIdx];
-    setPlaybackSpeed(nextSpeed);
+    onChangeConfig?.({ playbackSpeed: nextSpeed });
     if (playerRef.current) {
       playerRef.current.setPlaybackRate(nextSpeed);
     }
-  }, [playbackSpeed]);
+    if (customMediaElRef.current instanceof HTMLVideoElement) {
+      customMediaElRef.current.playbackRate = nextSpeed;
+      const vid = customMediaElRef.current;
+      vid.preservesPitch = true;
+      (vid as any).webkitPreservesPitch = true;
+      (vid as any).mozPreservesPitch = true;
+      vid.playbackRate = nextSpeed;
+      vid.preservesPitch = true;
+      (vid as any).webkitPreservesPitch = true;
+      (vid as any).mozPreservesPitch = true;
+    }
+  }, [playbackSpeed, onChangeConfig]);
 
   // Main Canvas Render Loop
   useEffect(() => {
@@ -369,15 +403,15 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   };
 
   return (
-    <div className="w-full max-w-[380px] sm:max-w-[395px] mx-auto rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-2xl shadow-slate-300/40 dark:shadow-black overflow-hidden flex flex-col relative transition-all">
+    <div className="w-full max-w-[380px] sm:max-w-[395px] mx-auto rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-2xl shadow-slate-300/40 dark:shadow-black overflow-hidden flex flex-col relative transition-all h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px)-9px)] sm:h-[694px]">
       {/* Joint Top Bar at the top of the video frame */}
-      {topBar}
+      <div className="shrink-0 z-20">
+        {topBar}
+      </div>
 
       {/* Video Canvas Container (Top Half) */}
       <div
-        className={`relative w-full flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 ease-in-out ${
-          isToolsOpen ? 'h-[260px] sm:h-[285px]' : 'h-[430px] sm:h-[460px]'
-        }`}
+        className="relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 ease-in-out bg-slate-950"
         onClick={togglePlay}
       >
         <canvas
@@ -394,41 +428,55 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         )}
       </div>
 
-      {/* Docked Mobile Studio Editor Console (Bottom Half) */}
-      <div className="rounded-t-[32px] bg-white dark:bg-[#0E1626] border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-2.5 pb-3 flex flex-col gap-2.5 shadow-xl dark:shadow-2xl z-10 transition-colors">
-        {/* Modal Open/Close Header Button matching user attached icons */}
-        <div className="flex items-center justify-between px-1 -mt-0.5 pb-0.5">
-          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-            {isToolsOpen ? 'Editing Tools' : 'Video Mode'}
-          </span>
-          <button
-            type="button"
-            onClick={() => setIsToolsOpen(!isToolsOpen)}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all shadow-xs border active:scale-95 ${
-              isToolsOpen
-                ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
-            }`}
-            title={isToolsOpen ? 'Close editing panel' : 'Open editing panel'}
-            aria-label={isToolsOpen ? 'Close editing panel' : 'Open editing panel'}
-          >
-            <span>{isToolsOpen ? 'Close' : 'Open'}</span>
-            <TriangleIcon direction={isToolsOpen ? 'down' : 'up'} className="w-2.5 h-2.5 fill-current" />
-          </button>
-        </div>
+      {/* Exterior Open/Close Button on Top Right of modal using relative positions */}
+      <div className={`relative w-full flex justify-end  -mb-px z-30 pointer-events-none transition-all duration-300 ease-in-out shrink-0 ${
+        isToolsOpen ? '-mt-[188px] sm:-mt-[198px]' : '-mt-8'
+      }`}>
+        <button
+          type="button"
+          onClick={() => setIsToolsOpen(!isToolsOpen)}
+          style={{
+            borderTopLeftRadius: '14px',
+            borderTopRightRadius: '14px',
+            borderBottomLeftRadius: '0px',
+            borderBottomRightRadius: '0px',
+          }}
+          className={`pointer-events-auto relative flex items-center gap-1.5 px-3 py-1.5 rounded-tab-top rounded-t-2xl rounded-b-none text-xs font-bold transition-all shadow-md border active:scale-95 cursor-pointer ${
+            isToolsOpen
+              ? 'bg-white/95 dark:bg-[#0E1626]/95 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/90 border-b-0'
+              : 'bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 border-emerald-400 border-b-0 shadow-emerald-500/20'
+          }`}
+          title={isToolsOpen ? 'Close Tools' : 'Open Tools'}
+          aria-label={isToolsOpen ? 'Close Tools' : 'Open Tools'}
+        >
+          <span>{isToolsOpen ? 'Close Tools' : 'Open Tools'}</span>
+          <TriangleIcon direction={isToolsOpen ? 'down' : 'up'} className="w-2.5 h-2.5 fill-current" />
+        </button>
+      </div>
 
-        {/* Category Tabs & Tool Options passed from VideoStudio */}
+      {/* Docked Mobile Studio Editor & Audio Console */}
+      <div className={`rounded-b-2xl shrink-0 bg-white/95 dark:bg-[#0E1626]/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-3 pb-3 flex flex-col gap-2 z-20 transition-all duration-300 ease-in-out ${
+        isToolsOpen ? 'shadow-[0_-12px_30px_rgba(0,0,0,0.3)]' : 'shadow-xl dark:shadow-2xl'
+      }`}>
+        {/* Fixed at top of tools modal: Category Tabs */}
+        {isToolsOpen && categoryTabs && (
+          <div className="shrink-0 border-b border-slate-200/80 dark:border-slate-800/80 pb-1.5">
+            {categoryTabs}
+          </div>
+        )}
+
+        {/* Scrollable Tool Options using space at bottom of page like before */}
         {isToolsOpen && (
-          <div className="flex flex-col gap-2.5 max-h-[310px] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex flex-col gap-2.5 max-h-[260px] sm:max-h-[280px] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-200 rounded-t-lg">
             {children}
           </div>
         )}
 
         {/* Integrated Gapless Audio Player & Scrubber */}
-        <div className="pt-2 border-t border-slate-200 dark:border-slate-800/70 space-y-2 transition-colors">
-          {/* Scrubber Track */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 min-w-[28px]">
+        <div className={`space-y-2.5 transition-colors ${isToolsOpen ? 'pt-2 border-t border-slate-200/80 dark:border-slate-800/80' : ''}`}>
+          {/* 1. Scrubber Track */}
+          <div className="flex items-center gap-2.5 px-0.5">
+            <span className="text-[11px] font-mono font-medium text-slate-500 dark:text-slate-400 min-w-[28px] tabular-nums">
               {formatSeconds(currentTime)}
             </span>
             <div className="relative flex-1 flex items-center">
@@ -439,47 +487,58 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
                 step="0.1"
                 value={totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0}
                 onChange={handleScrubberChange}
-                className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-full cursor-pointer transition-colors"
+                className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full cursor-pointer transition-colors"
+                title="Seek position"
               />
             </div>
-            <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 min-w-[28px] text-right">
+            <span className="text-[11px] font-mono font-medium text-slate-500 dark:text-slate-400 min-w-[28px] text-right tabular-nums">
               {formatSeconds(totalDuration)}
             </span>
           </div>
 
-          {/* Subtitle */}
-          <div className="text-center -mt-1">
-            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 tracking-wide">
-              Gapless Sound
-            </span>
-          </div>
+          {/* 2. Primary Transport Controls & Volume */}
+          <div className="flex items-center justify-between px-1 sm:px-3 pt-0.5">
+            {/* Left Controls: Speed, Restart, Previous */}
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-1 justify-start">
+              {/* Playback Speed Pill Button */}
+              <button
+                onClick={handleCycleSpeed}
+                className="min-w-[34px] px-1.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-[10.5px] font-bold font-mono text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200/60 dark:border-slate-700/60 active:scale-95 transition-all cursor-pointer"
+                title={`Playback speed: ${playbackSpeed.toFixed(1)}x (Click to cycle)`}
+                aria-label={`Playback speed: ${playbackSpeed.toFixed(1)}x`}
+              >
+                {playbackSpeed.toFixed(1)}x
+              </button>
 
-          {/* Transport Buttons */}
-          <div className="grid grid-cols-3 items-center px-3 pt-0.5">
-            <div className="flex items-center justify-start gap-4">
+              {/* Restart */}
               <button
                 onClick={handleRestart}
-                className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-                title="Restart"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 active:scale-95 transition-all cursor-pointer"
+                title="Restart recitation"
+                aria-label="Restart recitation"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
 
+              {/* Previous Ayah */}
               <button
                 onClick={handlePrev}
                 disabled={currentAyahIndex === 0}
-                className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 disabled:opacity-25 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer"
                 title="Previous Ayah"
+                aria-label="Previous Ayah"
               >
-                <SkipBack className="w-4 h-4 fill-current" />
+                <SkipBack className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-current" />
               </button>
             </div>
 
-            <div className="flex items-center justify-center">
+            {/* Center: Play / Pause Hero Button */}
+            <div className="flex items-center justify-center shrink-0 px-1 sm:px-2">
               <button
                 onClick={togglePlay}
-                className="w-12 h-12 rounded-full bg-emerald-500 dark:bg-emerald-400 hover:bg-emerald-600 dark:hover:bg-emerald-300 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/25 active:scale-95 transition-all"
+                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-emerald-500 dark:bg-emerald-400 hover:bg-emerald-600 dark:hover:bg-emerald-300 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/25 active:scale-95 transition-all cursor-pointer"
                 title={isPlaying ? 'Pause' : 'Play'}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
               >
                 {isPlaying ? (
                   <Pause className="w-5 h-5 fill-current" />
@@ -489,54 +548,48 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
               </button>
             </div>
 
-            <div className="flex items-center justify-end gap-2 sm:gap-3">
+            {/* Right Controls: Next, Volume Mute & Slider */}
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-1 justify-end">
+              {/* Next Ayah */}
               <button
                 onClick={handleNext}
                 disabled={currentAyahIndex >= verses.length - 1}
-                className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 disabled:opacity-25 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer"
                 title="Next Ayah"
+                aria-label="Next Ayah"
               >
-                <SkipForward className="w-4 h-4 fill-current" />
+                <SkipForward className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-current" />
               </button>
 
-              <div className="flex items-center gap-1 sm:gap-1.5">
-                <button
-                  onClick={handleToggleMute}
-                  className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-                  title={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
-                >
-                  {isMuted || volume === 0 ? (
-                    <VolumeX className="w-4 h-4 text-rose-500 dark:text-rose-400" />
-                  ) : volume < 0.5 ? (
-                    <Volume1 className="w-4 h-4" />
-                  ) : (
-                    <Volume2 className="w-4 h-4" />
-                  )}
-                </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={isMuted ? 0 : volume}
-                  onChange={handleVolumeChange}
-                  className="w-12 sm:w-16 accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-full cursor-pointer transition-colors"
-                  title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
-                />
-              </div>
-            </div>
-          </div>
+              {/* Volume Mute */}
+              <button
+                onClick={handleToggleMute}
+                className="p-1.5 sm:p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                title={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
+                aria-label={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
+              >
+                {isMuted || volume === 0 ? (
+                  <VolumeX className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+                ) : volume < 0.5 ? (
+                  <Volume1 className="w-4 h-4" />
+                ) : (
+                  <Volume2 className="w-4 h-4" />
+                )}
+              </button>
 
-          {/* Status line */}
-          <div className="flex items-center justify-end gap-3 text-[11px] font-mono text-slate-400 dark:text-slate-500 pr-1 -mt-0.5">
-            <button
-              onClick={handleCycleSpeed}
-              className="hover:text-emerald-500 dark:hover:text-emerald-400 font-bold transition-colors cursor-pointer"
-              title="Playback speed"
-            >
-              {playbackSpeed.toFixed(1)}x
-            </button>
-            <span>{currentAyahIndex + 1}:{verses.length}</span>
+              {/* Volume Slider */}
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                className="w-12 sm:w-16 accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full cursor-pointer transition-colors"
+                title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                aria-label="Volume slider"
+              />
+            </div>
           </div>
         </div>
       </div>

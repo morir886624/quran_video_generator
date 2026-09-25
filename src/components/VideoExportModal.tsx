@@ -325,15 +325,22 @@ Created with Quran Video Studio • Powered by Quran.com API
           <div className="space-y-6">
             {/* Top Download & Action Row */}
             <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800">
-              <div className="w-28 aspect-[9/16] rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 shadow-md bg-black flex-shrink-0">
-                <video
-                  src={exportResult.url}
-                  controls
-                  autoPlay
-                  loop
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
+              <div className="w-28 flex flex-col items-center gap-1.5 flex-shrink-0">
+                <div className="w-28 aspect-[9/16] rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 shadow-md bg-black">
+                  <video
+                    src={exportResult.url}
+                    controls
+                    autoPlay
+                    loop
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {exportResult.duration && (
+                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 font-semibold">
+                    {Math.round(exportResult.duration)}s • {config.playbackSpeed || 1.0}x speed
+                  </span>
+                )}
               </div>
 
               <div className="flex-1 w-full space-y-2.5">

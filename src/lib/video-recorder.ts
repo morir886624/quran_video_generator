@@ -38,6 +38,65 @@ export function getSupportedMimeType(): string {
 }
 
 /**
+ * Encodes an AudioBuffer into an uncompressed 16-bit PCM WAV Blob.
+ * Used to feed into HTMLAudioElement with preservesPitch for YouTube-style pitch-corrected time-stretching.
+ */
+function audioBufferToWav(buffer: AudioBuffer): Blob {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const bitDepth = 16;
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numChannels * bytesPerSample;
+  const dataSize = buffer.length * blockAlign;
+  const headerSize = 44;
+  const totalSize = headerSize + dataSize;
+  const arrayBuffer = new ArrayBuffer(totalSize);
+  const dataView = new DataView(arrayBuffer);
+
+  function writeString(view: DataView, offset: number, string: string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+
+  // RIFF header
+  writeString(dataView, 0, 'RIFF');
+  dataView.setUint32(4, 36 + dataSize, true);
+  writeString(dataView, 8, 'WAVE');
+  // fmt subchunk
+  writeString(dataView, 12, 'fmt ');
+  dataView.setUint32(16, 16, true);
+  dataView.setUint16(20, 1, true); // PCM format
+  dataView.setUint16(22, numChannels, true);
+  dataView.setUint32(24, sampleRate, true);
+  dataView.setUint32(28, sampleRate * blockAlign, true);
+  dataView.setUint16(32, blockAlign, true);
+  dataView.setUint16(34, bitDepth, true);
+  // data subchunk
+  writeString(dataView, 36, 'data');
+  dataView.setUint32(40, dataSize, true);
+
+  // Interleave channels
+  let offset = 44;
+  const channels: Float32Array[] = [];
+  for (let ch = 0; ch < numChannels; ch++) {
+    channels.push(buffer.getChannelData(ch));
+  }
+
+  for (let i = 0; i < buffer.length; i++) {
+    for (let ch = 0; ch < numChannels; ch++) {
+      let sample = channels[ch][i];
+      sample = Math.max(-1, Math.min(1, sample));
+      const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+      dataView.setInt16(offset, intSample, true);
+      offset += 2;
+    }
+  }
+
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
+/**
  * Exports selected verses into a video file with 100% seamless, stitched audio
  */
 export async function exportVideo({
@@ -133,6 +192,9 @@ export async function exportVideo({
   recorder.start(100);
 
   // 4. Load custom media if any
+  const speed = config.playbackSpeed && config.playbackSpeed > 0 ? config.playbackSpeed : 1.0;
+  const effectiveTotalDuration = totalDuration / speed;
+
   let customMediaElement: HTMLImageElement | HTMLVideoElement | null = null;
   if (config.customMediaUrl) {
     if (config.customMediaType === 'video') {
@@ -141,6 +203,13 @@ export async function exportVideo({
       videoEl.crossOrigin = 'anonymous';
       videoEl.muted = true;
       videoEl.loop = true;
+      videoEl.preservesPitch = true;
+      (videoEl as any).webkitPreservesPitch = true;
+      (videoEl as any).mozPreservesPitch = true;
+      videoEl.playbackRate = speed;
+      videoEl.preservesPitch = true;
+      (videoEl as any).webkitPreservesPitch = true;
+      (videoEl as any).mozPreservesPitch = true;
       await videoEl.play().catch(() => {});
       customMediaElement = videoEl;
     } else {
@@ -155,13 +224,48 @@ export async function exportVideo({
     }
   }
 
-  // 5. Connect and start seamless master audio buffer source
-  const sourceNode = audioCtx.createBufferSource();
-  sourceNode.buffer = stitchedBuffer;
-  sourceNode.connect(dest);
+  // 5. Connect and start seamless master audio buffer source with YouTube-style pitch preservation
+  let audioCleanup = () => {};
+  if (speed === 1.0) {
+    const sourceNode = audioCtx.createBufferSource();
+    sourceNode.buffer = stitchedBuffer;
+    sourceNode.playbackRate.value = 1.0;
+    sourceNode.connect(dest);
+    await audioCtx.resume();
+    sourceNode.start(0);
+    audioCleanup = () => {
+      try {
+        sourceNode.stop();
+        sourceNode.disconnect();
+      } catch {}
+    };
+  } else {
+    // Pitch-preserving audio playback via HTMLAudioElement (matches YouTube time-stretching)
+    const wavBlob = audioBufferToWav(stitchedBuffer);
+    const blobUrl = URL.createObjectURL(wavBlob);
+    const audioEl = new Audio(blobUrl);
+    audioEl.preservesPitch = true;
+    (audioEl as any).webkitPreservesPitch = true;
+    (audioEl as any).mozPreservesPitch = true;
+    audioEl.playbackRate = speed;
+    audioEl.preservesPitch = true;
+    (audioEl as any).webkitPreservesPitch = true;
+    (audioEl as any).mozPreservesPitch = true;
 
-  await audioCtx.resume();
-  sourceNode.start(0);
+    const sourceNode = audioCtx.createMediaElementSource(audioEl);
+    sourceNode.connect(dest);
+
+    await audioCtx.resume();
+    await audioEl.play().catch((e) => console.warn('Audio play error in export:', e));
+
+    audioCleanup = () => {
+      try {
+        audioEl.pause();
+        sourceNode.disconnect();
+        URL.revokeObjectURL(blobUrl);
+      } catch {}
+    };
+  }
 
   const startPerfTime = performance.now();
   const startAudioTime = audioCtx.currentTime;
@@ -172,7 +276,7 @@ export async function exportVideo({
 
     const renderLoop = (now: number) => {
       const audioElapsed = audioCtx.currentTime - startAudioTime;
-      const t = Math.min(audioElapsed, totalDuration);
+      const t = Math.min(audioElapsed * speed, totalDuration);
 
       // Find active verse segment
       let activeIndex = 0;
@@ -214,18 +318,19 @@ export async function exportVideo({
       });
 
       // Progress reporting
-      const percent = Math.min(96, Math.round((t / totalDuration) * 90) + 6);
+      const percent = Math.min(96, Math.round((audioElapsed / effectiveTotalDuration) * 90) + 6);
       onProgress?.({
         percent,
         currentAyahIndex: activeIndex + 1,
         totalAyahs: verses.length,
-        status: `Rendering Ayah ${currentVerse.verse_number} (continuous audio)...`,
+        status: `Rendering Ayah ${currentVerse.verse_number}${speed !== 1 ? ` (${speed}x speed)` : ''}...`,
       });
 
-      if (audioElapsed < totalDuration + 0.3) {
+      if (audioElapsed < effectiveTotalDuration + 0.3) {
         animId = requestAnimationFrame(renderLoop);
       } else {
         cancelAnimationFrame(animId);
+        audioCleanup();
         resolveExport();
       }
     };
@@ -252,17 +357,16 @@ export async function exportVideo({
   // Inject exact duration metadata into MP4 (mvhd, tkhd, mdhd, mehd) or WebM header
   // so Android Gallery, Google Photos, WhatsApp, VLC, and all players display and seek the full duration instead of 3s / 0s
   let finalBlob = rawBlob;
-  if (totalDuration > 0) {
+  if (effectiveTotalDuration > 0) {
     try {
-      finalBlob = await fixVideoDuration(rawBlob, totalDuration);
+      finalBlob = await fixVideoDuration(rawBlob, effectiveTotalDuration);
     } catch (durationErr) {
       console.warn('Failed to patch video duration header, using raw blob:', durationErr);
     }
   }
 
   try {
-    sourceNode.stop();
-    sourceNode.disconnect();
+    audioCleanup();
     await audioCtx.close();
   } catch {}
 
@@ -270,7 +374,7 @@ export async function exportVideo({
   const chapterName = chapter ? chapter.name_simple.toLowerCase().replace(/\s+/g, '-') : 'quran';
   const filename = `${chapterName}-ayah-${verses[0]?.verse_number}-to-${verses[verses.length - 1]?.verse_number}.${extension}`;
 
-  return { blob: finalBlob, url, filename, duration: totalDuration };
+  return { blob: finalBlob, url, filename, duration: effectiveTotalDuration };
 }
 
 /**

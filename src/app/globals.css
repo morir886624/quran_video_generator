@@ -113,3 +113,11 @@ body {
   scrollbar-width: none !important; /* Firefox */
   -webkit-overflow-scrolling: touch;
 }
+
+/* Dedicated tab top border radius */
+.rounded-tab-top {
+  border-top-left-radius: 14px !important;
+  border-top-right-radius: 14px !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}

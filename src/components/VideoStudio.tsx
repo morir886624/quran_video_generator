@@ -26,8 +26,6 @@ import {
   Settings,
   CircleDot,
   CheckCircle2,
-  Sun,
-  Moon,
   Loader2,
   Save,
 } from 'lucide-react';
@@ -131,24 +129,6 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
   const startAyah = verses[0]?.verse_number || 1;
   const endAyah = verses[verses.length - 1]?.verse_number || 1;
-
-  // Local fallback theme toggle if not passed from parent
-  const handleThemeToggle = () => {
-    if (onToggleTheme) {
-      onToggleTheme();
-    } else {
-      const isDark = document.documentElement.classList.contains('dark');
-      if (isDark) {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.setAttribute('data-theme', 'light');
-        try { localStorage.setItem('quran_theme', 'light'); } catch {}
-      } else {
-        document.documentElement.classList.add('dark');
-        document.documentElement.setAttribute('data-theme', 'dark');
-        try { localStorage.setItem('quran_theme', 'dark'); } catch {}
-      }
-    }
-  };
 
   // Reset adjustments to defaults
   const [justSaved, setJustSaved] = useState<boolean>(false);
@@ -285,171 +265,208 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   ];
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 py-2 pb-24 transition-colors">
+    <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 py-2 transition-colors pb-16">
       {/* Main Studio Frame Mockup (Responsive to Light & Dark Mode) */}
       <VideoPreviewCanvas
         verses={verses}
         audioUrls={audioUrls}
         chapter={chapter}
         config={config}
+        onChangeConfig={onChangeConfig}
         isModalOpen={isReciterModalOpen || isExportModalOpen || isProjectsModalOpen}
         topBar={
           <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white/95 dark:bg-[#0E1626] border-b border-slate-200/90 dark:border-slate-800/80 transition-colors z-20">
-            {/* Verses Selector */}
+            {/* Range of Ayahs Selector (Left) */}
             <button
               onClick={onBackToReader}
-              className="flex items-center gap-1.5 min-w-0 hover:opacity-85 active:scale-95 transition-all text-left"
-              title="Change selected verses"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 border border-slate-200/70 dark:border-slate-700/70 active:scale-95 transition-all text-left min-w-0 max-w-[calc(100%-105px)] shadow-2xs group"
+              title="Click to change selected verses in Reader"
             >
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold shrink-0 shadow-2xs border border-slate-200/60 dark:border-slate-700/60 transition-colors">
-                <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Ayahs</span>
-              </div>
-
-              <div className="flex items-baseline gap-1 min-w-0 truncate pl-0.5">
+              <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform" />
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
                 <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
                   {chapter?.name_simple || 'Surah'}
                 </span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-mono text-[11px] font-semibold shrink-0">
-                  ({startAyah === endAyah ? `Ayah ${startAyah}` : `Ayahs ${startAyah}–${endAyah}`})
+                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 font-mono shrink-0 bg-emerald-500/10 dark:bg-emerald-400/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
+                  {startAyah === endAyah ? `Ayah ${startAyah}` : `Ayahs ${startAyah}–${endAyah}`}
                 </span>
               </div>
             </button>
 
-            {/* Actions: Pre-download voice & Export */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                onClick={handlePreDownloadAudio}
-                disabled={isDownloadingAudio || isAudioCached}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                  isAudioCached
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
-                    : isDownloadingAudio
-                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-400 animate-pulse'
-                    : 'bg-slate-100 hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-emerald-600'
-                }`}
-                title={
-                  isAudioCached
-                    ? 'All recitation audio for selected ayahs is downloaded & offline-ready'
-                    : 'Pre-download recitation audio to guarantee 100% seamless offline playback'
-                }
-              >
-                {isDownloadingAudio ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : isAudioCached ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                ) : (
-                  <Download className="w-3.5 h-3.5" />
-                )}
-                <span className="hidden sm:inline">
-                  {isDownloadingAudio ? 'Saving...' : isAudioCached ? 'Voice Ready' : 'Download Voice'}
-                </span>
-              </button>
+            {/* Export Button (Right) */}
+            <button
+              onClick={() => setIsExportModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0"
+              title="Export video"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export</span>
+            </button>
+          </div>
+        }
+        categoryTabs={
+          <div className="grid grid-cols-4 gap-1">
+            {/* TAB 1: BACKGROUND */}
+            <button
+              onClick={() => setActiveTab('background')}
+              className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+                activeTab === 'background'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <div className="w-5 h-5 flex items-center justify-center mb-0.5">
+                <Palette className={`w-4 h-4 ${activeTab === 'background' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+              </div>
+              <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+                Background
+              </span>
+              {activeTab === 'background' && (
+                <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              )}
+            </button>
 
-              {/* Export Button */}
-              <button
-                onClick={() => setIsExportModalOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export</span>
-              </button>
-            </div>
+            {/* TAB 2: TYPOGRAPHY */}
+            <button
+              onClick={() => setActiveTab('typography')}
+              className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+                activeTab === 'typography'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <div className="w-5 h-5 flex items-center justify-center mb-0.5">
+                <Type className={`w-4 h-4 ${activeTab === 'typography' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+              </div>
+              <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+                Typography
+              </span>
+              {activeTab === 'typography' && (
+                <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              )}
+            </button>
+
+            {/* TAB 3: COLOR */}
+            <button
+              onClick={() => setActiveTab('color')}
+              className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+                activeTab === 'color'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <div className="w-5 h-5 flex items-center justify-center mb-0.5">
+                <CircleDot className={`w-4 h-4 ${activeTab === 'color' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+              </div>
+              <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+                Color
+              </span>
+              {activeTab === 'color' && (
+                <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              )}
+            </button>
+
+            {/* TAB 4: MORE */}
+            <button
+              onClick={() => setActiveTab('more')}
+              className={`flex flex-col items-center justify-center py-1 transition-all relative ${
+                activeTab === 'more'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <div className="w-5 h-5 flex items-center justify-center mb-0.5">
+                <Settings className={`w-4 h-4 ${activeTab === 'more' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+              </div>
+              <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
+                More
+              </span>
+              {activeTab === 'more' && (
+                <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              )}
+            </button>
           </div>
         }
       >
-        {/* Top 4 Segmented Category Tabs Bar */}
-        <div className="grid grid-cols-4 gap-1 pb-1">
-          {/* TAB 1: BACKGROUND */}
-          <button
-            onClick={() => setActiveTab('background')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
-              activeTab === 'background'
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <div className="w-5 h-5 flex items-center justify-center mb-0.5">
-              <Palette className={`w-4 h-4 ${activeTab === 'background' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
-            </div>
-            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
-              Background
-            </span>
-            {activeTab === 'background' && (
-              <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            )}
-          </button>
-
-          {/* TAB 2: TYPOGRAPHY */}
-          <button
-            onClick={() => setActiveTab('typography')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
-              activeTab === 'typography'
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <div className="w-5 h-5 flex items-center justify-center mb-0.5">
-              <Type className={`w-4 h-4 ${activeTab === 'typography' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
-            </div>
-            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
-              Typography
-            </span>
-            {activeTab === 'typography' && (
-              <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            )}
-          </button>
-
-          {/* TAB 3: COLOR */}
-          <button
-            onClick={() => setActiveTab('color')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
-              activeTab === 'color'
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <div className="w-5 h-5 flex items-center justify-center mb-0.5">
-              <CircleDot className={`w-4 h-4 ${activeTab === 'color' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
-            </div>
-            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
-              Color
-            </span>
-            {activeTab === 'color' && (
-              <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            )}
-          </button>
-
-          {/* TAB 4: MORE */}
-          <button
-            onClick={() => setActiveTab('more')}
-            className={`flex flex-col items-center justify-center py-1 transition-all relative ${
-              activeTab === 'more'
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <div className="w-5 h-5 flex items-center justify-center mb-0.5">
-              <Settings className={`w-4 h-4 ${activeTab === 'more' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
-            </div>
-            <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">
-              More
-            </span>
-            {activeTab === 'more' && (
-              <div className="h-[2.5px] bg-emerald-600 dark:bg-emerald-400 rounded-full w-full mt-1.5 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            )}
-          </button>
-        </div>
 
         {/* TAB 1: BACKGROUND */}
         {activeTab === 'background' && (
           <div className="space-y-2 animate-in fade-in duration-150">
-            {/* Theme label */}
+            {/* Header: Theme Presets label + Media & Save Style buttons */}
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900 dark:text-white tracking-wide">
-                Theme
+                Theme Presets
               </span>
+              <div className="flex items-center gap-1.5">
+                {/* Media Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    config.customMediaUrl
+                      ? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-400 font-bold'
+                      : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  }`}
+                  title="Upload custom background image or video"
+                >
+                  <Upload className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{config.customMediaUrl ? 'Media Active' : 'Media'}</span>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+
+                {/* Save Style Button */}
+                <button
+                  type="button"
+                  onClick={handleSaveStyle}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    justSaved
+                      ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                      : 'bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                  }`}
+                  title="Save current font sizes, colors, and parameters as default for future videos"
+                >
+                  {justSaved ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Saved!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Save Style</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
+
+            {/* Custom Media active banner */}
+            {config.customMediaUrl && (
+              <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-400">
+                <span className="font-semibold truncate">
+                  Custom {config.customMediaType === 'video' ? 'Video' : 'Image'} Background Active
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChangeConfig({
+                      customMediaUrl: null,
+                      customMediaType: null,
+                      backgroundPreset: config.backgroundPreset || 'midnight',
+                    })
+                  }
+                  className="text-[11px] font-bold underline hover:opacity-80 shrink-0 ml-2"
+                >
+                  Reset to Theme
+                </button>
+              </div>
+            )}
 
             {/* Smoothly Scrollable Theme Grid with hidden scrollbar icons */}
             <div className="max-h-[164px] overflow-y-auto no-scrollbar scroll-smooth pr-0.5">
@@ -931,7 +948,39 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 block">{currentReciter.style || 'Murattal'}</span>
                 </div>
               </div>
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <button
+                onClick={handlePreDownloadAudio}
+                disabled={isDownloadingAudio || isAudioCached}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+                  isAudioCached
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 cursor-default'
+                    : isDownloadingAudio
+                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-400 animate-pulse'
+                    : 'bg-white dark:bg-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-600 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200'
+                }`}
+                title={
+                  isAudioCached
+                    ? 'Recitation audio is cached for offline playback'
+                    : 'Pre-download recitation audio for offline playback'
+                }
+              >
+                {isDownloadingAudio ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : isAudioCached ? (
+                  <>
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                    <span>Voice Ready</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3 h-3" />
+                    <span>Cache Voice</span>
+                  </>
+                )}
+              </button>
             </div>
 
             {/* Aspect Ratio Framing */}
@@ -974,84 +1023,53 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
             </div>
 
-            {/* Custom media file, Projects, Theme or Reset */}
-            <div className="flex items-center justify-between gap-1.5 pt-1 flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
-                >
-                  <Upload className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Media</span>
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-
-                <button
-                  onClick={() => setIsProjectsModalOpen(true)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
-                  title="Projects & Drafts"
-                >
-                  <FolderKanban className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Projects</span>
-                </button>
-
-                <button
-                  onClick={handleThemeToggle}
-                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors"
-                  title="Toggle Light / Dark Theme"
-                >
-                  <Sun className="w-3.5 h-3.5 hidden dark:block text-amber-400" />
-                  <Moon className="w-3.5 h-3.5 block dark:hidden text-slate-700" />
-                </button>
+            {/* Video & Voice Speed Selector in a Single Row */}
+            <div className="flex items-center justify-between gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 shrink-0">
+                <span className="hidden sm:inline">Video &amp; Voice </span>Speed:
+              </span>
+              <div className="flex items-center gap-1 shrink-0">
+                {[0.75, 1.0, 1.25, 1.5, 2.0].map((s) => {
+                  const isSelected = (config.playbackSpeed || 1.0) === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => onChangeConfig({ playbackSpeed: s })}
+                      className={`py-1 px-2 rounded-lg text-center transition-all text-xs font-semibold border ${
+                        isSelected
+                          ? 'border-emerald-500 dark:border-emerald-400 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shadow-2xs font-bold'
+                          : 'border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {s}x
+                    </button>
+                  );
+                })}
               </div>
+            </div>
+
+            {/* Projects & Reset Defaults */}
+            <div className="flex items-center justify-between gap-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsProjectsModalOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
+                title="Projects & Drafts"
+              >
+                <FolderKanban className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Projects</span>
+              </button>
 
               <button
+                type="button"
                 onClick={handleResetDefaults}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                title="Reset all parameters to default"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Reset</span>
+                <span>Reset Defaults</span>
               </button>
-              <div className="flex items-center gap-1.5">
-                {/* Save Style Button */}
-                <button
-                  type="button"
-                  onClick={handleSaveStyle}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                    justSaved
-                      ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
-                      : 'bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                  }`}
-                  title="Save current font sizes, colors, and parameters as default for future videos"
-                >
-                  {justSaved ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                      <span>Style Saved!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Save Style</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  onClick={handleResetDefaults}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-                  title="Reset all parameters to default"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reset</span>
-                </button>
-              </div>
             </div>
           </div>
         )}
