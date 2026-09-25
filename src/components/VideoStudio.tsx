@@ -265,7 +265,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   ];
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 py-2 transition-colors">
+    <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 py-2 transition-colors pb-16">
       {/* Main Studio Frame Mockup (Responsive to Light & Dark Mode) */}
       <VideoPreviewCanvas
         verses={verses}

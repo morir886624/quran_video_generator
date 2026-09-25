@@ -387,7 +387,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   };
 
   return (
-    <div className="w-full max-w-[380px] sm:max-w-[395px] mx-auto rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-2xl shadow-slate-300/40 dark:shadow-black overflow-hidden flex flex-col relative transition-all h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px)-9px)] sm:h-[694px] pb-16 ">
+    <div className="w-full max-w-[380px] sm:max-w-[395px] mx-auto rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-2xl shadow-slate-300/40 dark:shadow-black overflow-hidden flex flex-col relative transition-all h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px)-9px)] sm:h-[694px]">
       {/* Joint Top Bar at the top of the video frame */}
       <div className="shrink-0 z-20">
         {topBar}
@@ -457,10 +457,10 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         )}
 
         {/* Integrated Gapless Audio Player & Scrubber */}
-        <div className={`space-y-2 transition-colors ${isToolsOpen ? 'pt-2 border-t border-slate-200/80 dark:border-slate-800/80' : ''}`}>
-          {/* Scrubber Track */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 min-w-[28px]">
+        <div className={`space-y-2.5 transition-colors ${isToolsOpen ? 'pt-2 border-t border-slate-200/80 dark:border-slate-800/80' : ''}`}>
+          {/* 1. Scrubber Track */}
+          <div className="flex items-center gap-2.5 px-0.5">
+            <span className="text-[11px] font-mono font-medium text-slate-500 dark:text-slate-400 min-w-[28px] tabular-nums">
               {formatSeconds(currentTime)}
             </span>
             <div className="relative flex-1 flex items-center">
@@ -471,47 +471,58 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
                 step="0.1"
                 value={totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0}
                 onChange={handleScrubberChange}
-                className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-full cursor-pointer transition-colors"
+                className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full cursor-pointer transition-colors"
+                title="Seek position"
               />
             </div>
-            <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 min-w-[28px] text-right">
+            <span className="text-[11px] font-mono font-medium text-slate-500 dark:text-slate-400 min-w-[28px] text-right tabular-nums">
               {formatSeconds(totalDuration)}
             </span>
           </div>
 
-          {/* Subtitle */}
-          <div className="text-center -mt-1">
-            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 tracking-wide">
-              Gapless Sound
-            </span>
-          </div>
+          {/* 2. Primary Transport Controls & Volume */}
+          <div className="flex items-center justify-between px-1 sm:px-3 pt-0.5">
+            {/* Left Controls: Speed, Restart, Previous */}
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-1 justify-start">
+              {/* Playback Speed Pill Button */}
+              <button
+                onClick={handleCycleSpeed}
+                className="min-w-[34px] px-1.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-[10.5px] font-bold font-mono text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200/60 dark:border-slate-700/60 active:scale-95 transition-all cursor-pointer"
+                title={`Playback speed: ${playbackSpeed.toFixed(1)}x (Click to cycle)`}
+                aria-label={`Playback speed: ${playbackSpeed.toFixed(1)}x`}
+              >
+                {playbackSpeed.toFixed(1)}x
+              </button>
 
-          {/* Transport Buttons */}
-          <div className="grid grid-cols-3 items-center px-3 pt-0.5">
-            <div className="flex items-center justify-start gap-4">
+              {/* Restart */}
               <button
                 onClick={handleRestart}
-                className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-                title="Restart"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 active:scale-95 transition-all cursor-pointer"
+                title="Restart recitation"
+                aria-label="Restart recitation"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
 
+              {/* Previous Ayah */}
               <button
                 onClick={handlePrev}
                 disabled={currentAyahIndex === 0}
-                className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 disabled:opacity-25 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer"
                 title="Previous Ayah"
+                aria-label="Previous Ayah"
               >
-                <SkipBack className="w-4 h-4 fill-current" />
+                <SkipBack className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-current" />
               </button>
             </div>
 
-            <div className="flex items-center justify-center">
+            {/* Center: Play / Pause Hero Button */}
+            <div className="flex items-center justify-center shrink-0 px-1 sm:px-2">
               <button
                 onClick={togglePlay}
-                className="w-12 h-12 rounded-full bg-emerald-500 dark:bg-emerald-400 hover:bg-emerald-600 dark:hover:bg-emerald-300 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/25 active:scale-95 transition-all"
+                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-emerald-500 dark:bg-emerald-400 hover:bg-emerald-600 dark:hover:bg-emerald-300 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/25 active:scale-95 transition-all cursor-pointer"
                 title={isPlaying ? 'Pause' : 'Play'}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
               >
                 {isPlaying ? (
                   <Pause className="w-5 h-5 fill-current" />
@@ -521,55 +532,49 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
               </button>
             </div>
 
-            <div className="flex items-center justify-end gap-2 sm:gap-3">
+            {/* Right Controls: Next, Volume Mute & Slider */}
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-1 justify-end">
+              {/* Next Ayah */}
               <button
                 onClick={handleNext}
                 disabled={currentAyahIndex >= verses.length - 1}
-                className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 transition-colors"
+                className="p-1.5 sm:p-2 rounded-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 disabled:opacity-25 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer"
                 title="Next Ayah"
+                aria-label="Next Ayah"
               >
-                <SkipForward className="w-4 h-4 fill-current" />
+                <SkipForward className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-current" />
               </button>
 
-              <div className="flex items-center gap-1 sm:gap-1.5">
-                <button
-                  onClick={handleToggleMute}
-                  className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-                  title={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
-                >
-                  {isMuted || volume === 0 ? (
-                    <VolumeX className="w-4 h-4 text-rose-500 dark:text-rose-400" />
-                  ) : volume < 0.5 ? (
-                    <Volume1 className="w-4 h-4" />
-                  ) : (
-                    <Volume2 className="w-4 h-4" />
-                  )}
-                </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={isMuted ? 0 : volume}
-                  onChange={handleVolumeChange}
-                  className="w-12 sm:w-16 accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-full cursor-pointer transition-colors"
-                  title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
-                />
-              </div>
+              {/* Volume Mute */}
+              <button
+                onClick={handleToggleMute}
+                className="p-1.5 sm:p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                title={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
+                aria-label={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
+              >
+                {isMuted || volume === 0 ? (
+                  <VolumeX className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+                ) : volume < 0.5 ? (
+                  <Volume1 className="w-4 h-4" />
+                ) : (
+                  <Volume2 className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Volume Slider */}
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                className="w-12 sm:w-16 accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full cursor-pointer transition-colors"
+                title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                aria-label="Volume slider"
+              />
             </div>
           </div>
-
-          {/* Status line */}
-          {/* <div className="flex items-center justify-end gap-3 text-[11px] font-mono text-slate-400 dark:text-slate-500 pr-1 -mt-0.5">
-            <button
-              onClick={handleCycleSpeed}
-              className="hover:text-emerald-500 dark:hover:text-emerald-400 font-bold transition-colors cursor-pointer"
-              title="Playback speed"
-            >
-              {playbackSpeed.toFixed(1)}x
-            </button>
-            <span>{currentAyahIndex + 1}:{verses.length}</span>
-          </div> */}
         </div>
       </div>
     </div>
