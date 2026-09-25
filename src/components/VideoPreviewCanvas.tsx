@@ -393,7 +393,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
       {/* Video Canvas Container (Top Half) */}
       <div
-        className="relative w-full flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 ease-in-out h-[430px] sm:h-[460px] bg-slate-950"
+        className="relative w-full flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 ease-in-out h-[472px] sm:h-[502px] bg-slate-950"
         onClick={togglePlay}
       >
         <canvas
@@ -412,7 +412,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
       {/* Exterior Open/Close Button on Top Right of modal using relative positions */}
       <div className={`relative w-full flex justify-end  -mb-px z-30 pointer-events-none transition-all duration-300 ease-in-out ${
-        isToolsOpen ? '-mt-[175px] sm:-mt-[185px]' : '-mt-8'
+        isToolsOpen ? '-mt-[188px] sm:-mt-[198px]' : '-mt-8'
       }`}>
         <button
           type="button"
