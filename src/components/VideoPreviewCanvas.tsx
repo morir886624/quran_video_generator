@@ -387,13 +387,15 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   };
 
   return (
-    <div className="w-full max-w-[380px] sm:max-w-[395px] mx-auto rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-2xl shadow-slate-300/40 dark:shadow-black overflow-hidden flex flex-col relative transition-all">
+    <div className="w-full max-w-[380px] sm:max-w-[395px] mx-auto rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-2xl shadow-slate-300/40 dark:shadow-black overflow-hidden flex flex-col relative transition-all h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px)-9px)] sm:h-[694px] pb-16 ">
       {/* Joint Top Bar at the top of the video frame */}
-      {topBar}
+      <div className="shrink-0 z-20">
+        {topBar}
+      </div>
 
       {/* Video Canvas Container (Top Half) */}
       <div
-        className="relative w-full flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 ease-in-out h-[472px] sm:h-[502px] bg-slate-950"
+        className="relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 ease-in-out bg-slate-950"
         onClick={togglePlay}
       >
         <canvas
@@ -411,7 +413,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       </div>
 
       {/* Exterior Open/Close Button on Top Right of modal using relative positions */}
-      <div className={`relative w-full flex justify-end  -mb-px z-30 pointer-events-none transition-all duration-300 ease-in-out ${
+      <div className={`relative w-full flex justify-end  -mb-px z-30 pointer-events-none transition-all duration-300 ease-in-out shrink-0 ${
         isToolsOpen ? '-mt-[188px] sm:-mt-[198px]' : '-mt-8'
       }`}>
         <button
@@ -437,7 +439,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       </div>
 
       {/* Docked Mobile Studio Editor & Audio Console */}
-      <div className={` bg-white/95 dark:bg-[#0E1626]/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-3 pb-3 flex flex-col gap-2 z-20 transition-all duration-300 ease-in-out ${
+      <div className={`rounded-b-2xl shrink-0 bg-white/95 dark:bg-[#0E1626]/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-3 pb-3 flex flex-col gap-2 z-20 transition-all duration-300 ease-in-out ${
         isToolsOpen ? 'shadow-[0_-12px_30px_rgba(0,0,0,0.3)]' : 'shadow-xl dark:shadow-2xl'
       }`}>
         {/* Fixed at top of tools modal: Category Tabs */}
@@ -558,7 +560,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
           </div>
 
           {/* Status line */}
-          <div className="flex items-center justify-end gap-3 text-[11px] font-mono text-slate-400 dark:text-slate-500 pr-1 -mt-0.5">
+          {/* <div className="flex items-center justify-end gap-3 text-[11px] font-mono text-slate-400 dark:text-slate-500 pr-1 -mt-0.5">
             <button
               onClick={handleCycleSpeed}
               className="hover:text-emerald-500 dark:hover:text-emerald-400 font-bold transition-colors cursor-pointer"
@@ -567,7 +569,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
               {playbackSpeed.toFixed(1)}x
             </button>
             <span>{currentAyahIndex + 1}:{verses.length}</span>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
