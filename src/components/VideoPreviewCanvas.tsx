@@ -304,6 +304,14 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
     if (customMediaElRef.current instanceof HTMLVideoElement) {
       customMediaElRef.current.playbackRate = playbackSpeed;
+      const vid = customMediaElRef.current;
+      vid.preservesPitch = true;
+      (vid as any).webkitPreservesPitch = true;
+      (vid as any).mozPreservesPitch = true;
+      vid.playbackRate = playbackSpeed;
+      vid.preservesPitch = true;
+      (vid as any).webkitPreservesPitch = true;
+      (vid as any).mozPreservesPitch = true;
     }
   }, [playbackSpeed]);
 
@@ -317,6 +325,14 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
     if (customMediaElRef.current instanceof HTMLVideoElement) {
       customMediaElRef.current.playbackRate = nextSpeed;
+      const vid = customMediaElRef.current;
+      vid.preservesPitch = true;
+      (vid as any).webkitPreservesPitch = true;
+      (vid as any).mozPreservesPitch = true;
+      vid.playbackRate = nextSpeed;
+      vid.preservesPitch = true;
+      (vid as any).webkitPreservesPitch = true;
+      (vid as any).mozPreservesPitch = true;
     }
   }, [playbackSpeed, onChangeConfig]);
 

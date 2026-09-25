@@ -160,6 +160,22 @@ export class StitchedAudioPlayer {
   }
 
   /**
+   * Applies the current playback rate while strictly preserving voice pitch (YouTube-style time-stretching).
+   */
+  private configureAudioElement(el: HTMLAudioElement | null) {
+    if (!el) return;
+    try {
+      el.preservesPitch = true;
+      (el as any).webkitPreservesPitch = true;
+      (el as any).mozPreservesPitch = true;
+      el.playbackRate = this.playbackRate;
+      el.preservesPitch = true;
+      (el as any).webkitPreservesPitch = true;
+      (el as any).mozPreservesPitch = true;
+    } catch {}
+  }
+
+  /**
    * Immediately invalidates all pending playback chains and purges active and preloaded elements.
    */
   private cleanupAllAudio() {
@@ -287,12 +303,14 @@ export class StitchedAudioPlayer {
 
     audio.volume = this.isMuted ? 0 : this.currentVolume;
     audio.playbackRate = this.playbackRate;
+    this.configureAudioElement(audio);
 
     // Preload next Ayah audio in the background for zero gap
     if (this.currentAyahIndex + 1 < this.audioUrls.length) {
       this.nextAudioEl = new Audio(this.audioUrls[this.currentAyahIndex + 1]);
       this.nextAudioEl.preload = 'auto';
       this.nextAudioEl.playbackRate = this.playbackRate;
+      this.configureAudioElement(this.nextAudioEl);
     } else {
       this.nextAudioEl = null;
     }
@@ -396,6 +414,7 @@ export class StitchedAudioPlayer {
       this.currentAudioEl = new Audio(url);
       this.currentAudioEl.volume = this.isMuted ? 0 : this.currentVolume;
       this.currentAudioEl.playbackRate = this.playbackRate;
+      this.configureAudioElement(this.currentAudioEl);
     }
 
     if (this.currentAudioEl) {
@@ -420,6 +439,7 @@ export class StitchedAudioPlayer {
     this.currentAudioEl = new Audio(url);
     this.currentAudioEl.volume = this.isMuted ? 0 : this.currentVolume;
     this.currentAudioEl.playbackRate = this.playbackRate;
+    this.configureAudioElement(this.currentAudioEl);
 
     if (this.isPlaying) {
       this.playCurrentAyah();
@@ -443,9 +463,11 @@ export class StitchedAudioPlayer {
     this.playbackRate = Math.max(0.25, Math.min(rate, 4.0));
     if (this.currentAudioEl) {
       this.currentAudioEl.playbackRate = this.playbackRate;
+      this.configureAudioElement(this.currentAudioEl);
     }
     if (this.nextAudioEl) {
       this.nextAudioEl.playbackRate = this.playbackRate;
+      this.configureAudioElement(this.nextAudioEl);
     }
   }
 

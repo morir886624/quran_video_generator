@@ -132,7 +132,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       const audio = audioRef.current;
       audio.src = url;
       audio.volume = isMuted ? 0 : volume;
+      audio.preservesPitch = true;
+      (audio as any).webkitPreservesPitch = true;
+      (audio as any).mozPreservesPitch = true;
       audio.playbackRate = playbackSpeed;
+      audio.preservesPitch = true;
+      (audio as any).webkitPreservesPitch = true;
+      (audio as any).mozPreservesPitch = true;
       setCurrentTime(0);
       setDuration(0);
 
@@ -201,7 +207,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
     const handleLoadedMetadata = () => {
       setDuration(audio.duration || 0);
+      audio.preservesPitch = true;
+      (audio as any).webkitPreservesPitch = true;
+      (audio as any).mozPreservesPitch = true;
       audio.playbackRate = playbackSpeed;
+      audio.preservesPitch = true;
+      (audio as any).webkitPreservesPitch = true;
+      (audio as any).mozPreservesPitch = true;
       audio.volume = isMuted ? 0 : volume;
     };
 
@@ -242,7 +254,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   // Update playback speed on existing audio element
   useEffect(() => {
     if (audioRef.current) {
+      audioRef.current.preservesPitch = true;
+      (audioRef.current as any).webkitPreservesPitch = true;
+      (audioRef.current as any).mozPreservesPitch = true;
       audioRef.current.playbackRate = playbackSpeed;
+      audioRef.current.preservesPitch = true;
+      (audioRef.current as any).webkitPreservesPitch = true;
+      (audioRef.current as any).mozPreservesPitch = true;
     }
   }, [playbackSpeed]);
 
