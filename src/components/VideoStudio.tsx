@@ -28,9 +28,11 @@ import {
   CheckCircle2,
   Loader2,
   Save,
+  Trash2,
 } from 'lucide-react';
 import { isAyahAudioCached, downloadVerseKeysAudio } from '@/lib/audio-cache';
 import { saveVideoConfig, clearSavedVideoConfig } from '@/lib/video-config-storage';
+import { storeCustomMedia, loadCustomMedia, clearCustomMedia } from '@/lib/custom-media-storage';
 
 interface VideoStudioProps {
   chapter: Chapter | null;
@@ -153,7 +155,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   };
 
   // Custom background file upload handler
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -166,7 +168,36 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       customMediaUrl: objectUrl,
       customMediaType: isVideo ? 'video' : 'image',
     });
+
+    try {
+      await storeCustomMedia(file);
+    } catch (err) {
+      console.error('Failed to store custom media', err);
+    }
   };
+
+  React.useEffect(() => {
+    const restoreMedia = async () => {
+      try {
+        const file = await loadCustomMedia();
+        if (file) {
+          const isVideo = file.type.startsWith('video/');
+          const objectUrl = URL.createObjectURL(file);
+          onChangeConfig({
+            customMediaUrl: objectUrl,
+            customMediaType: isVideo ? 'video' : 'image',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to restore custom media', err);
+      }
+    };
+    
+    // Check if we already have a blob URL, if not check indexedDB
+    if (!config.customMediaUrl || !config.customMediaUrl.startsWith('blob:')) {
+      restoreMedia();
+    }
+  }, []); // Run only on mount
 
   // Six visual themes matching screenshot
   const THEMES: {
@@ -453,25 +484,60 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
             </div>
 
-            {/* Custom Media active banner */}
+            {/* Custom Media active banner -> Replaced with "Your Background" section */}
             {config.customMediaUrl && (
-              <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-400">
-                <span className="font-semibold truncate">
-                  Custom {config.customMediaType === 'video' ? 'Video' : 'Image'} Background Active
+              <div className="mb-4">
+                <span className="text-xs font-bold text-slate-900 dark:text-white tracking-wide block mb-2">
+                  Your Background
                 </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    onChangeConfig({
-                      customMediaUrl: null,
-                      customMediaType: null,
-                      backgroundPreset: config.backgroundPreset || 'midnight',
-                    })
-                  }
-                  className="text-[11px] font-bold underline hover:opacity-80 shrink-0 ml-2"
-                >
-                  Reset to Theme
-                </button>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="relative flex flex-col justify-end p-2.5 rounded-2xl h-[78px] text-left transition-all overflow-hidden border-2 border-emerald-500 dark:border-emerald-400 ring-2 ring-emerald-500/25 dark:ring-emerald-400/25 shadow-[0_0_12px_rgba(16,185,129,0.25)]">
+                    {/* The Media Preview */}
+                    {config.customMediaType === 'video' ? (
+                      <video
+                        src={config.customMediaUrl}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        muted
+                        playsInline
+                        loop
+                        autoPlay
+                      />
+                    ) : (
+                      <div
+                        className="absolute inset-0 w-full h-full bg-cover bg-center"
+                        style={{ backgroundImage: `url(${config.customMediaUrl})` }}
+                      />
+                    )}
+                    
+                    {/* Dark Overlay so text is readable */}
+                    <div className="absolute inset-0 bg-black/30" />
+
+                    {/* Delete Button top right */}
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        onChangeConfig({
+                          customMediaUrl: null,
+                          customMediaType: null,
+                          backgroundPreset: config.backgroundPreset || 'midnight',
+                        });
+                        try {
+                          await clearCustomMedia();
+                        } catch (err) {}
+                      }}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-rose-500/90 text-white flex items-center justify-center hover:bg-rose-600 shadow-md backdrop-blur-sm transition-transform active:scale-95 z-10"
+                      title="Delete Background"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Title Bottom Left */}
+                    <span className="relative z-10 text-[11px] font-bold text-white drop-shadow-md truncate">
+                      Uploaded {config.customMediaType === 'video' ? 'Video' : 'Image'}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
 
