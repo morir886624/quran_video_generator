@@ -13,6 +13,7 @@ import { fetchAudioFiles, fetchChapters, fetchVerses } from '@/lib/quran-api';
 import { QuranNavbar } from '@/components/QuranNavbar';
 import { ReaderView } from '@/components/ReaderView';
 import { VideoStudio } from '@/components/VideoStudio';
+import { AyahSelectionModal } from '@/components/AyahSelectionModal';
 import { CreationsView } from '@/components/CreationsView';
 import { ResumeBanner } from '@/components/ResumeBanner';
 import { SurahDrawer } from '@/components/SurahDrawer';
@@ -72,6 +73,7 @@ export default function Home() {
   const [activeTafsirArabic, setActiveTafsirArabic] = useState<string>('');
   const [isSurahInfoOpen, setIsSurahInfoOpen] = useState<boolean>(false);
   const [isTranslationModalOpen, setIsTranslationModalOpen] = useState<boolean>(false);
+  const [isAyahSelectionOpen, setIsAyahSelectionOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 
@@ -86,6 +88,7 @@ export default function Home() {
   useBackButton(isTafsirOpen, () => setIsTafsirOpen(false), 20);
   useBackButton(isSurahInfoOpen, () => setIsSurahInfoOpen(false), 20);
   useBackButton(isTranslationModalOpen, () => setIsTranslationModalOpen(false), 20);
+  useBackButton(isAyahSelectionOpen, () => setIsAyahSelectionOpen(false), 20);
 
   // Native Android hardware back button listener
   useEffect(() => {
@@ -671,6 +674,7 @@ export default function Home() {
                 currentReciter={currentReciter}
                 onSelectReciter={handleSelectReciter}
                 onBackToReader={() => setActiveTab('reader')}
+                onOpenAyahSelection={() => setIsAyahSelectionOpen(true)}
                 selectedVerseKeys={selectedVerseKeys}
                 selectedTranslationId={selectedTranslationId}
                 onLoadProject={handleResumeSession}
@@ -744,6 +748,18 @@ export default function Home() {
         onClose={() => setIsTafsirOpen(false)}
         verseKey={activeTafsirVerseKey}
         verseTextArabic={activeTafsirArabic}
+      />
+      
+      <AyahSelectionModal
+        isOpen={isAyahSelectionOpen}
+        onClose={() => setIsAyahSelectionOpen(false)}
+        chapter={currentChapter}
+        verses={verses}
+        selectedVerseKeys={selectedVerseKeys}
+        onToggleVerse={handleToggleVerse}
+        onSelectRange={handleSelectRange}
+        onSelectAllVerses={handleSelectAllVerses}
+        onClearVerses={handleClearVerses}
       />
 
       {/* Surah Info Modal */}

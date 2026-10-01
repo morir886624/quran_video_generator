@@ -41,6 +41,7 @@ interface VideoStudioProps {
   currentReciter: Reciter;
   onSelectReciter: (reciter: Reciter) => void;
   onBackToReader: () => void;
+  onOpenAyahSelection?: () => void;
   selectedVerseKeys?: Set<string>;
   selectedTranslationId?: number;
   onLoadProject?: (project: ProjectDraft) => void;
@@ -71,6 +72,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   currentReciter,
   onSelectReciter,
   onBackToReader,
+  onOpenAyahSelection,
   selectedVerseKeys = new Set(),
   selectedTranslationId = 20,
   onLoadProject,
@@ -278,9 +280,9 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
           <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white/95 dark:bg-[#0E1626] border-b border-slate-200/90 dark:border-slate-800/80 transition-colors z-20">
             {/* Range of Ayahs Selector (Left) */}
             <button
-              onClick={onBackToReader}
+              onClick={onOpenAyahSelection || onBackToReader}
               className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 border border-slate-200/70 dark:border-slate-700/70 active:scale-95 transition-all text-left min-w-0 max-w-[calc(100%-105px)] shadow-2xs group"
-              title="Click to change selected verses in Reader"
+              title={onOpenAyahSelection ? "Click to change selected verses" : "Click to change selected verses in Reader"}
             >
               <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform" />
               <div className="flex items-center gap-1.5 min-w-0 truncate">
@@ -684,7 +686,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 >
                   <option value="translation-main">Translation (English - Saheeh Int.)</option>
                   <option value="persian-mokhtasar">Persian (Tafsir-e-Mokhtasar)</option>
-                  <option value="fr-tafsir-as-saadi">French (Tafsir As-Sa'di)</option>
+                  <option value="fr-tafsir-as-saadi">French (Tafsir As-Sa&apos;di)</option>
                   <option value="none">None (Hidden)</option>
                 </select>
               </div>
@@ -730,7 +732,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 >
                   <option value="none">None (Single Subtitle)</option>
                   <option value="persian-mokhtasar">Persian (Tafsir-e-Mokhtasar)</option>
-                  <option value="fr-tafsir-as-saadi">French (Tafsir As-Sa'di)</option>
+                  <option value="fr-tafsir-as-saadi">French (Tafsir As-Sa&apos;di)</option>
                   <option value="translation-main">Translation (English - Saheeh Int.)</option>
                 </select>
               </div>
