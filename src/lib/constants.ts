@@ -8,6 +8,13 @@ export const POPULAR_RECITERS: Reciter[] = [
     description: 'Kuwait • Renowned soulful, clear recitation',
   },
   {
+    id: 115,
+    name: 'Mohammad Ayyub',
+    style: 'Murattal',
+    description: 'Saudi Arabia • Emotional, slow recitation',
+    audioSubfolder: 'Muhammad_Ayyoub_128kbps',
+  },
+  {
     id: 101,
     name: 'Maher Al-Muaiqly',
     style: 'Murattal',
