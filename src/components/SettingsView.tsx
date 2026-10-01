@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useToast } from '@/components/ToastProvider';
 import {
   Star,
   HelpCircle,
@@ -83,12 +84,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     reciterStats: Record<number, { name: string; count: number }>;
   }>({ totalSizeBytes: 0, totalFiles: 0, reciterStats: {} });
   const [isLoadingStorage, setIsLoadingStorage] = useState<boolean>(true);
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setFeedbackMessage(msg);
-    setTimeout(() => setFeedbackMessage(null), 3500);
-  };
+  const { showToast } = useToast();
 
   const loadStorage = async () => {
     setIsLoadingStorage(true);
@@ -111,21 +107,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleClearVideos = async () => {
     try {
       await clearAllExportedVideos();
-      showToast('All exported videos cleared successfully.');
+      showToast({ message: 'All exported videos cleared successfully.', type: 'success' });
       setActiveModal(null);
       await loadStorage();
     } catch {
-      showToast('Failed to clear video storage.');
+      showToast({ message: 'Failed to clear video storage.', type: 'error' });
     }
   };
 
   const handleClearAudioCache = async () => {
     try {
       await clearEntireAudioCache();
-      showToast('All cached reciter voices cleared.');
+      showToast({ message: 'All cached reciter voices cleared.', type: 'success' });
       await loadStorage();
     } catch {
-      showToast('Failed to clear reciter audio cache.');
+      showToast({ message: 'Failed to clear reciter audio cache.', type: 'error' });
     }
   };
 
@@ -134,7 +130,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setTimeout(() => {
       setActiveModal(null);
       setHasRated(false);
-      showToast('Thank you for rating Quran Video Studio! ⭐');
+      showToast({ message: 'Thank you for rating Quran Video Studio! ⭐', type: 'success' });
     }, 1200);
   };
 
@@ -146,13 +142,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           Settings
         </h1>
       </div>
-
-      {feedbackMessage && (
-        <div className="mb-4 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-2 animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <span>{feedbackMessage}</span>
-        </div>
-      )}
 
       <div className="space-y-6">
         {/* =================================================================== */}
@@ -506,6 +495,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   Yes! When video export completes, tap <strong>Share</strong> to send directly to Instagram Reels, TikTok, YouTube Shorts, or save to your phone gallery.
                 </p>
               </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-1.5">
+                <h4 className="font-bold text-slate-900 dark:text-white">
+                  5. Need more help?
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Feel free to reach out to our support team directly at{' '}
+                  <a href="mailto:moeid6624@gmail.com" className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold">
+                    moeid6624@gmail.com
+                  </a>
+                  . We are happy to help!
+                </p>
+              </div>
             </div>
 
             <button
@@ -662,11 +664,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             <div className="space-y-2 pt-1">
               <a
-                href="mailto:support@quranvideostudio.com"
+                href="mailto:moeid6624@gmail.com"
                 className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2"
               >
                 <Mail className="w-4 h-4" />
-                <span>Email Support</span>
+                <span>Email Support (moeid6624@gmail.com)</span>
               </a>
 
               <a

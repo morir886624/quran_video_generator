@@ -34,6 +34,19 @@ export const SurahDrawer: React.FC<SurahDrawerProps> = ({
     );
   }, [chapters, search]);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      // Small timeout to ensure the drawer is rendered and fully visible before scrolling
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`surah-drawer-item-${currentChapterId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, currentChapterId]);
+
   if (!isOpen) return null;
 
   return (
@@ -89,7 +102,6 @@ export const SurahDrawer: React.FC<SurahDrawerProps> = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
-              autoFocus
             />
           </div>
         </div>
@@ -101,6 +113,7 @@ export const SurahDrawer: React.FC<SurahDrawerProps> = ({
             return (
               <button
                 key={chapter.id}
+                id={`surah-drawer-item-${chapter.id}`}
                 onClick={() => {
                   onSelectChapter(chapter.id, 1, Math.min(chapter.verses_count, 7));
                   onClose();

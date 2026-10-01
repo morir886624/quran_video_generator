@@ -44,8 +44,10 @@ import {
 } from '@/lib/video-config-storage';
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/components/ToastProvider';
 
 export default function Home() {
+  const { showToast } = useToast();
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [currentChapterId, setCurrentChapterId] = useState<number>(1);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
@@ -313,34 +315,35 @@ export default function Home() {
 
   // Verse Selection Toggles
   const handleToggleVerse = useCallback((verseKey: string) => {
-    setSelectedVerseKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(verseKey)) {
-        if (next.size > 1) next.delete(verseKey);
-      } else {
-        next.add(verseKey);
+    const next = new Set(selectedVerseKeys);
+    if (next.has(verseKey)) {
+      if (next.size > 1) next.delete(verseKey);
+    } else {
+      next.add(verseKey);
+    }
+
+    const selectedNumbers = Array.from(next)
+      .map(key => parseInt(key.split(':')[1], 10))
+      .sort((a, b) => a - b);
+
+    let isContiguous = true;
+    for (let i = 1; i < selectedNumbers.length; i++) {
+      if (selectedNumbers[i] !== selectedNumbers[i - 1] + 1) {
+        isContiguous = false;
+        break;
       }
+    }
 
-      const selectedNumbers = Array.from(next)
-        .map(key => parseInt(key.split(':')[1], 10))
-        .sort((a, b) => a - b);
+    if (!isContiguous) {
+      showToast({
+        message: "You cannot select ayahs in disorder. Please select ayahs one after another without skipping.",
+        type: "error"
+      });
+      return;
+    }
 
-      let isContiguous = true;
-      for (let i = 1; i < selectedNumbers.length; i++) {
-        if (selectedNumbers[i] !== selectedNumbers[i - 1] + 1) {
-          isContiguous = false;
-          break;
-        }
-      }
-
-      if (!isContiguous) {
-        alert("You cannot select ayahs in disorder. Please select ayahs one after another without skipping.");
-        return prev;
-      }
-
-      return next;
-    });
-  }, []);
+    setSelectedVerseKeys(next);
+  }, [selectedVerseKeys, showToast]);
 
   const handleSelectRange = useCallback(
     (start: number, end: number) => {

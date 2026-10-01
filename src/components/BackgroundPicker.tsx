@@ -4,6 +4,7 @@ import React, { useRef } from 'react';
 import { VideoConfig } from '@/types/quran';
 import { BACKGROUND_PRESETS } from '@/lib/constants';
 import { Upload, Smartphone, Square, Monitor, Check } from 'lucide-react';
+import { useToast } from '@/components/ToastProvider';
 
 interface BackgroundPickerProps {
   config: VideoConfig;
@@ -14,6 +15,7 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
   config,
   onChangeConfig,
 }) => {
+  const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,7 +26,7 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
     const isImage = file.type.startsWith('image/');
 
     if (!isVideo && !isImage) {
-      alert('Please upload a valid image or video file.');
+      showToast({ message: 'Please upload a valid image or video file.', type: 'error' });
       return;
     }
 
