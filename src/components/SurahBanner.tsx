@@ -14,7 +14,7 @@ export const SurahBanner: React.FC<SurahBannerProps> = ({ chapter }) => {
   return (
     <div className="w-full mb-6">
       {/* Quran.com Signature Surah Decorative Card */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-emerald-50/50 via-white to-slate-50 dark:from-[#162544] dark:to-[#0E1830] border border-slate-200 dark:border-slate-700/80 p-5 sm:p-7 text-center shadow-lg shadow-slate-200/50 dark:shadow-slate-950/30 transition-colors">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-emerald-50/50 via-white to-slate-50 dark:from-[#162544] dark:via-[#111C33] dark:to-[#0E1830] border border-slate-200 dark:border-slate-700/80 p-5 sm:p-7 text-center shadow-lg shadow-slate-200/50 dark:shadow-slate-950/30 transition-colors">
         {/* Subtle geometric background watermark matching reference image */}
         <div className="absolute inset-0 opacity-[0.04] dark:opacity-[0.06] pointer-events-none flex items-center justify-center text-slate-800 dark:text-emerald-300">
           <svg className="w-80 h-80 max-w-full" viewBox="0 0 200 200" fill="currentColor">

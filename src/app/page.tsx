@@ -320,6 +320,24 @@ export default function Home() {
       } else {
         next.add(verseKey);
       }
+
+      const selectedNumbers = Array.from(next)
+        .map(key => parseInt(key.split(':')[1], 10))
+        .sort((a, b) => a - b);
+
+      let isContiguous = true;
+      for (let i = 1; i < selectedNumbers.length; i++) {
+        if (selectedNumbers[i] !== selectedNumbers[i - 1] + 1) {
+          isContiguous = false;
+          break;
+        }
+      }
+
+      if (!isContiguous) {
+        alert("You cannot select ayahs in disorder. Please select ayahs one after another without skipping.");
+        return prev;
+      }
+
       return next;
     });
   }, []);

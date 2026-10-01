@@ -675,123 +675,108 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Tafsir Selector Bar (For hearing & reading the Quran) */}
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/70 dark:bg-slate-900/80 border border-amber-200/80 dark:border-slate-800 shadow-xs transition-colors">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                <BookOpen className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                  Tafsir (Exegesis) Selector
-                </h3>
-                <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                  Select commentary for hearing and reading the Quran
-                </p>
-              </div>
-            </div>
-
-            {/* Tafsir edition picker and mode toggle */}
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={selectedTafsirId}
-                onChange={(e) => setSelectedTafsirId(e.target.value as TafsirEditionId)}
-                className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold border border-amber-300/80 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500/40 cursor-pointer shadow-xs max-w-[220px] sm:max-w-xs truncate"
-              >
-                {AVAILABLE_TAFSIRS.map((taf) => (
-                  <option key={taf.id} value={taf.id}>
-                    {taf.name} ({taf.language})
-                  </option>
-                ))}
-              </select>
-
-              <button
-                onClick={() => setIsTafsirMode((prev) => !prev)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                  isTafsirMode
-                    ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
-                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>{isTafsirMode ? 'Tafsir Mode: ON' : 'Show Tafsir'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* ===================================================================== */}
-      {/* SECTION 3: READING THE QURAN WITH OR WITHOUT THE TAFSIR              */}
+      {/* SECTION 2: READING THE QURAN WITH OR WITHOUT THE TAFSIR              */}
       {/* ===================================================================== */}
       <section aria-label="Reading the Quran with or without Tafsir">
-        {/* Reading Section Header & Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-              Quran Reading
-            </h2>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
-              Surah {chapter.name_simple}
-            </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 p-4 rounded-2xl bg-white dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800/80 shadow-sm dark:shadow-md transition-colors">
+          
+          {/* Header Title & Info */}
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Quran Reading
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                  Surah {chapter.name_simple}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Customize your reading and exegesis experience
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Toggle Mode: With or Without Tafsir */}
-            <div className="inline-flex rounded-xl p-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          {/* Controls */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Mode Toggles */}
+            <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
               <button
                 onClick={() => setIsTafsirMode(false)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   !isTafsirMode
-                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-white dark:bg-[#0B1120] text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
-                Without Tafsir
+                Reading
               </button>
               <button
                 onClick={() => setIsTafsirMode(true)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   isTafsirMode
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-emerald-500 dark:bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
-                With Tafsir
+                Tafsir
               </button>
             </div>
+
+            {/* Tafsir Selector Dropdown (Shown only in Tafsir Mode) */}
+            {isTafsirMode && (
+              <select
+                value={selectedTafsirId}
+                onChange={(e) => setSelectedTafsirId(e.target.value as TafsirEditionId)}
+                className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer shadow-xs max-w-[160px] sm:max-w-[200px] truncate"
+                title="Select Exegesis (Tafsir)"
+              >
+                {AVAILABLE_TAFSIRS.map((taf) => (
+                  <option key={taf.id} value={taf.id}>
+                    {taf.name}
+                  </option>
+                ))}
+              </select>
+            )}
 
             {/* Word-by-Word Toggle */}
             <button
               onClick={() => setShowWordByWord(!showWordByWord)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold border transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
                 showWordByWord
-                  ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-400 text-emerald-700 dark:text-emerald-300'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                  ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+                  : 'bg-white dark:bg-[#0B1120] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>Word-by-Word</span>
+              <span className="hidden sm:inline">Word-by-Word</span>
             </button>
 
-            {/* Surah Info & Translations Shortcuts */}
-            <button
-              onClick={onOpenSurahInfo}
-              className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-              title="About Surah"
-            >
-              <Info className="w-3.5 h-3.5" />
-            </button>
+            <div className="hidden sm:block w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
 
-            <button
-              onClick={onOpenTranslations}
-              className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-              title={`Translation: ${currentTranslationName}`}
-            >
-              <Languages className="w-3.5 h-3.5" />
-            </button>
+            {/* Info and Translation Shortcuts */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={onOpenSurahInfo}
+                className="p-1.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-[#0B1120] dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 transition-colors shadow-xs"
+                title="About Surah"
+              >
+                <Info className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onOpenTranslations}
+                className="p-1.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-[#0B1120] dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 transition-colors shadow-xs"
+                title={`Translation: ${currentTranslationName}`}
+              >
+                <Languages className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
