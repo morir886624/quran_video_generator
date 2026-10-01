@@ -281,16 +281,21 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
             {/* Range of Ayahs Selector (Left) */}
             <button
               onClick={onOpenAyahSelection || onBackToReader}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 border border-slate-200/70 dark:border-slate-700/70 active:scale-95 transition-all text-left min-w-0 max-w-[calc(100%-105px)] shadow-2xs group"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 border border-slate-200/70 dark:border-slate-700/70 active:scale-95 transition-all text-left min-w-0 max-w-[calc(100%-80px)] shadow-2xs group"
               title={onOpenAyahSelection ? "Click to change selected verses" : "Click to change selected verses in Reader"}
             >
-              <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform" />
-              <div className="flex items-center gap-1.5 min-w-0 truncate">
-                <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                  {chapter?.name_simple || 'Surah'}
-                </span>
-                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 font-mono shrink-0 bg-emerald-500/10 dark:bg-emerald-400/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
-                  {startAyah === endAyah ? `Ayah ${startAyah}` : `Ayahs ${startAyah}–${endAyah}`}
+              <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform" />
+              <div className="flex flex-col min-w-0 truncate">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    {chapter?.name_simple || 'Surah'}
+                  </span>
+                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 font-mono shrink-0 bg-emerald-500/10 dark:bg-emerald-400/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
+                    {startAyah === endAyah ? `Ayah ${startAyah}` : `Ayahs ${startAyah}–${endAyah}`}
+                  </span>
+                </div>
+                <span className="text-[9.5px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
+                  Tap to change selection
                 </span>
               </div>
             </button>

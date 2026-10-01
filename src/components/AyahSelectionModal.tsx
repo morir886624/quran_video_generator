@@ -175,7 +175,7 @@ export const AyahSelectionModal: React.FC<AyahSelectionModalProps> = ({
         <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 bg-white dark:bg-[#0B1120]">
           <button
             onClick={onClose}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 dark:bg-emerald-500 hover:bg-slate-800 dark:hover:bg-emerald-600 text-white text-sm font-bold shadow-md transition-all active:scale-[0.98]"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold shadow-md transition-all active:scale-[0.98]"
           >
             <span>Done</span>
             <Check className="w-4 h-4" />
