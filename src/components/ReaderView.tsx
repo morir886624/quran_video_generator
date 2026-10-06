@@ -33,6 +33,7 @@ import {
   CheckCircle2,
   Loader2,
   Compass,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface ReaderViewProps {
@@ -487,7 +488,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   }, [preferences?.showWordByWord]);
 
   const handleCopy = (verse: Verse) => {
-    const text = `${verse.text_uthmani}\n${cleanTranslationText(
+    // @ts-ignore
+    const scriptText = cleanTranslationText(verse[preferences?.arabicScriptType || 'text_uthmani'] || verse.text_uthmani);
+    const text = `${scriptText}\n${cleanTranslationText(
       verse.translations?.[0]?.text || ''
     )}\n(Surah ${chapter.name_simple} ${verse.verse_key})`;
     navigator.clipboard.writeText(text);
@@ -862,6 +865,19 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                       )}
                     </button>
 
+                    {/* View Image Button */}
+                    {verse.image_url && (
+                      <a
+                        href={`https:${verse.image_url}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800/60 dark:hover:bg-slate-700 dark:text-slate-400 transition-colors flex items-center justify-center"
+                        title="View Quran Image"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+
                     {/* Tafsir Expand Button */}
                     <button
                       onClick={() => toggleSingleVerseTafsir(verse.verse_key)}
@@ -903,17 +919,12 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                 {/* Arabic Calligraphy Verse Text */}
                 <div
                   className={`text-right font-semibold leading-[2.2] sm:leading-[2.4] tracking-wide mb-4 select-text ${
-                    preferences?.arabicFontFamily === 'Scheherazade New'
-                      ? 'font-scheherazade'
-                      : preferences?.arabicFontFamily === 'Amiri'
-                      ? 'font-serif'
-                      : 'font-quran'
-                  } ${
                     !preferences?.arabicFontSize ? 'text-2xl sm:text-3xl md:text-4xl' : ''
                   } ${
                     !preferences?.useCustomColors ? 'text-slate-900 dark:text-white' : ''
                   }`}
                   style={{
+                    fontFamily: `"${preferences?.arabicFontFamily || 'Amiri Quran'}", serif`,
                     fontSize: preferences?.arabicFontSize
                       ? `${preferences.arabicFontSize}px`
                       : undefined,
@@ -922,7 +933,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                       : undefined,
                   }}
                 >
-                  {verse.text_uthmani}
+                  {/* @ts-ignore */}
+                  {cleanTranslationText(verse[preferences?.arabicScriptType || 'text_uthmani'] || verse.text_uthmani)}
                   {preferences?.showAyahNumber !== false && (
                     <span
                       className="inline-block font-bold mx-2"
@@ -991,7 +1003,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                       </div>
 
                       <button
-                        onClick={() => onOpenTafsir(verse.verse_key, verse.text_uthmani)}
+                        // @ts-ignore
+                        onClick={() => onOpenTafsir(verse.verse_key, cleanTranslationText(verse[preferences?.arabicScriptType || 'text_uthmani'] || verse.text_uthmani))}
                         className="text-[11px] font-semibold text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-200 underline decoration-amber-500/40"
                       >
                         Full Commentary Modal

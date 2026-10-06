@@ -124,8 +124,16 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     particlesRef.current = createParticles(45, width, height);
   }, [config.aspectRatio, config.backgroundPreset]);
 
-  // Load custom media element if custom URL is provided
+  // Load custom media element if custom URL is provided or API Image is selected
   useEffect(() => {
+    if (config.backgroundPreset === 'api-image' && currentVerse?.image_url) {
+      const img = new Image();
+      img.src = `https:${currentVerse.image_url}`;
+      img.crossOrigin = 'anonymous';
+      customMediaElRef.current = img;
+      return;
+    }
+
     if (!config.customMediaUrl) {
       customMediaElRef.current = null;
       return;
@@ -145,7 +153,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       img.crossOrigin = 'anonymous';
       customMediaElRef.current = img;
     }
-  }, [config.customMediaUrl, config.customMediaType]);
+  }, [config.customMediaUrl, config.customMediaType, config.backgroundPreset, currentVerse?.image_url]);
 
   // Notify parent of active verse
   useEffect(() => {

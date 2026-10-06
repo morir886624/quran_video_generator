@@ -114,7 +114,12 @@ export const VideoExportModal: React.FC<VideoExportModalProps> = ({
   const youtubeTitle = `Surah ${chapter?.name_simple || 'Quran'} (${rangeStr}) | ${reciterName} | Quran Video #Shorts #Quran`;
 
   const fullArabicText = verses
-    .map((v) => `${v.text_uthmani} ۝${v.verse_number}`)
+    .map((v) => {
+      // @ts-ignore
+      let rawText = v[config.arabicScriptType || 'text_uthmani'] || v.text_uthmani;
+      if (typeof rawText === 'string') rawText = cleanTranslationText(rawText);
+      return `${rawText} ۝${v.verse_number}`;
+    })
     .join(' ');
 
   const fullTranslationText = verses

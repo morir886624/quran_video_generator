@@ -196,16 +196,30 @@ export async function exportVideo({
   const effectiveTotalDuration = totalDuration / speed;
 
   let customMediaElement: HTMLImageElement | HTMLVideoElement | null = null;
-  if (config.customMediaUrl) {
+  const apiImages = new Map<string, HTMLImageElement>();
+
+  if (config.backgroundPreset === 'api-image') {
+    onProgress?.({ percent: 5, currentAyahIndex: 0, totalAyahs: verses.length, status: 'Preloading Verse Backgrounds...' });
+    for (let i = 0; i < verses.length; i++) {
+      const v = verses[i];
+      if (v.image_url) {
+        const img = new Image();
+        img.src = `https:${v.image_url}`;
+        img.crossOrigin = 'anonymous';
+        await new Promise((res) => {
+          img.onload = res;
+          img.onerror = res;
+        });
+        apiImages.set(v.verse_key, img);
+      }
+    }
+  } else if (config.customMediaUrl) {
     if (config.customMediaType === 'video') {
       const videoEl = document.createElement('video');
       videoEl.src = config.customMediaUrl;
       videoEl.crossOrigin = 'anonymous';
       videoEl.muted = true;
       videoEl.loop = true;
-      videoEl.preservesPitch = true;
-      (videoEl as any).webkitPreservesPitch = true;
-      (videoEl as any).mozPreservesPitch = true;
       videoEl.playbackRate = speed;
       videoEl.preservesPitch = true;
       (videoEl as any).webkitPreservesPitch = true;
@@ -301,6 +315,10 @@ export async function exportVideo({
         ? persianTafsirMap[currentVerse.verse_number] || currentVerse.persianTafsir
         : undefined;
 
+      const activeCustomMedia = config.backgroundPreset === 'api-image'
+        ? apiImages.get(currentVerse.verse_key) || null
+        : customMediaElement;
+
       // Draw frame
       renderVideoFrame({
         ctx,
@@ -313,7 +331,7 @@ export async function exportVideo({
         totalProgress: totalDuration > 0 ? Math.min(t / totalDuration, 1) : verseProgress,
         particles,
         time: now - startPerfTime,
-        customMediaElement,
+        customMediaElement: activeCustomMedia,
         persianTafsirText: activePersianText,
       });
 

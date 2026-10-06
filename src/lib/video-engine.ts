@@ -316,9 +316,15 @@ function drawCenterVerse(
   const maxContentWidth = width - paddingX * 2;
 
   // Format Arabic text with Ayah end glyph ۝
+  const scriptKey = config.arabicScriptType || 'text_uthmani';
+  // @ts-ignore
+  let rawText = verse[scriptKey] || verse.text_uthmani;
+  if (typeof rawText === 'string') {
+    rawText = cleanTranslationText(rawText);
+  }
   const arabicText = config.showAyahNumber
-    ? `${verse.text_uthmani} ۝${toArabicDigits(verse.verse_number)}`
-    : verse.text_uthmani;
+    ? `${rawText} ۝${toArabicDigits(verse.verse_number)}`
+    : rawText;
 
   const arabicFontSize = config.arabicFontSize || 38;
   ctx.font = `600 ${arabicFontSize}px "${config.arabicFontFamily || 'Amiri Quran'}", "Amiri", serif`;

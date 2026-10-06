@@ -75,7 +75,7 @@ export async function fetchVerses(
 
     // Fetch pages until we cover the requested range
     while (hasMore) {
-      const url = `${BASE_URL}/verses/by_chapter/${chapterId}?language=en&words=true&translations=${translationId}&fields=text_uthmani,chapter_id,verse_number,verse_key&page=${page}&per_page=${perPage}`;
+      const url = `${BASE_URL}/verses/by_chapter/${chapterId}?language=en&words=true&translations=${translationId}&fields=text_uthmani,text_uthmani_simple,text_indopak,text_imlaei,text_imlaei_simple,text_uthmani_tajweed,image_url,chapter_id,verse_number,verse_key&page=${page}&per_page=${perPage}`;
       const res = await fetch(url);
       if (!res.ok) {
         throw new Error(`Failed to fetch verses page ${page}: ${res.statusText}`);

@@ -36,11 +36,25 @@ export interface VerseTranslation {
   text: string;
 }
 
+export type ArabicScriptType = 
+  | 'text_uthmani' 
+  | 'text_uthmani_simple' 
+  | 'text_indopak' 
+  | 'text_imlaei' 
+  | 'text_imlaei_simple' 
+  | 'text_uthmani_tajweed';
+
 export interface Verse {
   id: number;
   verse_number: number;
   verse_key: string;
   text_uthmani: string;
+  text_uthmani_simple?: string;
+  text_indopak?: string;
+  text_imlaei?: string;
+  text_imlaei_simple?: string;
+  text_uthmani_tajweed?: string;
+  image_url?: string;
   words?: Word[];
   translations?: VerseTranslation[];
   persianTafsir?: string;
@@ -67,7 +81,8 @@ export type BackgroundPresetId =
   | 'gold'
   | 'rain'
   | 'oled'
-  | 'desert';
+  | 'desert'
+  | 'api-image';
 
 export interface BackgroundPreset {
   id: BackgroundPresetId;
@@ -119,7 +134,8 @@ export interface VideoConfig {
   progressBarColor: string;
 
   // Typography & Toggles
-  arabicFontFamily: 'Amiri' | 'Amiri Quran' | 'Scheherazade New';
+  arabicScriptType?: ArabicScriptType;
+  arabicFontFamily: 'Amiri' | 'Amiri Quran' | 'Scheherazade New' | 'Lateef' | 'Harmattan' | 'Aref Ruqaa';
   showTranslation: boolean;
   showSurahBadge: boolean;
   showAyahNumber: boolean;

@@ -9,9 +9,10 @@ export interface UserPreferences {
   translationName: string;
 
   // Typography & Sizing
-  arabicFontSize: number; // 24 to 52 (default: 34)
+  arabicScriptType?: import('@/types/quran').ArabicScriptType;
+  arabicFontSize: number; // 24 to 100 (default: 34)
   translationFontSize: number; // 12 to 24 (default: 16)
-  arabicFontFamily: 'Amiri Quran' | 'Scheherazade New' | 'Amiri';
+  arabicFontFamily: 'Amiri' | 'Amiri Quran' | 'Scheherazade New' | 'Lateef' | 'Harmattan' | 'Aref Ruqaa';
 
   // Colors & Aesthetics
   useCustomColors: boolean;

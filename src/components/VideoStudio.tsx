@@ -259,6 +259,15 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       },
     },
     {
+      id: 'api-image',
+      title: 'API Image',
+      subtitle: 'Verse Art',
+      particleType: 'minimal',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+      },
+    },
+    {
       id: 'oled',
       title: 'Minimal',
       subtitle: 'Plain',
@@ -836,6 +845,45 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
             </div>
 
+            {/* Arabic Script & Font Family Selectors */}
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                  Quran Script
+                </label>
+                <select
+                  value={config.arabicScriptType || 'text_uthmani'}
+                  onChange={(e) => onChangeConfig({ arabicScriptType: e.target.value as any })}
+                  className="w-full text-[11px] font-semibold rounded-xl bg-white dark:bg-[#0B1325] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs"
+                >
+                  <option value="text_uthmani">Uthmani (Fahd)</option>
+                  <option value="text_uthmani_simple">Uthmani Simple</option>
+                  <option value="text_uthmani_tajweed">Uthmani Tajweed</option>
+                  <option value="text_indopak">IndoPak</option>
+                  <option value="text_imlaei">Imlaei (Standard)</option>
+                  <option value="text_imlaei_simple">Imlaei Simple</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                  Text Font
+                </label>
+                <select
+                  value={config.arabicFontFamily || 'Amiri'}
+                  onChange={(e) => onChangeConfig({ arabicFontFamily: e.target.value as any })}
+                  className="w-full text-[11px] font-semibold rounded-xl bg-white dark:bg-[#0B1325] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs"
+                >
+                  <option value="Amiri">Amiri (Classic)</option>
+                  <option value="Amiri Quran">Amiri Quran</option>
+                  <option value="Scheherazade New">Scheherazade</option>
+                  <option value="Lateef">Lateef</option>
+                  <option value="Harmattan">Harmattan</option>
+                  <option value="Aref Ruqaa">Aref Ruqaa</option>
+                </select>
+              </div>
+            </div>
+
             {/* Arabic Font Size Slider */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -845,7 +893,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               <input
                 type="range"
                 min={22}
-                max={52}
+                max={100}
                 value={config.arabicFontSize}
                 onChange={(e) => onChangeConfig({ arabicFontSize: Number(e.target.value) })}
                 className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-lg cursor-pointer"
