@@ -303,6 +303,7 @@ export const DEFAULT_VIDEO_CONFIG: VideoConfig = {
 
   overlayOpacity: 0.55,
   glowEffect: false,
+  textMotion: false,
   fps: 30,
   playbackSpeed: 1.0,
 

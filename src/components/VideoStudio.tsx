@@ -961,6 +961,21 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 {config.glowEffect ? 'Active ✨' : 'Off'}
               </button>
             </div>
+
+            {/* Text Motion (Floating) Toggle */}
+            <div className="flex items-center justify-between pt-1 text-xs text-slate-700 dark:text-slate-300">
+              <span>Text Motion (Floating)</span>
+              <button
+                onClick={() => onChangeConfig({ textMotion: !config.textMotion })}
+                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${
+                  config.textMotion
+                    ? 'bg-emerald-500/15 border-emerald-500 dark:border-emerald-400 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {config.textMotion ? 'Active 🌊' : 'Off'}
+              </button>
+            </div>
           </div>
         )}
 

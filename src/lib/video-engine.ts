@@ -288,7 +288,7 @@ function drawCenterVerse(
   ctx.save();
 
   // Subtle breathing float animation
-  const floatOffset = Math.sin(progress * Math.PI) * 8;
+  const floatOffset = config.textMotion ? Math.sin(progress * Math.PI) * 8 : 0;
   const centerY = height * 0.48 + floatOffset;
 
   // 1. Top Surah & Ayah Header ("Ayah" & "Surah {name}, Ayah {number}")
