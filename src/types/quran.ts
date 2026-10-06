@@ -82,6 +82,10 @@ export type BackgroundPresetId =
   | 'rain'
   | 'oled'
   | 'desert'
+  | 'sapphire'
+  | 'ruby'
+  | 'amethyst'
+  | 'forest'
   | 'api-image';
 
 export interface BackgroundPreset {

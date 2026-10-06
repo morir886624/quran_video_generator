@@ -268,40 +268,50 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       },
     },
     {
+      id: 'sapphire',
+      title: 'Sapphire',
+      subtitle: 'Oceanic',
+      particleType: 'glow',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #061E3E 0%, #020B16 100%)',
+      },
+    },
+    {
+      id: 'ruby',
+      title: 'Ruby',
+      subtitle: 'Dusk',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #2E060E 0%, #140104 100%)',
+      },
+      hasGoldDots: true,
+    },
+    {
+      id: 'amethyst',
+      title: 'Amethyst',
+      subtitle: 'Sky',
+      particleType: 'stars',
+      cardStyle: {
+        background: 'radial-gradient(circle at 50% 50%, #18062B 0%, #0A0214 100%)',
+      },
+      hasWhiteDots: true,
+    },
+    {
+      id: 'forest',
+      title: 'Ancient',
+      subtitle: 'Forest',
+      particleType: 'rain',
+      cardStyle: {
+        background: 'linear-gradient(180deg, #032211 0%, #011209 100%)',
+      },
+    },
+    {
       id: 'oled',
       title: 'Minimal',
       subtitle: 'Plain',
       particleType: 'minimal',
       cardStyle: {
         background: '#121829',
-      },
-    },
-    {
-      id: 'midnight',
-      title: 'Galaxy',
-      subtitle: 'Nebula',
-      particleType: 'stars',
-      cardStyle: {
-        background: 'radial-gradient(circle at 50% 50%, #1E1B4B 0%, #0B0F19 100%)',
-      },
-      hasWhiteDots: true,
-    },
-    {
-      id: 'desert',
-      title: 'Sunset',
-      subtitle: 'Warm Dusk',
-      particleType: 'glow',
-      cardStyle: {
-        background: 'linear-gradient(135deg, #4A1D2F 0%, #1A0B16 100%)',
-      },
-    },
-    {
-      id: 'rain',
-      title: 'Deep Ocean',
-      subtitle: 'Aquatic',
-      particleType: 'rain',
-      cardStyle: {
-        background: 'linear-gradient(180deg, #042533 0%, #02111A 100%)',
       },
     },
   ];
@@ -934,6 +944,21 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 }`}
               >
                 {config.showAyahNumber !== false ? 'Shown (۝)' : 'Hidden'}
+              </button>
+            </div>
+
+            {/* Text Glow Effect Toggle */}
+            <div className="flex items-center justify-between pt-1 text-xs text-slate-700 dark:text-slate-300">
+              <span>Text Glow (Shiny Effect)</span>
+              <button
+                onClick={() => onChangeConfig({ glowEffect: !config.glowEffect })}
+                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${
+                  config.glowEffect
+                    ? 'bg-emerald-500/15 border-emerald-500 dark:border-emerald-400 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {config.glowEffect ? 'Active ✨' : 'Off'}
               </button>
             </div>
           </div>

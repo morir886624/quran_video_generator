@@ -173,6 +173,38 @@ export const BACKGROUND_PRESETS: BackgroundPreset[] = [
     accentColor: '#EC4899',
     particleType: 'glow',
   },
+  {
+    id: 'sapphire',
+    name: 'Sapphire Depths',
+    description: 'Deep oceanic blue with floating mist',
+    gradientColors: ['#061E3E', '#103768', '#020B16'],
+    accentColor: '#60A5FA',
+    particleType: 'glow',
+  },
+  {
+    id: 'ruby',
+    name: 'Ruby Dusk',
+    description: 'Deep crimson night with golden dust',
+    gradientColors: ['#2E060E', '#4C0816', '#140104'],
+    accentColor: '#F43F5E',
+    particleType: 'dust',
+  },
+  {
+    id: 'amethyst',
+    name: 'Amethyst Sky',
+    description: 'Mystical deep purple and violet cosmic sky',
+    gradientColors: ['#18062B', '#2A0B4D', '#0A0214'],
+    accentColor: '#C084FC',
+    particleType: 'stars',
+  },
+  {
+    id: 'forest',
+    name: 'Ancient Forest',
+    description: 'Serene deep jungle green with falling leaves',
+    gradientColors: ['#032211', '#063B1F', '#011209'],
+    accentColor: '#34D399',
+    particleType: 'rain',
+  },
 ];
 
 export const POPULAR_PRESETS = [
@@ -270,7 +302,7 @@ export const DEFAULT_VIDEO_CONFIG: VideoConfig = {
   persianTextColor: '#FDE68A',
 
   overlayOpacity: 0.55,
-  glowEffect: true,
+  glowEffect: false,
   fps: 30,
   playbackSpeed: 1.0,
 
