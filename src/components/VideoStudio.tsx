@@ -210,6 +210,15 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
     hasGoldDots?: boolean;
   }[] = [
     {
+      id: 'api-image',
+      title: 'API Image',
+      subtitle: 'Verse Art',
+      particleType: 'minimal',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+      },
+    },
+    {
       id: 'midnight',
       title: 'Midnight',
       subtitle: 'Stars',
@@ -256,15 +265,6 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       particleType: 'glow',
       cardStyle: {
         background: 'radial-gradient(circle at 50% 50%, #3B234A 0%, #140C1A 85%)',
-      },
-    },
-    {
-      id: 'api-image',
-      title: 'API Image',
-      subtitle: 'Verse Art',
-      particleType: 'minimal',
-      cardStyle: {
-        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
       },
     },
     {
@@ -550,8 +550,8 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
             )}
 
-            {/* Smoothly Scrollable Theme Grid with hidden scrollbar icons */}
-            <div className="max-h-[164px] overflow-y-auto no-scrollbar scroll-smooth pr-0.5">
+            {/* Smoothly Scrollable Theme Grid */}
+            <div className="max-h-[164px] overflow-y-auto scroll-smooth pr-0.5 custom-scrollbar">
               <div className="grid grid-cols-3 gap-2">
                 {THEMES.map((th, index) => {
                   const isSelected = config.backgroundPreset === th.id && !config.customMediaUrl;
