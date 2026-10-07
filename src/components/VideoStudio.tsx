@@ -209,6 +209,243 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
     hasWhiteDots?: boolean;
     hasGoldDots?: boolean;
   }[] = [
+    // 13 Image Presets
+    {
+      id: 'parchment',
+      title: 'Parchment',
+      subtitle: 'Classic',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #D7C8A9 0%, #BFA67D 100%)',
+        backgroundImage: 'url(/backgrounds/parchment-1.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    {
+      id: 'dark-paper',
+      title: 'Charcoal',
+      subtitle: 'Paper',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #2c2c2e 0%, #121214 100%)',
+        backgroundImage: 'url(/backgrounds/dark-paper-1.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    {
+      id: 'terracotta',
+      title: 'Terracotta',
+      subtitle: 'Plaster',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #B5654C 0%, #592D1F 100%)',
+        backgroundImage: 'url(/backgrounds/terracotta-1.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    {
+      id: 'canyon',
+      title: 'Desert Canyon',
+      subtitle: 'Gorge',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #d97d4c 0%, #591a0c 100%)',
+        backgroundImage: 'url(/backgrounds/canyon.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    {
+      id: 'city-gate',
+      title: 'City Gate',
+      subtitle: 'Ancient',
+      particleType: 'stars',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #263b52 0%, #08101a 100%)',
+        backgroundImage: 'url(/backgrounds/city-gate.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    {
+      id: 'arch-garden',
+      title: 'Arch Garden',
+      subtitle: 'Islamic',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #385947 0%, #0d1a12 100%)',
+        backgroundImage: 'url(/backgrounds/arch-garden.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    {
+      id: 'mountain-sunrise',
+      title: 'Mountain',
+      subtitle: 'Sunrise',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #c96452 0%, #331016 100%)',
+        backgroundImage: 'url(/backgrounds/mountain-sunrise.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    {
+      id: 'village',
+      title: 'Village',
+      subtitle: 'Sunset',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #d99a77 0%, #663b26 100%)',
+        backgroundImage: 'url(/backgrounds/village.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    {
+      id: 'olive-valley',
+      title: 'Olive Valley',
+      subtitle: 'River',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #4a6b51 0%, #141f16 100%)',
+        backgroundImage: 'url(/backgrounds/olive-valley.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    {
+      id: 'oasis',
+      title: 'Peaceful',
+      subtitle: 'Oasis',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #336e6a 0%, #0d2422 100%)',
+        backgroundImage: 'url(/backgrounds/oasis.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    {
+      id: 'persian-valley',
+      title: 'Persian',
+      subtitle: 'Valley',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #6d8c4c 0%, #1c2e11 100%)',
+        backgroundImage: 'url(/backgrounds/persian-valley.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    {
+      id: 'calm-sea',
+      title: 'Calm Sea',
+      subtitle: 'Diorama',
+      particleType: 'stars',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #1a3c63 0%, #06101c 100%)',
+        backgroundImage: 'url(/backgrounds/calm-sea.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    {
+      id: 'sea-frameless',
+      title: 'Calm Sea',
+      subtitle: 'Frameless',
+      particleType: 'stars',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #1a3c63 0%, #06101c 100%)',
+        backgroundImage: 'url(/backgrounds/sea-frameless.jpg)',
+        backgroundSize: 'cover',
+      },
+    },
+    // 13 CSS Themes
+    {
+      id: 'aurora',
+      title: 'Aurora',
+      subtitle: 'Borealis',
+      particleType: 'glow',
+      cardStyle: { background: 'linear-gradient(135deg, #0B1B3D 0%, #061325 100%)' },
+    },
+    {
+      id: 'dusk',
+      title: 'Violet',
+      subtitle: 'Dusk',
+      particleType: 'stars',
+      cardStyle: { background: 'linear-gradient(135deg, #2A1625 0%, #160B12 100%)' },
+    },
+    {
+      id: 'dawn',
+      title: 'Soft',
+      subtitle: 'Dawn',
+      particleType: 'dust',
+      cardStyle: { background: 'linear-gradient(135deg, #30303A 0%, #181B21 100%)' },
+    },
+    {
+      id: 'nebula',
+      title: 'Cosmic',
+      subtitle: 'Nebula',
+      particleType: 'stars',
+      cardStyle: { background: 'linear-gradient(135deg, #1A0B2E 0%, #0D0516 100%)' },
+    },
+    {
+      id: 'abyss',
+      title: 'Ocean',
+      subtitle: 'Abyss',
+      particleType: 'dust',
+      cardStyle: { background: 'linear-gradient(135deg, #040812 0%, #020409 100%)' },
+    },
+    {
+      id: 'twilight',
+      title: 'Blue',
+      subtitle: 'Twilight',
+      particleType: 'minimal',
+      cardStyle: { background: 'linear-gradient(135deg, #1E213A 0%, #0F111C 100%)' },
+    },
+    {
+      id: 'crimson-sky',
+      title: 'Crimson',
+      subtitle: 'Sky',
+      particleType: 'dust',
+      cardStyle: { background: 'linear-gradient(135deg, #3D1418 0%, #1F0A0C 100%)' },
+    },
+    {
+      id: 'sandstorm',
+      title: 'Desert',
+      subtitle: 'Sandstorm',
+      particleType: 'dust',
+      cardStyle: { background: 'linear-gradient(135deg, #3A2818 0%, #1D140C 100%)' },
+    },
+    {
+      id: 'ocean-deep',
+      title: 'Deep',
+      subtitle: 'Blue Sea',
+      particleType: 'glow',
+      cardStyle: { background: 'linear-gradient(135deg, #061A2B 0%, #030D15 100%)' },
+    },
+    {
+      id: 'forest-mist',
+      title: 'Forest',
+      subtitle: 'Mist',
+      particleType: 'rain',
+      cardStyle: { background: 'linear-gradient(135deg, #10241A 0%, #08120D 100%)' },
+    },
+    {
+      id: 'golden-hour',
+      title: 'Golden',
+      subtitle: 'Hour',
+      particleType: 'glow',
+      cardStyle: { background: 'linear-gradient(135deg, #3D2B14 0%, #1F150A 100%)' },
+    },
+    {
+      id: 'moonlight',
+      title: 'Moonlight',
+      subtitle: 'Shadow',
+      particleType: 'stars',
+      cardStyle: { background: 'linear-gradient(135deg, #121A2F 0%, #090D17 100%)' },
+    },
+    {
+      id: 'starlight',
+      title: 'Starlight',
+      subtitle: 'Void',
+      particleType: 'stars',
+      cardStyle: { background: 'linear-gradient(135deg, #0B0D17 0%, #05060B 100%)' },
+    },
+    // Default Themes
     {
       id: 'api-image',
       title: 'API Image',
@@ -313,7 +550,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       cardStyle: {
         background: '#121829',
       },
-    },
+    }
   ];
 
   return (
@@ -564,17 +801,16 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
             <div className="max-h-[164px] overflow-y-auto scroll-smooth pr-0.5 custom-scrollbar">
               <div className="grid grid-cols-3 gap-2">
                 {THEMES.map((th, index) => {
-                  const isSelected = config.backgroundPreset === th.id && !config.customMediaUrl;
+                  const isSelected = config.backgroundPreset === th.id;
                   return (
                     <button
                       key={`${th.id}-${index}`}
                       onClick={() =>
                         onChangeConfig({
                           backgroundPreset: th.id,
-                          customMediaUrl: null,
-                          customMediaType: null,
                           particleType: th.particleType,
                           enableParticles: true,
+                          overlayOpacity: 0.48, // Reset vignette
                         })
                       }
                       className={`relative flex flex-col justify-end p-2.5 rounded-2xl h-[78px] text-left transition-all overflow-hidden border ${
@@ -827,30 +1063,61 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 </select>
               </div>
 
-              {/* Backdrop Cadre (Card) Style selector */}
+              {/* Text Card Background Style selector */}
               <div className="flex items-center justify-between pt-1">
                 <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                  Backdrop Cadre (Card)
+                  Text Card Background
                 </span>
                 <select
-                  value={
-                    config.overlayOpacity === 0
-                      ? 'none'
-                      : config.overlayOpacity === 0.75
-                      ? 'solid'
-                      : 'glass'
-                  }
+                  value={config.cardBackgroundPreset || 'glass'}
                   onChange={(e) => {
                     const v = e.target.value;
-                    onChangeConfig({
-                      overlayOpacity: v === 'none' ? 0 : v === 'solid' ? 0.75 : 0.48,
+                    onChangeConfig({ 
+                      cardBackgroundPreset: v,
+                      overlayOpacity: 0.48
                     });
                   }}
                   className="text-[11px] font-semibold rounded-lg bg-white dark:bg-[#0B1325] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
                 >
-                  <option value="glass">Glass Card (Default)</option>
-                  <option value="solid">Dark Card</option>
-                  <option value="none">None (Transparent)</option>
+                  <optgroup label="Basic Transparency">
+                    <option value="none">None (Transparent)</option>
+                    <option value="light-glass">Light Glass</option>
+                    <option value="glass">Glass Card (Default)</option>
+                    <option value="heavy-glass">Heavy Glass</option>
+                    <option value="solid">Dark Card</option>
+                    <option value="pitch-black">Pitch Black</option>
+                  </optgroup>
+                  <optgroup label="Color / Gradient Effects">
+                    {THEMES.map(th => (
+                      <option key={`card-${th.id}`} value={th.id}>{th.title}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              {/* Video Background Effect selector */}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                  Video Background Effect
+                </span>
+                <select
+                  value={config.videoFilter || 'none'}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    onChangeConfig({ 
+                      videoFilter: v,
+                    });
+                  }}
+                  className="text-[11px] font-semibold rounded-lg bg-white dark:bg-[#0B1325] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="none">None (Original)</option>
+                  <option value="grayscale(100%)">Grayscale</option>
+                  <option value="sepia(80%)">Sepia (Vintage)</option>
+                  <option value="sepia(30%) saturate(140%) hue-rotate(-10deg)">Warm</option>
+                  <option value="saturate(120%) hue-rotate(180deg)">Cool</option>
+                  <option value="brightness(80%) sepia(30%) hue-rotate(180deg) saturate(200%)">Blue (Twilight)</option>
+                  <option value="contrast(120%) saturate(110%) brightness(90%)">Cinematic</option>
+                  <option value="contrast(150%)">High Contrast</option>
                 </select>
               </div>
             </div>
@@ -868,11 +1135,16 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 >
                   <option value="text_uthmani">Uthmani (Fahd)</option>
                   <option value="text_uthmani_simple">Uthmani Simple</option>
-                  <option value="text_uthmani_tajweed">Uthmani Tajweed</option>
+                  <option value="text_uthmani_tajweed">Uthmani Tajweed (No Colors)</option>
                   <option value="text_indopak">IndoPak</option>
                   <option value="text_imlaei">Imlaei (Standard)</option>
                   <option value="text_imlaei_simple">Imlaei Simple</option>
                 </select>
+                {config.arabicScriptType === 'text_uthmani_tajweed' && (
+                  <p className="text-[9px] text-amber-600 dark:text-amber-400 mt-1 leading-tight">
+                    *Tajweed colors require HTML/CSS which isn't supported by the canvas video exporter. Text will render in plain color.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -1061,7 +1333,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               })}
 
               {/* Native color picker */}
-              <label className="flex flex-col items-center p-1.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer min-w-[50px] shrink-0">
+              <label className="relative flex flex-col items-center p-1.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer min-w-[50px] shrink-0">
                 <div className="w-6 h-6 rounded-lg mb-1 border border-slate-300 dark:border-white/20 flex items-center justify-center text-slate-500 dark:text-slate-400">
                   <Palette className="w-3 h-3" />
                 </div>
@@ -1081,7 +1353,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                     else if (colorTarget === 'translation') onChangeConfig({ translationTextColor: v });
                     else onChangeConfig({ badgeTextColor: v, surahTitleColor: v, progressBarColor: v });
                   }}
-                  className="sr-only"
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                 />
               </label>
             </div>

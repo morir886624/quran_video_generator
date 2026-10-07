@@ -12,6 +12,7 @@ import {
   StitchedAudioPlayer,
   stitchAudioBuffers,
 } from '@/lib/audio-stitcher';
+import { BACKGROUND_PRESETS } from '@/lib/constants';
 import { fetchPersianTafsirSurah } from '@/lib/quran-api';
 import {
   Play,
@@ -135,7 +136,15 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
 
     if (!config.customMediaUrl) {
-      customMediaElRef.current = null;
+      const preset = BACKGROUND_PRESETS.find((p) => p.id === config.backgroundPreset);
+      if (preset?.imageUrl) {
+        const img = new Image();
+        img.src = preset.imageUrl;
+        img.crossOrigin = 'anonymous';
+        customMediaElRef.current = img;
+      } else {
+        customMediaElRef.current = null;
+      }
       return;
     }
 

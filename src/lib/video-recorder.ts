@@ -3,6 +3,7 @@ import { createParticles, getCanvasDimensions, renderVideoFrame } from './video-
 import { stitchAudioBuffers, StitchedAudioResult } from './audio-stitcher';
 import { fetchPersianTafsirSurah } from './quran-api';
 import { fixVideoDuration } from './fix-video-duration';
+import { BACKGROUND_PRESETS } from './constants';
 import { Share } from '@capacitor/share';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -229,6 +230,18 @@ export async function exportVideo({
     } else {
       const imgEl = new Image();
       imgEl.src = config.customMediaUrl;
+      imgEl.crossOrigin = 'anonymous';
+      await new Promise((res) => {
+        imgEl.onload = res;
+        imgEl.onerror = res;
+      });
+      customMediaElement = imgEl;
+    }
+  } else {
+    const preset = BACKGROUND_PRESETS.find((p: any) => p.id === config.backgroundPreset);
+    if (preset?.imageUrl) {
+      const imgEl = new Image();
+      imgEl.src = preset.imageUrl;
       imgEl.crossOrigin = 'anonymous';
       await new Promise((res) => {
         imgEl.onload = res;

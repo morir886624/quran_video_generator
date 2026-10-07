@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Chapter, Verse, Reciter, TafsirEditionId } from '@/types/quran';
+import { Chapter, Verse, Reciter, TafsirEditionId, ArabicScriptType } from '@/types/quran';
 import { UserPreferences } from '@/lib/preferences';
 import { SurahBanner } from './SurahBanner';
 import {
@@ -478,7 +478,10 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   // ---------------------------------------------------------------------------
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [showWordByWord, setShowWordByWord] = useState<boolean>(
-    preferences?.showWordByWord ?? false
+    preferences?.showWordByWord ?? true
+  );
+  const [localScriptType, setLocalScriptType] = useState<ArabicScriptType>(
+    preferences?.arabicScriptType || 'text_uthmani_tajweed'
   );
 
   useEffect(() => {
@@ -763,6 +766,42 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
             <div className="hidden sm:block w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
 
+            {/* Script Type Segmented Control */}
+            <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
+              <button
+                onClick={() => setLocalScriptType('text_uthmani_tajweed')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  localScriptType === 'text_uthmani_tajweed'
+                    ? 'bg-white dark:bg-[#0B1120] text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              >
+                تجويد
+              </button>
+              <button
+                onClick={() => setLocalScriptType('text_indopak')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  localScriptType === 'text_indopak'
+                    ? 'bg-white dark:bg-[#0B1120] text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              >
+                IndoPak
+              </button>
+              <button
+                onClick={() => setLocalScriptType('text_uthmani')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  localScriptType === 'text_uthmani'
+                    ? 'bg-white dark:bg-[#0B1120] text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              >
+                عثماني
+              </button>
+            </div>
+
+            <div className="hidden sm:block w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
             {/* Info and Translation Shortcuts */}
             <div className="flex items-center gap-1.5">
               <button
@@ -918,7 +957,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
                 {/* Arabic Calligraphy Verse Text */}
                 <div
-                  className={`text-right font-semibold leading-[2.2] sm:leading-[2.4] tracking-wide mb-4 select-text ${
+                  className={`text-right font-semibold leading-[2.2] sm:leading-[2.4] tracking-wide mb-4 select-text flex flex-wrap flex-row-reverse ${
                     !preferences?.arabicFontSize ? 'text-2xl sm:text-3xl md:text-4xl' : ''
                   } ${
                     !preferences?.useCustomColors ? 'text-slate-900 dark:text-white' : ''
@@ -932,45 +971,71 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                       ? preferences.arabicTextColor
                       : undefined,
                   }}
+                  dir="rtl"
                 >
-                  {/* @ts-ignore */}
-                  {cleanTranslationText(verse[preferences?.arabicScriptType || 'text_uthmani'] || verse.text_uthmani)}
-                  {preferences?.showAyahNumber !== false && (
-                    <span
-                      className="inline-block font-bold mx-2"
-                      style={{
-                        color: preferences?.accentColor || undefined,
-                        fontSize: preferences?.arabicFontSize
-                          ? `${Math.max(16, Math.round(preferences.arabicFontSize * 0.65))}px`
-                          : undefined,
-                      }}
-                    >
-                      ۝{verse.verse_number}
-                    </span>
+                  {showWordByWord && verse.words && verse.words.length > 0 ? (
+                    verse.words.map((w) => {
+                      const scriptType = localScriptType;
+                      // @ts-ignore
+                      let wordText = w[scriptType] || w.text_uthmani || w.text;
+                      if (w.char_type_name === 'end') {
+                        return (
+                          <span
+                            key={w.id}
+                            className="inline-block font-bold mx-2 relative group cursor-default"
+                            style={{
+                              color: preferences?.accentColor || undefined,
+                              fontSize: preferences?.arabicFontSize
+                                ? `${Math.max(16, Math.round(preferences.arabicFontSize * 0.65))}px`
+                                : undefined,
+                            }}
+                          >
+                            ۝{verse.verse_number}
+                          </span>
+                        );
+                      }
+                      return (
+                        <div key={w.id} className="relative group inline-block mx-1 sm:mx-1.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-colors px-1">
+                          {scriptType === 'text_uthmani_tajweed' ? (
+                             <span dangerouslySetInnerHTML={{ __html: wordText }} />
+                          ) : (
+                             <span>{wordText}</span>
+                          )}
+                          
+                          {/* Tooltip */}
+                          {w.translation?.text && (
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 w-max max-w-[150px]">
+                              <div className="bg-slate-900 dark:bg-slate-800 text-white text-[11px] sm:text-xs font-sans px-2.5 py-1.5 rounded-lg shadow-xl text-center border border-slate-700/50">
+                                {w.translation.text}
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <>
+                      {/* @ts-ignore */}
+                      <span dangerouslySetInnerHTML={{ __html: cleanTranslationText(verse[localScriptType] || verse.text_uthmani) }} />
+                      {preferences?.showAyahNumber !== false && (
+                        <span
+                          className="inline-block font-bold mx-2"
+                          style={{
+                            color: preferences?.accentColor || undefined,
+                            fontSize: preferences?.arabicFontSize
+                              ? `${Math.max(16, Math.round(preferences.arabicFontSize * 0.65))}px`
+                              : undefined,
+                          }}
+                        >
+                          ۝{verse.verse_number}
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
 
-                {/* Optional Word-by-Word Breakdown Display */}
-                {showWordByWord && verse.words && verse.words.length > 0 && (
-                  <div className="flex flex-wrap flex-row-reverse gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 mb-4">
-                    {verse.words.map((w) => (
-                      <div
-                        key={w.id}
-                        className="flex flex-col items-center p-2 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/60 text-center min-w-[50px] shadow-xs"
-                      >
-                        <span className="font-quran text-lg text-emerald-950 dark:text-amber-200 font-bold">
-                          {w.text}
-                        </span>
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
-                          {w.transliteration?.text || ''}
-                        </span>
-                        <span className="text-[10px] text-slate-600 dark:text-slate-300">
-                          {w.translation?.text || ''}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+
 
                 {/* Translation Display */}
                 <div

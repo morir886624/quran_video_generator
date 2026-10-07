@@ -109,6 +109,11 @@ export function renderVideoFrame({
     BACKGROUND_PRESETS[0];
 
   // 1. Draw Background
+  ctx.save();
+  if (config.videoFilter && config.videoFilter !== 'none') {
+    ctx.filter = config.videoFilter;
+  }
+  
   if (customMediaElement) {
     try {
       ctx.drawImage(customMediaElement, 0, 0, width, height);
@@ -118,6 +123,7 @@ export function renderVideoFrame({
   } else {
     drawPresetBackground(ctx, width, height, preset, time);
   }
+  ctx.restore();
 
   // 2. Draw Particles / Motion Effects
   drawParticles(ctx, width, height, particles, preset.id, time);
@@ -392,13 +398,36 @@ function drawCenterVerse(
   const cardX = (width - cardWidth) / 2;
   const cardY = startArabicY - arabicLineHeight / 2 - cardPadY;
 
+  const cardStyle = config.cardBackgroundPreset || 'glass';
   const cadreAlpha = config.overlayOpacity !== undefined ? config.overlayOpacity : 0.48;
-  if (cadreAlpha > 0) {
-    ctx.fillStyle = `rgba(10, 15, 30, ${cadreAlpha})`;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.lineWidth = 1;
+
+  if (cardStyle !== 'none') {
     ctx.beginPath();
     ctx.roundRect(cardX, cardY, cardWidth, cardHeight, 28);
+    
+    const preset = BACKGROUND_PRESETS.find((p) => p.id === cardStyle);
+    if (preset) {
+      const gradient = ctx.createLinearGradient(cardX, cardY, cardX + cardWidth, cardY + cardHeight);
+      gradient.addColorStop(0, preset.gradientColors[1]);
+      gradient.addColorStop(0.5, preset.gradientColors[0]);
+      gradient.addColorStop(1, preset.gradientColors[2]);
+      ctx.fillStyle = gradient;
+    } else if (cardStyle === 'light-glass') {
+      ctx.fillStyle = `rgba(10, 15, 30, 0.25)`;
+    } else if (cardStyle === 'heavy-glass') {
+      ctx.fillStyle = `rgba(10, 15, 30, 0.65)`;
+    } else if (cardStyle === 'solid') {
+      ctx.fillStyle = `rgba(10, 15, 30, 0.75)`;
+    } else if (cardStyle === 'pitch-black') {
+      ctx.fillStyle = `rgba(0, 0, 0, 0.95)`;
+    } else if (cardStyle === 'glass' || cardStyle === 'default') {
+      ctx.fillStyle = `rgba(10, 15, 30, 0.48)`;
+    } else {
+      ctx.fillStyle = `rgba(10, 15, 30, ${cadreAlpha > 0 ? cadreAlpha : 0.48})`;
+    }
+    
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
     ctx.fill();
     ctx.stroke();
   }

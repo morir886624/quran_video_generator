@@ -120,3 +120,58 @@ body {
   border-bottom-left-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
 }
+
+
+/* Tajweed Color Rules (Quran.com styling) */
+.ham_wasl, .slient, .laam_shamsiyah, .madda_hidden {
+  color: #A0A0A0 !important; /* Gray for silent letters */
+}
+
+.madda_normal, .madda_necessery, .madda_obligatory {
+  color: #F59E0B !important; /* Orange for elongation (Madd) */
+}
+
+.madda_permissible {
+  color: #3B82F6 !important; /* Blue for permissible Madd (like the image) */
+}
+
+.qalaqah {
+  color: #0284C7 !important; /* Blue for Echo (Qalqalah) */
+}
+
+.idgham_shafawi, .idgham_with_ghunnah, .idgham_without_ghunnah, .ikhafa_shafawi, .ikhfa {
+  color: #10B981 !important; /* Green for Nasal/Merge (Ghunnah, Ikhfa, Idgham) */
+}
+
+.ghunnah {
+  color: #F43F5E !important; /* Rose/Red for heavy Ghunnah */
+}
+
+.dark .ham_wasl, .dark .slient, .dark .laam_shamsiyah, .dark .madda_hidden {
+  color: #64748B !important; /* Darker Gray */
+}
+
+.dark .madda_normal, .dark .madda_necessery, .dark .madda_obligatory {
+  color: #FBBF24 !important; /* Yellow-Orange */
+}
+
+.dark .madda_permissible {
+  color: #60A5FA !important; /* Light Blue */
+}
+
+.dark .qalaqah {
+  color: #38BDF8 !important; /* Cyan */
+}
+
+.dark .idgham_shafawi, .dark .idgham_with_ghunnah, .dark .idgham_without_ghunnah, .dark .ikhafa_shafawi, .dark .ikhfa {
+  color: #34D399 !important; /* Light Green */
+}
+
+.dark .ghunnah {
+  color: #FB7185 !important; /* Light Rose */
+}
+
+/* Tooltip Styles */
+.group:hover .group-hover\:visible {
+  visibility: visible;
+}

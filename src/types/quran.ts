@@ -20,6 +20,12 @@ export interface Word {
   audio_url: string | null;
   char_type_name: string;
   text: string;
+  text_uthmani?: string;
+  text_uthmani_simple?: string;
+  text_indopak?: string;
+  text_imlaei?: string;
+  text_imlaei_simple?: string;
+  text_uthmani_tajweed?: string;
   translation: {
     text: string;
     language_name: string;
@@ -76,6 +82,32 @@ export interface AyahAudioFile {
 export type AspectRatio = '9:16' | '1:1' | '16:9';
 
 export type BackgroundPresetId =
+  | 'parchment'
+  | 'dark-paper'
+  | 'terracotta'
+  | 'canyon'
+  | 'city-gate'
+  | 'arch-garden'
+  | 'mountain-sunrise'
+  | 'village'
+  | 'olive-valley'
+  | 'oasis'
+  | 'persian-valley'
+  | 'calm-sea'
+  | 'sea-frameless'
+  | 'aurora'
+  | 'dusk'
+  | 'dawn'
+  | 'nebula'
+  | 'abyss'
+  | 'twilight'
+  | 'crimson-sky'
+  | 'sandstorm'
+  | 'ocean-deep'
+  | 'forest-mist'
+  | 'golden-hour'
+  | 'moonlight'
+  | 'starlight'
   | 'midnight'
   | 'emerald'
   | 'gold'
@@ -95,6 +127,7 @@ export interface BackgroundPreset {
   gradientColors: [string, string, string];
   accentColor: string;
   particleType: 'stars' | 'geometric' | 'dust' | 'rain' | 'minimal' | 'glow';
+  imageUrl?: string;
 }
 
 export type PersianTafsirPosition = 'under' | 'above';
@@ -120,6 +153,8 @@ export interface VideoConfig {
   backgroundPreset: BackgroundPresetId;
   customMediaUrl: string | null;
   customMediaType: 'video' | 'image' | null;
+  videoFilter?: string;
+  cardBackgroundPreset?: string;
 
   // Text Sizing
   arabicFontSize: number;
