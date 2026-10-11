@@ -223,12 +223,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
               <span>Quran Reels &amp; Shorts Studio</span>
             </div>
 
-            {/* App Icon Rounded Container */}
-            <div className="relative group">
-              <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-3xl blur-md opacity-60 dark:opacity-40 group-hover:opacity-80 transition duration-500" />
-              <div className="relative w-20 h-20 sm:w-22 sm:h-22 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-800 flex items-center justify-center p-3.5 shadow-xl shadow-emerald-600/20 border border-emerald-400/30">
-                <BookOpen className="w-10 h-10 text-white" strokeWidth={2.2} />
-              </div>
+            {/* App Icon */}
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center">
+              <QuranLogo variant="icon" className="w-full h-full" />
             </div>
 
             {/* Holy Quran Verse Calligraphy */}
