@@ -687,7 +687,9 @@ export default function Home() {
               <VideoStudio
                 chapter={currentChapter}
                 verses={selectedVerses.length > 0 ? selectedVerses : verses.slice(0, 1)}
+                allChapterVerses={verses}
                 audioUrls={selectedAudioUrls}
+                chapterAudioMap={chapterAudioMap}
                 config={videoConfig}
                 onChangeConfig={(updates) =>
                   setVideoConfig((prev) => ({ ...prev, ...updates }))
@@ -701,6 +703,7 @@ export default function Home() {
                 onLoadProject={handleResumeSession}
                 onResetNewProject={handleResetNewProject}
                 onViewInCreations={() => setActiveTab('creations')}
+                onExportComplete={refreshCreationsCount}
                 theme={theme}
                 onToggleTheme={handleToggleTheme}
               />

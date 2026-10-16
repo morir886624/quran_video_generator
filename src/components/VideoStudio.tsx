@@ -37,7 +37,9 @@ import { storeCustomMedia, loadCustomMedia, clearCustomMedia } from '@/lib/custo
 interface VideoStudioProps {
   chapter: Chapter | null;
   verses: Verse[];
+  allChapterVerses?: Verse[];
   audioUrls: string[];
+  chapterAudioMap?: Record<string, string>;
   config: VideoConfig;
   onChangeConfig: (updates: Partial<VideoConfig>) => void;
   currentReciter: Reciter;
@@ -49,6 +51,7 @@ interface VideoStudioProps {
   onLoadProject?: (project: ProjectDraft) => void;
   onResetNewProject?: () => void;
   onViewInCreations?: () => void;
+  onExportComplete?: () => void;
   theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
 }
@@ -68,7 +71,9 @@ const PRESET_COLORS = [
 export const VideoStudio: React.FC<VideoStudioProps> = ({
   chapter,
   verses,
+  allChapterVerses,
   audioUrls,
+  chapterAudioMap,
   config,
   onChangeConfig,
   currentReciter,
@@ -80,6 +85,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   onLoadProject,
   onResetNewProject,
   onViewInCreations,
+  onExportComplete,
   theme,
   onToggleTheme,
 }) => {
@@ -1513,12 +1519,15 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         verses={verses}
+        allChapterVerses={allChapterVerses}
         audioUrls={audioUrls}
+        chapterAudioMap={chapterAudioMap}
         chapter={chapter}
         config={config}
         reciter={currentReciter}
         selectedTranslationId={selectedTranslationId}
         onViewInCreations={onViewInCreations}
+        onExportComplete={onExportComplete}
       />
 
       {/* Reciter Modal */}

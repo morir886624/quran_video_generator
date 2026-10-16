@@ -106,12 +106,14 @@ export async function exportVideo({
   chapter,
   config,
   onProgress,
+  shouldCancel,
 }: {
   verses: Verse[];
   audioUrls: string[];
   chapter: Chapter | null;
   config: VideoConfig;
   onProgress?: (p: ExportProgress) => void;
+  shouldCancel?: () => boolean;
 }): Promise<{ blob: Blob; url: string; filename: string; duration: number }> {
   if (verses.length === 0) {
     throw new Error('No verses selected for video export.');
@@ -302,6 +304,13 @@ export async function exportVideo({
     let animId: number;
 
     const renderLoop = (now: number) => {
+      if (shouldCancel?.()) {
+        cancelAnimationFrame(animId);
+        audioCleanup();
+        resolveExport();
+        return;
+      }
+
       const audioElapsed = audioCtx.currentTime - startAudioTime;
       const t = Math.min(audioElapsed * speed, totalDuration);
 
@@ -368,6 +377,25 @@ export async function exportVideo({
 
     animId = requestAnimationFrame(renderLoop);
   });
+
+  if (customMediaElement && customMediaElement instanceof HTMLVideoElement) {
+    try {
+      customMediaElement.pause();
+      customMediaElement.removeAttribute('src');
+      customMediaElement.load();
+    } catch {}
+  }
+
+  if (shouldCancel?.()) {
+    try {
+      if (recorder.state !== 'inactive') {
+        recorder.stop();
+      }
+      audioCleanup();
+      await audioCtx.close();
+    } catch {}
+    throw new Error('Export cancelled');
+  }
 
   onProgress?.({
     percent: 100,
