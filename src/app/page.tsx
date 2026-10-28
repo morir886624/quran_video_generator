@@ -210,20 +210,21 @@ export default function Home() {
       setIsLoadingVerses(true);
       const activeTransId = transId || selectedTranslationId;
       const activeReciter = rec || currentReciterRef.current;
+
+      // Immediately update current chapter object so UI & background notification reflect the new Surah right away
+      setCurrentChapterId(chapterId);
+      try {
+        localStorage.setItem('quran_current_chapter_id', String(chapterId));
+      } catch {}
+      const allChapters = chaptersRef.current;
+      if (allChapters.length > 0) {
+        const chap = allChapters.find((c) => c.id === chapterId) || null;
+        if (chap) setCurrentChapter(chap);
+      }
+
       try {
         const fetchedVerses = await fetchVerses(chapterId, undefined, undefined, activeTransId);
         setVerses(fetchedVerses);
-        setCurrentChapterId(chapterId);
-        try {
-          localStorage.setItem('quran_current_chapter_id', String(chapterId));
-        } catch {}
-
-        // Update current chapter object
-        const allChapters = chaptersRef.current;
-        if (allChapters.length > 0) {
-          const chap = allChapters.find((c) => c.id === chapterId) || null;
-          setCurrentChapter(chap);
-        }
 
         // Set initial selected range if specified or new chapter
         const s = startAyah || 1;
@@ -650,7 +651,7 @@ export default function Home() {
 
       {/* Main Content Area */}
       <main className="flex-1 w-full">
-        {isLoadingVerses ? (
+        {isLoadingVerses && verses.length === 0 ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
             <Loader2 className="w-10 h-10 animate-spin text-emerald-400" />
             <p className="text-sm font-medium text-slate-400">
@@ -680,6 +681,7 @@ export default function Home() {
                 preferences={preferences}
                 onSelectAllVerses={handleSelectAllVerses}
                 onClearVerses={handleClearVerses}
+                onSwitchChapter={(id) => loadChapterData(id)}
               />
             )}
 

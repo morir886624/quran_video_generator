@@ -60,6 +60,7 @@ interface ReaderViewProps {
   chapterAudioMap?: Record<string, string>;
   onSelectAllVerses?: () => void;
   onClearVerses?: () => void;
+  onSwitchChapter?: (chapterId: number) => void;
 }
 
 export const ReaderView: React.FC<ReaderViewProps> = ({
@@ -82,6 +83,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   chapterAudioMap = {},
   onSelectAllVerses,
   onClearVerses,
+  onSwitchChapter,
 }) => {
   // ---------------------------------------------------------------------------
   // 1. Audio Playback & Sequential Recitation Pacer
@@ -392,8 +394,75 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isPlaying, autoScroll, verses]);
 
-  // Reset audio when chapter changes
+  const pendingAutoPlayChapterRef = useRef<number | null>(null);
+
+  // Switch to previous or next chapter and automatically play from Ayah 1 (for background controls)
+  const switchAndPlayChapter = useCallback(
+    (targetChapterId: number) => {
+      pendingAutoPlayChapterRef.current = targetChapterId;
+      currentPlayingIndexRef.current = 0;
+      setCurrentPlayingIndex(0);
+      setCurrentTime(0);
+
+      // Start playing Ayah 1 of the target chapter immediately so background audio never drops
+      const reciter = currentReciter || POPULAR_RECITERS[0];
+      const firstAyahUrl = getReciterAyahUrl(reciter, targetChapterId, 1);
+      if (!audioRef.current) {
+        audioRef.current = new Audio();
+      }
+      const audio = audioRef.current;
+      audio.src = firstAyahUrl;
+      try {
+        audio.currentTime = 0;
+      } catch {}
+      audio.volume = isMuted ? 0 : volume;
+      audio.preservesPitch = true;
+      (audio as any).webkitPreservesPitch = true;
+      (audio as any).mozPreservesPitch = true;
+      audio.playbackRate = playbackSpeed;
+
+      // Preload Ayah 2 of the target chapter right away
+      const secondAyahUrl = getReciterAyahUrl(reciter, targetChapterId, 2);
+      if (!preloadAudioRef.current) {
+        preloadAudioRef.current = new Audio();
+        preloadAudioRef.current.preload = 'auto';
+      }
+      preloadAudioRef.current.src = secondAyahUrl;
+      preloadAudioRef.current.load();
+
+      audio
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((err) => {
+          console.warn('Background chapter switch playback error:', err);
+        });
+
+      onSwitchChapter?.(targetChapterId);
+    },
+    [currentReciter, isMuted, volume, playbackSpeed, onSwitchChapter]
+  );
+
+  const handleNextChapter = useCallback(() => {
+    const nextId = chapter.id < 114 ? chapter.id + 1 : 1;
+    switchAndPlayChapter(nextId);
+  }, [chapter.id, switchAndPlayChapter]);
+
+  const handlePrevChapter = useCallback(() => {
+    const prevId = chapter.id > 1 ? chapter.id - 1 : 114;
+    switchAndPlayChapter(prevId);
+  }, [chapter.id, switchAndPlayChapter]);
+
+  // Reset audio when chapter changes (unless triggered by background Prev/Next chapter auto-play)
   useEffect(() => {
+    if (pendingAutoPlayChapterRef.current === chapter.id) {
+      currentPlayingIndexRef.current = 0;
+      setCurrentPlayingIndex(0);
+      setRangeStart(1);
+      setRangeEnd(Math.min(chapter.verses_count, 5));
+      return;
+    }
     if (audioRef.current) {
       audioRef.current.pause();
     }
@@ -405,7 +474,21 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     setDuration(0);
     setRangeStart(1);
     setRangeEnd(Math.min(chapter.verses_count, 5));
-  }, [chapter.id]);
+  }, [chapter.id, chapter.verses_count]);
+
+  // Complete chapter transition once new chapter verses arrive
+  useEffect(() => {
+    if (
+      pendingAutoPlayChapterRef.current === chapter.id &&
+      verses.length > 0 &&
+      verses[0]?.verse_key.startsWith(`${chapter.id}:`)
+    ) {
+      pendingAutoPlayChapterRef.current = null;
+      if (!audioRef.current || audioRef.current.paused) {
+        playVerseByIndex(0);
+      }
+    }
+  }, [chapter.id, verses, playVerseByIndex]);
 
   // Update volume & muted on existing audio element
   useEffect(() => {
@@ -456,9 +539,11 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     if (!isPlaying && currentTime === 0) return;
     const v = verses[currentPlayingIndex] || verses[0];
     const surahName = `Surah ${chapter.name_simple}`;
-    const ayahLabel = v ? `Ayah ${v.verse_number}` : '';
+    const isVersesSynced = v && v.verse_key.startsWith(`${chapter.id}:`);
+    const ayahNum = isVersesSynced ? v.verse_number : currentPlayingIndex + 1;
+    const ayahLabel = `Ayah ${ayahNum}`;
     updateBackgroundAudioSession({
-      title: ayahLabel ? `${surahName} • ${ayahLabel}` : surahName,
+      title: `${surahName} • ${ayahLabel}`,
       artist: currentReciterName || currentReciter?.name || 'Mishari Rashid Al-Afasy',
       album: surahName,
       isPlaying,
@@ -470,8 +555,8 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           audioRef.current?.pause();
           setIsPlaying(false);
         },
-        onNext: handleNextAyah,
-        onPrev: handlePrevAyah,
+        onNext: handleNextChapter,
+        onPrev: handlePrevChapter,
       },
     });
   }, [
@@ -479,12 +564,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     currentPlayingIndex,
     currentTime,
     verses,
+    chapter.id,
     chapter.name_simple,
     currentReciterName,
     currentReciter?.name,
     playVerseByIndex,
-    handleNextAyah,
-    handlePrevAyah,
+    handleNextChapter,
+    handlePrevChapter,
   ]);
 
   // Restart chapter from beginning
