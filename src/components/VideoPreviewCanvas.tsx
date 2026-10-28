@@ -462,7 +462,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   };
 
   return (
-    <div className="w-full max-w-[380px] sm:max-w-[395px] mx-auto rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-2xl shadow-slate-300/40 dark:shadow-black overflow-hidden flex flex-col relative transition-all h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px)-9px)] sm:h-[694px]">
+    <div className="w-full max-w-[380px] sm:max-w-xl md:max-w-2xl lg:max-w-3xl mx-auto rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-2xl shadow-slate-300/40 dark:shadow-black overflow-hidden flex flex-col relative transition-all h-[calc(100dvh-4rem-env(safe-area-inset-bottom,0px)-9px)] sm:h-[calc(100dvh-9.5rem-env(safe-area-inset-bottom,0px))] sm:min-h-[580px] sm:max-h-[1050px]">
       {/* Joint Top Bar at the top of the video frame */}
       <div className="shrink-0 z-20">
         {topBar}
@@ -500,7 +500,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
             borderBottomLeftRadius: '0px',
             borderBottomRightRadius: '0px',
           }}
-          className={`pointer-events-auto relative flex items-center gap-1.5 px-3 py-1.5 rounded-tab-top rounded-t-2xl rounded-b-none text-xs font-bold transition-all shadow-md border active:scale-95 cursor-pointer ${
+          className={`pointer-events-auto relative flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-tab-top rounded-t-2xl rounded-b-none text-xs sm:text-sm font-bold transition-all shadow-md border active:scale-95 cursor-pointer ${
             isToolsOpen
               ? 'bg-white/95 dark:bg-[#0E1626]/95 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/90 border-b-0'
               : 'bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 border-emerald-400 border-b-0 shadow-emerald-500/20'
@@ -514,7 +514,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       </div>
 
       {/* Docked Mobile Studio Editor & Audio Console */}
-      <div className={`rounded-b-2xl shrink-0 bg-white/95 dark:bg-[#0E1626]/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 pt-3 pb-3 flex flex-col gap-2 z-20 transition-all duration-300 ease-in-out ${
+      <div className={`rounded-b-2xl shrink-0 bg-white/95 dark:bg-[#0E1626]/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/80 px-3.5 sm:px-5 pt-3 pb-3 sm:pb-4 flex flex-col gap-2 sm:gap-2.5 z-20 transition-all duration-300 ease-in-out ${
         isToolsOpen ? 'shadow-[0_-12px_30px_rgba(0,0,0,0.3)]' : 'shadow-xl dark:shadow-2xl'
       }`}>
         {/* Fixed at top of tools modal: Category Tabs */}
@@ -526,7 +526,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
         {/* Scrollable Tool Options using space at bottom of page like before */}
         {isToolsOpen && (
-          <div className="flex flex-col gap-2.5 max-h-[260px] sm:max-h-[280px] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-200 rounded-t-lg">
+          <div className="flex flex-col gap-2.5 max-h-[260px] sm:max-h-[300px] md:max-h-[340px] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-200 rounded-t-lg">
             {children}
           </div>
         )}
@@ -546,7 +546,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
                 step="0.1"
                 value={totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0}
                 onChange={handleScrubberChange}
-                className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full cursor-pointer transition-colors"
+                className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1.5 sm:h-2 rounded-full cursor-pointer transition-colors"
                 title="Seek position"
               />
             </div>
@@ -556,13 +556,13 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
           </div>
 
           {/* 2. Primary Transport Controls & Volume */}
-          <div className="flex items-center justify-between px-1 sm:px-3 pt-0.5">
+          <div className="flex items-center justify-between px-1 sm:px-3 pt-0.5 sm:pt-1">
             {/* Left Controls: Speed, Restart, Previous */}
-            <div className="flex items-center gap-1 sm:gap-1.5 flex-1 justify-start">
+            <div className="flex items-center gap-1 sm:gap-2 flex-1 justify-start">
               {/* Playback Speed Pill Button */}
               <button
                 onClick={handleCycleSpeed}
-                className="min-w-[34px] px-1.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-[10.5px] font-bold font-mono text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200/60 dark:border-slate-700/60 active:scale-95 transition-all cursor-pointer"
+                className="min-w-[34px] sm:min-w-[40px] px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-[10.5px] sm:text-xs font-bold font-mono text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200/60 dark:border-slate-700/60 active:scale-95 transition-all cursor-pointer"
                 title={`Playback speed: ${playbackSpeed.toFixed(1)}x (Click to cycle)`}
                 aria-label={`Playback speed: ${playbackSpeed.toFixed(1)}x`}
               >
@@ -595,7 +595,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
             <div className="flex items-center justify-center shrink-0 px-1 sm:px-2">
               <button
                 onClick={togglePlay}
-                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-emerald-500 dark:bg-emerald-400 hover:bg-emerald-600 dark:hover:bg-emerald-300 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/25 active:scale-95 transition-all cursor-pointer"
+                className="w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-emerald-500 dark:bg-emerald-400 hover:bg-emerald-600 dark:hover:bg-emerald-300 text-white dark:text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/25 active:scale-95 transition-all cursor-pointer"
                 title={isPlaying ? 'Pause' : 'Play'}
                 aria-label={isPlaying ? 'Pause' : 'Play'}
               >
@@ -644,7 +644,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
                 step="0.05"
                 value={isMuted ? 0 : volume}
                 onChange={handleVolumeChange}
-                className="w-12 sm:w-16 accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full cursor-pointer transition-colors"
+                className="w-12 sm:w-20 md:w-24 accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1.5 sm:h-2 rounded-full cursor-pointer transition-colors"
                 title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
                 aria-label="Volume slider"
               />

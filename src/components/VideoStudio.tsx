@@ -560,7 +560,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   ];
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 py-2 transition-colors pb-16">
+    <div className="w-full max-w-4xl lg:max-w-5xl mx-auto px-2 sm:px-4 py-2 sm:py-3 transition-colors pb-16 sm:pb-20">
       {/* Main Studio Frame Mockup (Responsive to Light & Dark Mode) */}
       <VideoPreviewCanvas
         verses={verses}
@@ -570,24 +570,24 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         onChangeConfig={onChangeConfig}
         isModalOpen={isReciterModalOpen || isExportModalOpen || isProjectsModalOpen}
         topBar={
-          <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white/95 dark:bg-[#0E1626] border-b border-slate-200/90 dark:border-slate-800/80 transition-colors z-20">
+          <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white/95 dark:bg-[#0E1626] border-b border-slate-200/90 dark:border-slate-800/80 transition-colors z-20">
             {/* Range of Ayahs Selector (Left) */}
             <button
               onClick={onOpenAyahSelection || onBackToReader}
               className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 border border-slate-200/70 dark:border-slate-700/70 active:scale-95 transition-all text-left min-w-0 max-w-[calc(100%-80px)] shadow-2xs group"
               title={onOpenAyahSelection ? "Click to change selected verses" : "Click to change selected verses in Reader"}
             >
-              <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform" />
+              <BookOpen className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform" />
               <div className="flex flex-col min-w-0 truncate">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                  <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
                     {chapter?.name_simple || 'Surah'}
                   </span>
-                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 font-mono shrink-0 bg-emerald-500/10 dark:bg-emerald-400/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
+                  <span className="text-[10px] sm:text-xs font-semibold text-emerald-600 dark:text-emerald-400 font-mono shrink-0 bg-emerald-500/10 dark:bg-emerald-400/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
                     {startAyah === endAyah ? `Ayah ${startAyah}` : `Ayahs ${startAyah}–${endAyah}`}
                   </span>
                 </div>
-                <span className="text-[9.5px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
+                <span className="text-[9.5px] sm:text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
                   Tap to change selection
                 </span>
               </div>
@@ -596,16 +596,16 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
             {/* Export Button (Right) */}
             <button
               onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0"
+              className="flex items-center gap-1.5 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0 cursor-pointer"
               title="Export video"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span>Export</span>
             </button>
           </div>
         }
         categoryTabs={
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-4 gap-1 sm:gap-2">
             {/* TAB 1: BACKGROUND */}
             <button
               onClick={() => setActiveTab('background')}
@@ -752,7 +752,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 <span className="text-xs font-bold text-slate-900 dark:text-white tracking-wide block mb-2">
                   Your Background
                 </span>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-2 sm:gap-2.5">
                   <div className="relative flex flex-col justify-end p-2.5 rounded-2xl h-[78px] text-left transition-all overflow-hidden border-2 border-emerald-500 dark:border-emerald-400 ring-2 ring-emerald-500/25 dark:ring-emerald-400/25 shadow-[0_0_12px_rgba(16,185,129,0.25)]">
                     {/* The Media Preview */}
                     {config.customMediaType === 'video' ? (
@@ -804,8 +804,8 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
             )}
 
             {/* Smoothly Scrollable Theme Grid */}
-            <div className="max-h-[164px] overflow-y-auto scroll-smooth pr-0.5 custom-scrollbar">
-              <div className="grid grid-cols-3 gap-2">
+            <div className="max-h-[164px] sm:max-h-[220px] overflow-y-auto scroll-smooth pr-0.5 custom-scrollbar">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-2 sm:gap-2.5">
                 {THEMES.map((th, index) => {
                   const isSelected = config.backgroundPreset === th.id;
                   return (
