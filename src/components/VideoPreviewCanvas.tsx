@@ -301,6 +301,9 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       artist: 'Quran Video Studio',
       album: surahName,
       isPlaying,
+      duration: totalDuration,
+      position: currentTime,
+      playbackSpeed,
       controls: {
         onPlay: () => {
           if (playerRef.current && !playerRef.current.getIsPlaying()) {
@@ -316,9 +319,12 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         },
         onNext: handleNext,
         onPrev: handlePrev,
+        onSeek: (seekSec: number) => {
+          playerRef.current?.seek(seekSec);
+        },
       },
     });
-  }, [isPlaying, currentVerse, chapter?.name_simple, currentTime, handleNext, handlePrev]);
+  }, [isPlaying, currentVerse, chapter?.name_simple, currentTime, totalDuration, playbackSpeed, handleNext, handlePrev]);
 
   const handleRestart = useCallback(() => {
     if (!playerRef.current) return;

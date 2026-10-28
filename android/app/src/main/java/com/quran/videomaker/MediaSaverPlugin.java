@@ -121,6 +121,9 @@ public class MediaSaverPlugin extends Plugin {
                     if (command != null) {
                         JSObject data = new JSObject();
                         data.put("command", command);
+                        if (intent.hasExtra("seekMs")) {
+                            data.put("seekMs", intent.getLongExtra("seekMs", 0L));
+                        }
                         notifyListeners("mediaControlAction", data);
                     }
                 }
@@ -153,13 +156,27 @@ public class MediaSaverPlugin extends Plugin {
             Context context = getContext();
             String title = call.getString("title", "Quran Recitation");
             String artist = call.getString("artist", "Quran Video Studio");
+            String album = call.getString("album", "Quran Video Studio");
             Boolean isPlaying = call.getBoolean("isPlaying", true);
+            Long durationMs = call.getLong("durationMs", 0L);
+            Long positionMs = call.getLong("positionMs", 0L);
+            Double playbackSpeed = call.getDouble("playbackSpeed", 1.0);
 
             Intent serviceIntent = new Intent(context, AudioPlaybackService.class);
             serviceIntent.setAction(AudioPlaybackService.ACTION_START_OR_UPDATE);
             serviceIntent.putExtra("title", title);
             serviceIntent.putExtra("artist", artist);
+            serviceIntent.putExtra("album", album);
             serviceIntent.putExtra("isPlaying", isPlaying != null ? isPlaying : true);
+            if (durationMs != null) {
+                serviceIntent.putExtra("durationMs", durationMs);
+            }
+            if (positionMs != null) {
+                serviceIntent.putExtra("positionMs", positionMs);
+            }
+            if (playbackSpeed != null) {
+                serviceIntent.putExtra("playbackSpeed", playbackSpeed.floatValue());
+            }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(serviceIntent);

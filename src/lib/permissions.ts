@@ -34,12 +34,16 @@ interface MediaSaverNativePlugin {
   startBackgroundAudio(options: {
     title?: string;
     artist?: string;
+    album?: string;
     isPlaying?: boolean;
+    durationMs?: number;
+    positionMs?: number;
+    playbackSpeed?: number;
   }): Promise<{ success: boolean }>;
   stopBackgroundAudio(): Promise<{ success: boolean }>;
   addListener(
     eventName: 'mediaControlAction',
-    listenerFunc: (data: { command: 'play' | 'pause' | 'prev' | 'next' }) => void
+    listenerFunc: (data: { command: 'play' | 'pause' | 'prev' | 'next' | 'seek'; seekMs?: number }) => void
   ): Promise<{ remove: () => Promise<void> }>;
 }
 

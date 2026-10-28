@@ -534,6 +534,57 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     }
   }, [playVerseByIndex]);
 
+  // Seek to an exact second offset across the entire chapter
+  const seekToChapterTime = useCallback(
+    (targetChapterTime: number) => {
+      if (totalChapterDuration <= 0 || verses.length === 0) return;
+      const clampedTime = Math.max(0, Math.min(targetChapterTime, totalChapterDuration));
+
+      let accumulated = 0;
+      let targetIdx = 0;
+      let offsetInVerse = 0;
+
+      for (let i = 0; i < verses.length; i++) {
+        const vDur = verseDurations[i] || 5;
+        if (clampedTime < accumulated + vDur || i === verses.length - 1) {
+          targetIdx = i;
+          offsetInVerse = Math.max(0, Math.min(clampedTime - accumulated, vDur));
+          break;
+        }
+        accumulated += vDur;
+      }
+
+      if (targetIdx === currentPlayingIndexRef.current && audioRef.current) {
+        try {
+          audioRef.current.currentTime = offsetInVerse;
+        } catch {}
+        setCurrentTime(offsetInVerse);
+      } else {
+        currentPlayingIndexRef.current = targetIdx;
+        setCurrentPlayingIndex(targetIdx);
+        setCurrentTime(offsetInVerse);
+        if (isPlaying) {
+          playVerseByIndex(targetIdx, offsetInVerse);
+        } else {
+          const targetVerse = verses[targetIdx];
+          if (targetVerse) {
+            const url = getVerseAudioUrl(targetVerse.verse_key, targetVerse.verse_number);
+            if (url) {
+              if (!audioRef.current) {
+                audioRef.current = new Audio();
+              }
+              audioRef.current.src = url;
+              try {
+                audioRef.current.currentTime = offsetInVerse;
+              } catch {}
+            }
+          }
+        }
+      }
+    },
+    [totalChapterDuration, verses, verseDurations, isPlaying, playVerseByIndex, getVerseAudioUrl]
+  );
+
   // Sync MediaSession & Android Foreground Service for lock-screen playback
   useEffect(() => {
     if (!isPlaying && currentTime === 0) return;
@@ -547,6 +598,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       artist: currentReciterName || currentReciter?.name || 'Mishari Rashid Al-Afasy',
       album: surahName,
       isPlaying,
+      duration: totalChapterDuration,
+      position: chapterCurrentTime,
+      playbackSpeed,
       controls: {
         onPlay: () => {
           playVerseByIndex(currentPlayingIndexRef.current);
@@ -557,6 +611,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         },
         onNext: handleNextChapter,
         onPrev: handlePrevChapter,
+        onSeek: seekToChapterTime,
       },
     });
   }, [
@@ -568,9 +623,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     chapter.name_simple,
     currentReciterName,
     currentReciter?.name,
+    totalChapterDuration,
+    chapterCurrentTime,
+    playbackSpeed,
     playVerseByIndex,
     handleNextChapter,
     handlePrevChapter,
+    seekToChapterTime,
   ]);
 
   // Restart chapter from beginning
@@ -591,48 +650,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const handleScrubberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (totalChapterDuration <= 0 || verses.length === 0) return;
     const targetChapterTime = (parseFloat(e.target.value) / 100) * totalChapterDuration;
-
-    let accumulated = 0;
-    let targetIdx = 0;
-    let offsetInVerse = 0;
-
-    for (let i = 0; i < verses.length; i++) {
-      const vDur = verseDurations[i] || 5;
-      if (targetChapterTime < accumulated + vDur || i === verses.length - 1) {
-        targetIdx = i;
-        offsetInVerse = Math.max(0, Math.min(targetChapterTime - accumulated, vDur));
-        break;
-      }
-      accumulated += vDur;
-    }
-
-    if (targetIdx === currentPlayingIndexRef.current && audioRef.current) {
-      try {
-        audioRef.current.currentTime = offsetInVerse;
-      } catch {}
-      setCurrentTime(offsetInVerse);
-    } else {
-      currentPlayingIndexRef.current = targetIdx;
-      setCurrentPlayingIndex(targetIdx);
-      setCurrentTime(offsetInVerse);
-      if (isPlaying) {
-        playVerseByIndex(targetIdx, offsetInVerse);
-      } else {
-        const targetVerse = verses[targetIdx];
-        if (targetVerse) {
-          const url = getVerseAudioUrl(targetVerse.verse_key, targetVerse.verse_number);
-          if (url) {
-            if (!audioRef.current) {
-              audioRef.current = new Audio();
-            }
-            audioRef.current.src = url;
-            try {
-              audioRef.current.currentTime = offsetInVerse;
-            } catch {}
-          }
-        }
-      }
-    }
+    seekToChapterTime(targetChapterTime);
   };
 
   // Toggle speed
