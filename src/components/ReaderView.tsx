@@ -11,6 +11,10 @@ import {
 } from '@/lib/quran-api';
 import { AVAILABLE_TAFSIRS, getReciterAyahUrl, POPULAR_RECITERS } from '@/lib/constants';
 import {
+  updateBackgroundAudioSession,
+  stopBackgroundAudioSession,
+} from '@/lib/background-audio';
+import {
   Play,
   Pause,
   SkipBack,
@@ -90,14 +94,26 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
+  const [verseDurations, setVerseDurations] = useState<number[]>([]);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const preloadAudioRef = useRef<HTMLAudioElement | null>(null);
+  const currentPlayingIndexRef = useRef<number>(0);
 
-  // Format seconds to mm:ss
+  useEffect(() => {
+    currentPlayingIndexRef.current = currentPlayingIndex;
+  }, [currentPlayingIndex]);
+
+  // Format seconds to mm:ss or hh:mm:ss
   const formatSeconds = (sec: number) => {
-    if (!sec || isNaN(sec)) return '0:00';
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
+    if (!sec || isNaN(sec) || sec < 0) return '0:00';
+    const totalSec = Math.floor(sec);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) {
+      return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
@@ -116,9 +132,96 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     [chapterAudioMap, chapter.id, currentReciter]
   );
 
+  // Preload audio metadata across the chapter to compute exact whole-chapter duration
+  useEffect(() => {
+    if (!verses || verses.length === 0) {
+      setVerseDurations([]);
+      return;
+    }
+
+    let isCancelled = false;
+    // Initial smart estimate based on Arabic text length so total duration is non-zero immediately
+    const durations = verses.map((v) =>
+      Math.max(3, Math.round((v.text_uthmani?.length || 45) * 0.12))
+    );
+    setVerseDurations([...durations]);
+
+    let nextIdx = 0;
+    const activeLoaders: HTMLAudioElement[] = [];
+    const CONCURRENCY = 6;
+
+    const loadNext = () => {
+      if (isCancelled || nextIdx >= verses.length) return;
+      const idx = nextIdx++;
+      const v = verses[idx];
+      const url = getVerseAudioUrl(v.verse_key, v.verse_number);
+      if (!url) {
+        loadNext();
+        return;
+      }
+
+      const a = new Audio();
+      a.preload = 'metadata';
+      activeLoaders.push(a);
+
+      const finish = () => {
+        a.onloadedmetadata = null;
+        a.onerror = null;
+        const pos = activeLoaders.indexOf(a);
+        if (pos !== -1) activeLoaders.splice(pos, 1);
+        if (!isCancelled) {
+          loadNext();
+        }
+      };
+
+      a.onloadedmetadata = () => {
+        if (!isCancelled && a.duration && !isNaN(a.duration) && isFinite(a.duration) && a.duration > 0) {
+          durations[idx] = a.duration;
+          setVerseDurations([...durations]);
+        }
+        finish();
+      };
+
+      a.onerror = () => {
+        finish();
+      };
+
+      a.src = url;
+    };
+
+    for (let i = 0; i < Math.min(CONCURRENCY, verses.length); i++) {
+      loadNext();
+    }
+
+    return () => {
+      isCancelled = true;
+      activeLoaders.forEach((a) => {
+        try {
+          a.onloadedmetadata = null;
+          a.onerror = null;
+          a.removeAttribute('src');
+          a.src = '';
+        } catch {}
+      });
+    };
+  }, [verses, getVerseAudioUrl]);
+
+  // Whole-chapter total duration and cumulative elapsed time
+  const totalChapterDuration = useMemo(() => {
+    return verseDurations.reduce((sum, d) => sum + (d || 0), 0);
+  }, [verseDurations]);
+
+  const chapterCurrentTime = useMemo(() => {
+    let elapsedBefore = 0;
+    for (let i = 0; i < currentPlayingIndex; i++) {
+      elapsedBefore += verseDurations[i] || 0;
+    }
+    return Math.min(totalChapterDuration, elapsedBefore + currentTime);
+  }, [verseDurations, currentPlayingIndex, currentTime, totalChapterDuration]);
+
   // Play a specific verse by index and sync audio
   const playVerseByIndex = useCallback(
-    (index: number) => {
+    (index: number, initialSeekSeconds?: number) => {
       if (!verses || verses.length === 0) return;
       const targetIndex = Math.max(0, Math.min(index, verses.length - 1));
       const targetVerse = verses[targetIndex];
@@ -127,11 +230,19 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       const url = getVerseAudioUrl(targetVerse.verse_key, targetVerse.verse_number);
       if (!url) return;
 
+      currentPlayingIndexRef.current = targetIndex;
+      setCurrentPlayingIndex(targetIndex);
+
       if (!audioRef.current) {
         audioRef.current = new Audio();
       }
       const audio = audioRef.current;
-      audio.src = url;
+      if (audio.src !== url) {
+        audio.src = url;
+      }
+      try {
+        audio.currentTime = initialSeekSeconds || 0;
+      } catch {}
       audio.volume = isMuted ? 0 : volume;
       audio.preservesPitch = true;
       (audio as any).webkitPreservesPitch = true;
@@ -140,17 +251,32 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       audio.preservesPitch = true;
       (audio as any).webkitPreservesPitch = true;
       (audio as any).mozPreservesPitch = true;
-      setCurrentTime(0);
-      setDuration(0);
+      setCurrentTime(initialSeekSeconds || 0);
+      setDuration(verseDurations[targetIndex] || 0);
+
+      // Preload next ayah audio in browser cache for gapless background transitions
+      if (targetIndex + 1 < verses.length) {
+        const nextVerse = verses[targetIndex + 1];
+        const nextUrl = getVerseAudioUrl(nextVerse.verse_key, nextVerse.verse_number);
+        if (nextUrl) {
+          if (!preloadAudioRef.current) {
+            preloadAudioRef.current = new Audio();
+            preloadAudioRef.current.preload = 'auto';
+          }
+          if (preloadAudioRef.current.src !== nextUrl) {
+            preloadAudioRef.current.src = nextUrl;
+            preloadAudioRef.current.load();
+          }
+        }
+      }
 
       audio
         .play()
         .then(() => {
           setIsPlaying(true);
-          setCurrentPlayingIndex(targetIndex);
 
-          // Auto-scroll to active ayah if enabled
-          if (autoScroll) {
+          // Auto-scroll to active ayah if enabled and screen is visible
+          if (autoScroll && typeof document !== 'undefined' && !document.hidden) {
             const el = document.getElementById(`verse-${targetVerse.verse_key}`);
             if (el) {
               el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -165,7 +291,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     [verses, getVerseAudioUrl, isMuted, volume, playbackSpeed, autoScroll]
   );
 
-  // Wire HTMLAudioElement events for seamless sequential recitation
+  // Wire HTMLAudioElement events for seamless sequential recitation (including when screen is locked)
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio();
@@ -173,33 +299,31 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     const audio = audioRef.current;
 
     const handleEnded = () => {
-      setCurrentPlayingIndex((prevIndex) => {
-        const nextIndex = prevIndex + 1;
-        if (nextIndex < verses.length) {
-          playVerseByIndex(nextIndex);
-          return nextIndex;
-        } else {
-          // Finished entire Surah
-          setIsPlaying(false);
-          setCurrentTime(0);
-          return 0;
-        }
-      });
+      const nextIndex = currentPlayingIndexRef.current + 1;
+      if (nextIndex < verses.length) {
+        playVerseByIndex(nextIndex);
+      } else {
+        // Finished entire Surah
+        currentPlayingIndexRef.current = 0;
+        setCurrentPlayingIndex(0);
+        setIsPlaying(false);
+        setCurrentTime(0);
+        stopBackgroundAudioSession();
+      }
     };
 
     const handleError = () => {
       console.warn('Audio ended with error, advancing to next verse');
-      setCurrentPlayingIndex((prevIndex) => {
-        const nextIndex = prevIndex + 1;
-        if (nextIndex < verses.length) {
-          playVerseByIndex(nextIndex);
-          return nextIndex;
-        } else {
-          setIsPlaying(false);
-          setCurrentTime(0);
-          return 0;
-        }
-      });
+      const nextIndex = currentPlayingIndexRef.current + 1;
+      if (nextIndex < verses.length) {
+        playVerseByIndex(nextIndex);
+      } else {
+        currentPlayingIndexRef.current = 0;
+        setCurrentPlayingIndex(0);
+        setIsPlaying(false);
+        setCurrentTime(0);
+        stopBackgroundAudioSession();
+      }
     };
 
     const handleTimeUpdate = () => {
@@ -207,7 +331,17 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     };
 
     const handleLoadedMetadata = () => {
-      setDuration(audio.duration || 0);
+      const d = audio.duration || 0;
+      setDuration(d);
+      if (d > 0 && isFinite(d)) {
+        const idx = currentPlayingIndexRef.current;
+        setVerseDurations((prev) => {
+          if (prev[idx] === d) return prev;
+          const next = [...prev];
+          next[idx] = d;
+          return next;
+        });
+      }
       audio.preservesPitch = true;
       (audio as any).webkitPreservesPitch = true;
       (audio as any).mozPreservesPitch = true;
@@ -228,16 +362,44 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       audio.removeEventListener('error', handleError);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.pause();
     };
   }, [verses, playVerseByIndex, playbackSpeed, isMuted, volume]);
+
+  // Stop audio and release background session on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      stopBackgroundAudioSession();
+    };
+  }, []);
+
+  // Scroll to active ayah when user unlocks screen if autoScroll is on
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isPlaying && autoScroll) {
+        const v = verses[currentPlayingIndexRef.current];
+        if (v) {
+          const el = document.getElementById(`verse-${v.verse_key}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isPlaying, autoScroll, verses]);
 
   // Reset audio when chapter changes
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.pause();
     }
+    stopBackgroundAudioSession();
     setIsPlaying(false);
+    currentPlayingIndexRef.current = 0;
     setCurrentPlayingIndex(0);
     setCurrentTime(0);
     setDuration(0);
@@ -271,37 +433,120 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       audioRef.current?.pause();
       setIsPlaying(false);
     } else {
-      playVerseByIndex(currentPlayingIndex);
+      playVerseByIndex(currentPlayingIndexRef.current);
     }
-  }, [isPlaying, playVerseByIndex, currentPlayingIndex]);
+  }, [isPlaying, playVerseByIndex]);
 
   // Skip to next verse
   const handleNextAyah = useCallback(() => {
-    if (currentPlayingIndex < verses.length - 1) {
-      playVerseByIndex(currentPlayingIndex + 1);
+    if (currentPlayingIndexRef.current < verses.length - 1) {
+      playVerseByIndex(currentPlayingIndexRef.current + 1);
     }
-  }, [currentPlayingIndex, verses.length, playVerseByIndex]);
+  }, [verses.length, playVerseByIndex]);
 
   // Skip to previous verse
   const handlePrevAyah = useCallback(() => {
-    if (currentPlayingIndex > 0) {
-      playVerseByIndex(currentPlayingIndex - 1);
+    if (currentPlayingIndexRef.current > 0) {
+      playVerseByIndex(currentPlayingIndexRef.current - 1);
     }
-  }, [currentPlayingIndex, playVerseByIndex]);
+  }, [playVerseByIndex]);
 
-  // Restart current verse
+  // Sync MediaSession & Android Foreground Service for lock-screen playback
+  useEffect(() => {
+    if (!isPlaying && currentTime === 0) return;
+    const v = verses[currentPlayingIndex] || verses[0];
+    const surahName = `Surah ${chapter.name_simple}`;
+    const ayahLabel = v ? `Ayah ${v.verse_number}` : '';
+    updateBackgroundAudioSession({
+      title: ayahLabel ? `${surahName} • ${ayahLabel}` : surahName,
+      artist: currentReciterName || currentReciter?.name || 'Mishari Rashid Al-Afasy',
+      album: surahName,
+      isPlaying,
+      controls: {
+        onPlay: () => {
+          playVerseByIndex(currentPlayingIndexRef.current);
+        },
+        onPause: () => {
+          audioRef.current?.pause();
+          setIsPlaying(false);
+        },
+        onNext: handleNextAyah,
+        onPrev: handlePrevAyah,
+      },
+    });
+  }, [
+    isPlaying,
+    currentPlayingIndex,
+    currentTime,
+    verses,
+    chapter.name_simple,
+    currentReciterName,
+    currentReciter?.name,
+    playVerseByIndex,
+    handleNextAyah,
+    handlePrevAyah,
+  ]);
+
+  // Restart chapter from beginning
   const handleRestart = useCallback(() => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = 0;
+    currentPlayingIndexRef.current = 0;
+    setCurrentPlayingIndex(0);
     setCurrentTime(0);
-  }, []);
+    if (isPlaying) {
+      playVerseByIndex(0, 0);
+    } else if (audioRef.current) {
+      try {
+        audioRef.current.currentTime = 0;
+      } catch {}
+    }
+  }, [isPlaying, playVerseByIndex]);
 
-  // Scrubber seeking
+  // Scrubber seeking across the whole chapter
   const handleScrubberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!audioRef.current || duration === 0) return;
-    const seekTime = (parseFloat(e.target.value) / 100) * duration;
-    audioRef.current.currentTime = seekTime;
-    setCurrentTime(seekTime);
+    if (totalChapterDuration <= 0 || verses.length === 0) return;
+    const targetChapterTime = (parseFloat(e.target.value) / 100) * totalChapterDuration;
+
+    let accumulated = 0;
+    let targetIdx = 0;
+    let offsetInVerse = 0;
+
+    for (let i = 0; i < verses.length; i++) {
+      const vDur = verseDurations[i] || 5;
+      if (targetChapterTime < accumulated + vDur || i === verses.length - 1) {
+        targetIdx = i;
+        offsetInVerse = Math.max(0, Math.min(targetChapterTime - accumulated, vDur));
+        break;
+      }
+      accumulated += vDur;
+    }
+
+    if (targetIdx === currentPlayingIndexRef.current && audioRef.current) {
+      try {
+        audioRef.current.currentTime = offsetInVerse;
+      } catch {}
+      setCurrentTime(offsetInVerse);
+    } else {
+      currentPlayingIndexRef.current = targetIdx;
+      setCurrentPlayingIndex(targetIdx);
+      setCurrentTime(offsetInVerse);
+      if (isPlaying) {
+        playVerseByIndex(targetIdx, offsetInVerse);
+      } else {
+        const targetVerse = verses[targetIdx];
+        if (targetVerse) {
+          const url = getVerseAudioUrl(targetVerse.verse_key, targetVerse.verse_number);
+          if (url) {
+            if (!audioRef.current) {
+              audioRef.current = new Audio();
+            }
+            audioRef.current.src = url;
+            try {
+              audioRef.current.currentTime = offsetInVerse;
+            } catch {}
+          }
+        }
+      }
+    }
   };
 
   // Toggle speed
@@ -549,7 +794,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             {/* Scrubber Track */}
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 min-w-[28px]">
-                {formatSeconds(currentTime)}
+                {formatSeconds(chapterCurrentTime)}
               </span>
               <div className="relative flex-1 flex items-center">
                 <input
@@ -557,13 +802,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                   min="0"
                   max="100"
                   step="0.1"
-                  value={duration > 0 ? (currentTime / duration) * 100 : 0}
+                  value={totalChapterDuration > 0 ? (chapterCurrentTime / totalChapterDuration) * 100 : 0}
                   onChange={handleScrubberChange}
                   className="w-full accent-emerald-500 dark:accent-emerald-400 bg-slate-200 dark:bg-slate-800 h-1 rounded-full cursor-pointer transition-colors"
                 />
               </div>
               <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 min-w-[28px] text-right">
-                {formatSeconds(duration)}
+                {formatSeconds(totalChapterDuration)}
               </span>
             </div>
 

@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { Volume2, HardDrive, ShieldCheck, X, ChevronRight, Check, Loader2, CheckCircle2 } from 'lucide-react';
-import { checkAppPermissions, requestAppPermissions, AppPermissionStatus } from '@/lib/permissions';
+import { Volume2, HardDrive, ShieldCheck, X, ChevronRight, Check, Loader2, CheckCircle2, Smartphone } from 'lucide-react';
+import { checkAppPermissions, requestAppPermissions, requestBackgroundPlayPermission, AppPermissionStatus } from '@/lib/permissions';
 
 export function PermissionPrompt() {
   const [status, setStatus] = useState<AppPermissionStatus | null>(null);
@@ -61,7 +61,20 @@ export function PermissionPrompt() {
     }
   };
 
-  const isAllGranted = status.audio && status.storage;
+  const handleGrantBackground = async () => {
+    setIsRequesting(true);
+    try {
+      const res = await requestBackgroundPlayPermission();
+      setStatus(res);
+      if (res.allGranted) {
+        setTimeout(() => setDismissed(true), 1200);
+      }
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  const isAllGranted = status.audio && status.storage && status.backgroundPlay;
 
   return (
     <div
@@ -176,6 +189,45 @@ export function PermissionPrompt() {
 
                 <div>
                   {status.storage ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      <Check className="w-3 h-3" />
+                      Allowed
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                      Needed
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Background Auto-Play Item */}
+              <div
+                onClick={!status.backgroundPlay ? handleGrantBackground : undefined}
+                className={`flex items-center justify-between p-3 sm:p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 ${
+                  !status.backgroundPlay ? 'cursor-pointer hover:border-emerald-500/40 transition-colors' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                    status.backgroundPlay
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                  }`}>
+                    <Smartphone className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">
+                      Background Auto-Play
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Keep playing when screen is locked
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  {status.backgroundPlay ? (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                       <Check className="w-3 h-3" />
                       Allowed

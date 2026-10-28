@@ -176,12 +176,19 @@ export class StitchedAudioPlayer {
   }
 
   /**
-   * Immediately invalidates all pending playback chains and purges active and preloaded elements.
+   * Immediately invalidates all pending playback chains and pauses active and preloaded elements.
+   * Keeps `this.currentAudioEl` alive so mobile lock-screen user-gesture blessing is preserved.
    */
   private cleanupAllAudio() {
     this.playSessionId++;
-    this.cleanupAudioElement(this.currentAudioEl);
-    this.currentAudioEl = null;
+    if (this.currentAudioEl) {
+      try {
+        this.currentAudioEl.onended = null;
+        this.currentAudioEl.onerror = null;
+        this.currentAudioEl.ontimeupdate = null;
+        this.currentAudioEl.pause();
+      } catch {}
+    }
     this.cleanupAudioElement(this.nextAudioEl);
     this.nextAudioEl = null;
 
@@ -280,48 +287,47 @@ export class StitchedAudioPlayer {
       return;
     }
 
-    // Stop and cleanup previously active element completely
-    if (this.currentAudioEl) {
-      this.cleanupAudioElement(this.currentAudioEl);
-      this.currentAudioEl = null;
-    }
-
-    // Reuse preloaded next audio element if it matches target URL
-    if (this.nextAudioEl && this.nextAudioEl.src === url) {
-      this.currentAudioEl = this.nextAudioEl;
-      this.nextAudioEl = null;
-    } else {
-      if (this.nextAudioEl) {
-        this.cleanupAudioElement(this.nextAudioEl);
-        this.nextAudioEl = null;
-      }
-      this.currentAudioEl = new Audio(url);
+    // Reuse a single persistent HTMLAudioElement so mobile/lock-screen playback permissions are retained
+    if (!this.currentAudioEl) {
+      this.currentAudioEl = new Audio();
     }
 
     const audio = this.currentAudioEl;
-    if (!audio) return;
+    if (audio.src !== url) {
+      audio.src = url;
+      audio.currentTime = 0;
+    }
 
     audio.volume = this.isMuted ? 0 : this.currentVolume;
     audio.playbackRate = this.playbackRate;
     this.configureAudioElement(audio);
 
-    // Preload next Ayah audio in the background for zero gap
+    // Preload next Ayah audio in browser cache without replacing currentAudioEl
     if (this.currentAyahIndex + 1 < this.audioUrls.length) {
-      this.nextAudioEl = new Audio(this.audioUrls[this.currentAyahIndex + 1]);
-      this.nextAudioEl.preload = 'auto';
-      this.nextAudioEl.playbackRate = this.playbackRate;
-      this.configureAudioElement(this.nextAudioEl);
-    } else {
-      this.nextAudioEl = null;
+      const nextUrl = this.audioUrls[this.currentAyahIndex + 1];
+      if (!this.nextAudioEl) {
+        this.nextAudioEl = new Audio();
+        this.nextAudioEl.preload = 'auto';
+      }
+      if (this.nextAudioEl.src !== nextUrl) {
+        this.nextAudioEl.src = nextUrl;
+        this.nextAudioEl.load();
+      }
     }
+
+    audio.ontimeupdate = () => {
+      if (session === this.playSessionId && this.isPlaying) {
+        this.emitCurrentTime();
+      }
+    };
 
     audio.onended = () => {
       if (session !== this.playSessionId || !this.isPlaying) {
-        this.cleanupAudioElement(audio);
         return;
       }
       if (this.currentAyahIndex < this.audioUrls.length - 1) {
         this.currentAyahIndex++;
+        this.emitCurrentTime();
         this.playCurrentAyah();
       } else {
         this.isPlaying = false;
@@ -334,12 +340,12 @@ export class StitchedAudioPlayer {
 
     audio.onerror = (e) => {
       if (session !== this.playSessionId || !this.isPlaying) {
-        this.cleanupAudioElement(audio);
         return;
       }
       console.warn('Audio playback warning on url:', url, e);
       if (this.currentAyahIndex < this.audioUrls.length - 1) {
         this.currentAyahIndex++;
+        this.emitCurrentTime();
         this.playCurrentAyah();
       } else {
         this.isPlaying = false;
@@ -360,11 +366,6 @@ export class StitchedAudioPlayer {
       }
       console.warn('Audio play request interrupted or requires user gesture:', err);
     }
-
-    if (session !== this.playSessionId || !this.isPlaying) {
-      this.cleanupAudioElement(audio);
-      return;
-    }
   }
 
   public pause() {
@@ -383,6 +384,11 @@ export class StitchedAudioPlayer {
     this.isPlaying = false;
     this.cleanupAllAudio();
     this.currentAyahIndex = 0;
+    if (this.currentAudioEl) {
+      try {
+        this.currentAudioEl.currentTime = 0;
+      } catch {}
+    }
     this.stopTracking();
     this.emitCurrentTime();
   }
@@ -409,9 +415,11 @@ export class StitchedAudioPlayer {
     this.currentAyahIndex = targetIndex;
 
     const url = this.audioUrls[targetIndex];
-    if (!this.currentAudioEl || this.currentAudioEl.src !== url) {
-      this.cleanupAudioElement(this.currentAudioEl);
-      this.currentAudioEl = new Audio(url);
+    if (!this.currentAudioEl) {
+      this.currentAudioEl = new Audio();
+    }
+    if (url && this.currentAudioEl.src !== url) {
+      this.currentAudioEl.src = url;
       this.currentAudioEl.volume = this.isMuted ? 0 : this.currentVolume;
       this.currentAudioEl.playbackRate = this.playbackRate;
       this.configureAudioElement(this.currentAudioEl);
@@ -435,8 +443,16 @@ export class StitchedAudioPlayer {
     this.currentAyahIndex = clamped;
 
     const url = this.audioUrls[clamped];
-    this.cleanupAudioElement(this.currentAudioEl);
-    this.currentAudioEl = new Audio(url);
+    if (!this.currentAudioEl) {
+      this.currentAudioEl = new Audio();
+    }
+    if (url && this.currentAudioEl.src !== url) {
+      this.currentAudioEl.src = url;
+    } else if (this.currentAudioEl) {
+      try {
+        this.currentAudioEl.currentTime = 0;
+      } catch {}
+    }
     this.currentAudioEl.volume = this.isMuted ? 0 : this.currentVolume;
     this.currentAudioEl.playbackRate = this.playbackRate;
     this.configureAudioElement(this.currentAudioEl);
@@ -520,6 +536,8 @@ export class StitchedAudioPlayer {
 
   public destroy() {
     this.stop();
+    this.cleanupAudioElement(this.currentAudioEl);
+    this.currentAudioEl = null;
     this.stopTracking();
     this.onTimeUpdate = undefined;
     this.onEnded = undefined;

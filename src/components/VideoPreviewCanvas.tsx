@@ -27,6 +27,10 @@ import {
   Radio,
 } from 'lucide-react';
 import { useBackButton } from '@/lib/back-button';
+import {
+  updateBackgroundAudioSession,
+  stopBackgroundAudioSession,
+} from '@/lib/background-audio';
 
 /**
  * Solid rounded triangle icon matching user uploaded media
@@ -213,6 +217,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     player.onEnded = () => {
       if (!isCancelled) {
         setIsPlaying(false);
+        stopBackgroundAudioSession();
       }
     };
 
@@ -237,12 +242,14 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         playerRef.current.stop();
       }
       setIsPlaying(false);
+      stopBackgroundAudioSession();
     };
   }, [audioUrls, verses, currentStitchKey]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      stopBackgroundAudioSession();
       if (playerRef.current) {
         playerRef.current.destroy();
         playerRef.current = null;
@@ -283,6 +290,35 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       playerRef.current.seek(0);
     }
   }, [currentAyahIndex]);
+
+  // Keep lock-screen MediaSession & Android Foreground Service synchronized during Studio playback
+  useEffect(() => {
+    if (!isPlaying && currentTime === 0) return;
+    const surahName = chapter?.name_simple ? `Surah ${chapter.name_simple}` : 'Quran Recitation';
+    const ayahLabel = currentVerse ? `Ayah ${currentVerse.verse_number}` : '';
+    updateBackgroundAudioSession({
+      title: ayahLabel ? `${surahName} • ${ayahLabel}` : surahName,
+      artist: 'Quran Video Studio',
+      album: surahName,
+      isPlaying,
+      controls: {
+        onPlay: () => {
+          if (playerRef.current && !playerRef.current.getIsPlaying()) {
+            setIsPlaying(true);
+            playerRef.current.play();
+          }
+        },
+        onPause: () => {
+          if (playerRef.current && playerRef.current.getIsPlaying()) {
+            playerRef.current.pause();
+            setIsPlaying(false);
+          }
+        },
+        onNext: handleNext,
+        onPrev: handlePrev,
+      },
+    });
+  }, [isPlaying, currentVerse, chapter?.name_simple, currentTime, handleNext, handlePrev]);
 
   const handleRestart = useCallback(() => {
     if (!playerRef.current) return;

@@ -1,10 +1,12 @@
 package com.quran.videomaker;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
@@ -57,15 +59,143 @@ import java.util.List;
                 Manifest.permission.READ_MEDIA_IMAGES
             },
             alias = "storageMedia"
+        ),
+        @Permission(
+            strings = {
+                Manifest.permission.POST_NOTIFICATIONS
+            },
+            alias = "notifications"
         )
     }
 )
 public class MediaSaverPlugin extends Plugin {
     private static final String TAG = "MediaSaverPlugin";
-    private static final int PERMISSION_REQ_CODE = 9081;
+    public static final int PERMISSION_REQ_CODE = 9081;
+    private BroadcastReceiver mediaControlReceiver;
+
+    public static boolean isBatteryOptimizationIgnored(Context context) {
+        if (context == null) return true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                android.os.PowerManager pm = (android.os.PowerManager) context.getSystemService(Context.POWER_SERVICE);
+                if (pm != null) {
+                    return pm.isIgnoringBatteryOptimizations(context.getPackageName());
+                }
+            } catch (Exception ignored) {}
+        }
+        return true;
+    }
+
+    public static void promptBatteryOptimizationIfNeeded(Context context) {
+        if (context == null) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                if (!isBatteryOptimizationIgnored(context)) {
+                    Intent intent = new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                    intent.setData(Uri.parse("package:" + context.getPackageName()));
+                    if (!(context instanceof android.app.Activity)) {
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    }
+                    context.startActivity(intent);
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Direct battery optimization prompt failed, falling back to settings", e);
+                try {
+                    Intent fallback = new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                    fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    context.startActivity(fallback);
+                } catch (Exception ignored) {}
+            }
+        }
+    }
+
+    @Override
+    public void load() {
+        super.load();
+        try {
+            mediaControlReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (intent == null) return;
+                    String command = intent.getStringExtra("command");
+                    if (command != null) {
+                        JSObject data = new JSObject();
+                        data.put("command", command);
+                        notifyListeners("mediaControlAction", data);
+                    }
+                }
+            };
+            IntentFilter filter = new IntentFilter(AudioPlaybackService.ACTION_MEDIA_CONTROL);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                getContext().registerReceiver(mediaControlReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                getContext().registerReceiver(mediaControlReceiver, filter);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to register mediaControlReceiver", e);
+        }
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        try {
+            if (mediaControlReceiver != null) {
+                getContext().unregisterReceiver(mediaControlReceiver);
+                mediaControlReceiver = null;
+            }
+        } catch (Exception ignored) {}
+        super.handleOnDestroy();
+    }
+
+    @PluginMethod
+    public void startBackgroundAudio(PluginCall call) {
+        try {
+            Context context = getContext();
+            String title = call.getString("title", "Quran Recitation");
+            String artist = call.getString("artist", "Quran Video Studio");
+            Boolean isPlaying = call.getBoolean("isPlaying", true);
+
+            Intent serviceIntent = new Intent(context, AudioPlaybackService.class);
+            serviceIntent.setAction(AudioPlaybackService.ACTION_START_OR_UPDATE);
+            serviceIntent.putExtra("title", title);
+            serviceIntent.putExtra("artist", artist);
+            serviceIntent.putExtra("isPlaying", isPlaying != null ? isPlaying : true);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent);
+            } else {
+                context.startService(serviceIntent);
+            }
+
+            JSObject ret = new JSObject();
+            ret.put("success", true);
+            call.resolve(ret);
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to start background audio service", e);
+            call.reject("Failed to start background audio service: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void stopBackgroundAudio(PluginCall call) {
+        try {
+            Context context = getContext();
+            Intent serviceIntent = new Intent(context, AudioPlaybackService.class);
+            serviceIntent.setAction(AudioPlaybackService.ACTION_STOP);
+            context.stopService(serviceIntent);
+            AudioPlaybackService.isPlaybackActive = false;
+
+            JSObject ret = new JSObject();
+            ret.put("success", true);
+            call.resolve(ret);
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to stop background audio service", e);
+            call.reject("Failed to stop background audio service: " + e.getMessage());
+        }
+    }
 
     /**
-     * Checks current status of Sound/Voice and Media/Storage permissions.
+     * Checks current status of Sound/Voice, Media/Storage, and Background Auto-Play permissions.
      */
     @PluginMethod
     public void checkAppPermissions(PluginCall call) {
@@ -89,15 +219,27 @@ public class MediaSaverPlugin extends Plugin {
             ) == PackageManager.PERMISSION_GRANTED;
         }
 
+        boolean notificationsGranted = true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationsGranted = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED;
+        }
+
+        boolean batteryUnrestricted = isBatteryOptimizationIgnored(context);
+        boolean backgroundPlayGranted = batteryUnrestricted && notificationsGranted;
+
         JSObject ret = new JSObject();
         ret.put("audio", audioGranted);
         ret.put("storage", storageGranted);
-        ret.put("allGranted", audioGranted && storageGranted);
+        ret.put("backgroundPlay", backgroundPlayGranted);
+        ret.put("allGranted", audioGranted && storageGranted && backgroundPlayGranted);
         call.resolve(ret);
     }
 
     /**
-     * Triggers standard Android system runtime permission dialog for Voice/Audio and Storage.
+     * Triggers standard Android system runtime permission dialog for Voice/Audio, Storage,
+     * Lock-screen Notifications, and Unrestricted Background Playback.
      */
     @PluginMethod
     public void requestAppPermissions(PluginCall call) {
@@ -113,7 +255,7 @@ public class MediaSaverPlugin extends Plugin {
                 permsToRequest.add(Manifest.permission.MODIFY_AUDIO_SETTINGS);
             }
 
-            // Storage / Media
+            // Storage / Media & Notifications
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) != PackageManager.PERMISSION_GRANTED) {
                     permsToRequest.add(Manifest.permission.READ_MEDIA_VIDEO);
@@ -123,6 +265,9 @@ public class MediaSaverPlugin extends Plugin {
                 }
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
                     permsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES);
+                }
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    permsToRequest.add(Manifest.permission.POST_NOTIFICATIONS);
                 }
             } else {
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -141,15 +286,44 @@ public class MediaSaverPlugin extends Plugin {
                     permsToRequest.toArray(new String[0]),
                     PERMISSION_REQ_CODE
                 );
+            } else if (!isBatteryOptimizationIgnored(context)) {
+                promptBatteryOptimizationIfNeeded(getActivity() != null ? getActivity() : context);
             }
 
             JSObject ret = new JSObject();
             ret.put("requested", true);
-            ret.put("requestedCount", permsToRequest.size());
+            ret.put("requestedCount", permsToRequest.size() + (isBatteryOptimizationIgnored(context) ? 0 : 1));
             call.resolve(ret);
         } catch (Exception e) {
             Log.e(TAG, "Failed to request permissions", e);
             call.reject("Could not request permissions: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Specifically requests Background Auto-Play permissions (Lock-screen Notification + Unrestricted Battery).
+     */
+    @PluginMethod
+    public void requestBackgroundPlayPermission(PluginCall call) {
+        try {
+            Context context = getContext();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                    getActivity(),
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    PERMISSION_REQ_CODE
+                );
+            } else if (!isBatteryOptimizationIgnored(context)) {
+                promptBatteryOptimizationIfNeeded(getActivity() != null ? getActivity() : context);
+            }
+
+            JSObject ret = new JSObject();
+            ret.put("requested", true);
+            call.resolve(ret);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to request background play permission", e);
+            call.reject("Could not request background play permission: " + e.getMessage());
         }
     }
 
