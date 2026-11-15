@@ -1,8 +1,12 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Chapter } from '@/types/quran';
-import { POPULAR_PRESETS } from '@/lib/constants';
+import {
+  formatShortDateLabel,
+  getLocalDateKey,
+  getOrCreateDailySuggestions,
+} from '@/lib/daily-suggestions';
 import { Search, X, Sparkles, BookOpen } from 'lucide-react';
 
 interface SurahDrawerProps {
@@ -21,6 +25,48 @@ export const SurahDrawer: React.FC<SurahDrawerProps> = ({
   onSelectChapter,
 }) => {
   const [search, setSearch] = useState('');
+  const [dateKey, setDateKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const syncDateKey = () => {
+      const current = getLocalDateKey();
+      setDateKey((prev) => (prev === current ? prev : current));
+    };
+
+    syncDateKey();
+
+    const now = new Date();
+    const nextMidnight = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+      0,
+      0,
+      0,
+      150
+    );
+    const msUntilMidnight = Math.max(1000, nextMidnight.getTime() - now.getTime());
+    const midnightTimer = setTimeout(syncDateKey, msUntilMidnight);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncDateKey();
+      }
+    };
+    window.addEventListener('focus', syncDateKey);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearTimeout(midnightTimer);
+      window.removeEventListener('focus', syncDateKey);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [dateKey, isOpen]);
+
+  const dailySuggestions = useMemo(() => {
+    if (!dateKey) return [];
+    return getOrCreateDailySuggestions(chapters, dateKey).suggestions;
+  }, [dateKey, chapters]);
 
   const filteredChapters = useMemo(() => {
     if (!search.trim()) return chapters;
@@ -70,16 +116,23 @@ export const SurahDrawer: React.FC<SurahDrawerProps> = ({
           </button>
         </div>
 
-        {/* Quick Popular Presets Pills */}
+        {/* Quick Daily Popular Selections Pills */}
         <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-900/40">
-          <div className="flex items-center gap-1.5 mb-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Popular Selections</span>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Popular Selections</span>
+            </div>
+            {dateKey && (
+              <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                Daily • {formatShortDateLabel(dateKey)}
+              </span>
+            )}
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {POPULAR_PRESETS.map((preset, idx) => (
+            {dailySuggestions.map((preset) => (
               <button
-                key={idx}
+                key={`${preset.surahId}-${preset.startAyah}-${preset.endAyah}`}
                 onClick={() => {
                   onSelectChapter(preset.surahId, preset.startAyah, preset.endAyah);
                   onClose();
@@ -158,4 +211,3 @@ export const SurahDrawer: React.FC<SurahDrawerProps> = ({
     </div>
   );
 };
-
