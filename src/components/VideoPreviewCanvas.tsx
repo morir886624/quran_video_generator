@@ -82,6 +82,36 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const particlesRef = useRef<Particle[]>([]);
   const animFrameIdRef = useRef<number | null>(null);
   const customMediaElRef = useRef<HTMLVideoElement | HTMLImageElement | null>(null);
+  const videoIntervalRef = useRef<{ start: number; end: number | null }>({
+    start: Math.max(0, config.customVideoStartTime ?? 0),
+    end:
+      typeof config.customVideoEndTime === 'number' && config.customVideoEndTime > 0
+        ? config.customVideoEndTime
+        : null,
+  });
+
+  useEffect(() => {
+    const start = Math.max(0, config.customVideoStartTime ?? 0);
+    const end =
+      typeof config.customVideoEndTime === 'number' && config.customVideoEndTime > start
+        ? config.customVideoEndTime
+        : null;
+    videoIntervalRef.current = { start, end };
+
+    const el = customMediaElRef.current;
+    if (el instanceof HTMLVideoElement && el.readyState >= 1) {
+      const vidDur = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : null;
+      const effectiveEnd = end != null ? (vidDur ? Math.min(end, vidDur) : end) : vidDur;
+      const effectiveStart =
+        effectiveEnd != null ? Math.min(start, Math.max(0, effectiveEnd - 0.1)) : start;
+      el.loop =
+        effectiveStart <= 0 &&
+        (effectiveEnd == null || (vidDur != null && effectiveEnd >= vidDur - 0.05));
+      try {
+        el.currentTime = effectiveStart;
+      } catch {}
+    }
+  }, [config.customVideoStartTime, config.customVideoEndTime]);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [stitchedKey, setStitchedKey] = useState<string | null>(null);
@@ -156,10 +186,69 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       const vid = document.createElement('video');
       vid.src = config.customMediaUrl;
       vid.crossOrigin = 'anonymous';
-      vid.loop = true;
       vid.muted = true;
+      vid.playsInline = true;
+
+      const enforceInterval = () => {
+        const { start, end } = videoIntervalRef.current;
+        const vidDur = Number.isFinite(vid.duration) && vid.duration > 0 ? vid.duration : null;
+        const effectiveEnd =
+          end != null && end > start ? (vidDur ? Math.min(end, vidDur) : end) : vidDur;
+        const effectiveStart =
+          effectiveEnd != null ? Math.min(start, Math.max(0, effectiveEnd - 0.1)) : start;
+
+        vid.loop =
+          effectiveStart <= 0 &&
+          (effectiveEnd == null || (vidDur != null && effectiveEnd >= vidDur - 0.05));
+
+        if (!vid.seeking) {
+          if (
+            (effectiveEnd != null && vid.currentTime >= effectiveEnd) ||
+            vid.currentTime < effectiveStart - 0.05
+          ) {
+            vid.currentTime = effectiveStart;
+          }
+        }
+      };
+
+      const onLoadedMetadata = () => {
+        const { start } = videoIntervalRef.current;
+        if (start > 0) {
+          try {
+            vid.currentTime = start;
+          } catch {}
+        }
+        enforceInterval();
+        vid.play().catch(() => {});
+      };
+
+      const onEnded = () => {
+        const { start } = videoIntervalRef.current;
+        try {
+          vid.currentTime = start;
+        } catch {}
+        vid.play().catch(() => {});
+      };
+
+      vid.addEventListener('loadedmetadata', onLoadedMetadata);
+      vid.addEventListener('timeupdate', enforceInterval);
+      vid.addEventListener('ended', onEnded);
       vid.play().catch(() => {});
       customMediaElRef.current = vid;
+
+      return () => {
+        vid.removeEventListener('loadedmetadata', onLoadedMetadata);
+        vid.removeEventListener('timeupdate', enforceInterval);
+        vid.removeEventListener('ended', onEnded);
+        try {
+          vid.pause();
+          vid.removeAttribute('src');
+          vid.load();
+        } catch {}
+        if (customMediaElRef.current === vid) {
+          customMediaElRef.current = null;
+        }
+      };
     } else {
       const img = new Image();
       img.src = config.customMediaUrl;
@@ -412,6 +501,25 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     const loop = (timestamp: number) => {
       const totalProgress =
         totalDuration > 0 ? Math.min(currentTime / totalDuration, 1) : verseProgress;
+
+      const activeMedia = customMediaElRef.current;
+      if (activeMedia instanceof HTMLVideoElement && activeMedia.readyState >= 1 && !activeMedia.seeking) {
+        const { start, end } = videoIntervalRef.current;
+        const vidDur =
+          Number.isFinite(activeMedia.duration) && activeMedia.duration > 0
+            ? activeMedia.duration
+            : null;
+        const effectiveEnd =
+          end != null && end > start ? (vidDur ? Math.min(end, vidDur) : end) : vidDur;
+        const effectiveStart =
+          effectiveEnd != null ? Math.min(start, Math.max(0, effectiveEnd - 0.1)) : start;
+        if (
+          (effectiveEnd != null && activeMedia.currentTime >= effectiveEnd) ||
+          activeMedia.currentTime < effectiveStart - 0.05
+        ) {
+          activeMedia.currentTime = effectiveStart;
+        }
+      }
 
       const activePersianText = currentVerse
         ? persianTafsirMap[currentVerse.verse_number] || currentVerse.persianTafsir

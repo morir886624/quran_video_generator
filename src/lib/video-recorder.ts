@@ -199,6 +199,9 @@ export async function exportVideo({
   const effectiveTotalDuration = totalDuration / speed;
 
   let customMediaElement: HTMLImageElement | HTMLVideoElement | null = null;
+  let videoIntervalStart = 0;
+  let videoIntervalEnd: number | null = null;
+  let videoEndedHandler: (() => void) | null = null;
   const apiImages = new Map<string, HTMLImageElement>();
 
   if (config.backgroundPreset === 'api-image') {
@@ -222,11 +225,76 @@ export async function exportVideo({
       videoEl.src = config.customMediaUrl;
       videoEl.crossOrigin = 'anonymous';
       videoEl.muted = true;
-      videoEl.loop = true;
+      videoEl.playsInline = true;
       videoEl.playbackRate = speed;
       videoEl.preservesPitch = true;
       (videoEl as any).webkitPreservesPitch = true;
       (videoEl as any).mozPreservesPitch = true;
+
+      if (videoEl.readyState < 1) {
+        await new Promise<void>((res) => {
+          const timer = setTimeout(res, 5000);
+          const done = () => {
+            clearTimeout(timer);
+            videoEl.removeEventListener('loadedmetadata', done);
+            videoEl.removeEventListener('error', done);
+            res();
+          };
+          videoEl.addEventListener('loadedmetadata', done);
+          videoEl.addEventListener('error', done);
+        });
+      }
+
+      const vidDur =
+        Number.isFinite(videoEl.duration) && videoEl.duration > 0 ? videoEl.duration : null;
+      const requestedStart = Math.max(0, config.customVideoStartTime ?? 0);
+      const requestedEnd =
+        typeof config.customVideoEndTime === 'number' && config.customVideoEndTime > requestedStart
+          ? config.customVideoEndTime
+          : null;
+
+      videoIntervalEnd =
+        requestedEnd != null
+          ? vidDur
+            ? Math.min(requestedEnd, vidDur)
+            : requestedEnd
+          : vidDur;
+      videoIntervalStart =
+        videoIntervalEnd != null
+          ? Math.min(requestedStart, Math.max(0, videoIntervalEnd - 0.1))
+          : requestedStart;
+
+      videoEl.loop =
+        videoIntervalStart <= 0 &&
+        (videoIntervalEnd == null || (vidDur != null && videoIntervalEnd >= vidDur - 0.05));
+
+      if (videoIntervalStart > 0) {
+        await new Promise<void>((res) => {
+          const timer = setTimeout(res, 2000);
+          const onSeeked = () => {
+            clearTimeout(timer);
+            videoEl.removeEventListener('seeked', onSeeked);
+            res();
+          };
+          videoEl.addEventListener('seeked', onSeeked);
+          try {
+            videoEl.currentTime = videoIntervalStart;
+          } catch {
+            clearTimeout(timer);
+            videoEl.removeEventListener('seeked', onSeeked);
+            res();
+          }
+        });
+      }
+
+      videoEndedHandler = () => {
+        try {
+          videoEl.currentTime = videoIntervalStart;
+        } catch {}
+        videoEl.play().catch(() => {});
+      };
+      videoEl.addEventListener('ended', videoEndedHandler);
+
       await videoEl.play().catch(() => {});
       customMediaElement = videoEl;
     } else {
@@ -337,6 +405,23 @@ export async function exportVideo({
         ? persianTafsirMap[currentVerse.verse_number] || currentVerse.persianTafsir
         : undefined;
 
+      if (
+        customMediaElement instanceof HTMLVideoElement &&
+        customMediaElement.readyState >= 1 &&
+        !customMediaElement.seeking
+      ) {
+        if (
+          (videoIntervalEnd != null && customMediaElement.currentTime >= videoIntervalEnd) ||
+          customMediaElement.currentTime < videoIntervalStart - 0.05 ||
+          customMediaElement.ended
+        ) {
+          customMediaElement.currentTime = videoIntervalStart;
+          if (customMediaElement.paused) {
+            customMediaElement.play().catch(() => {});
+          }
+        }
+      }
+
       const activeCustomMedia = config.backgroundPreset === 'api-image'
         ? apiImages.get(currentVerse.verse_key) || null
         : customMediaElement;
@@ -379,6 +464,9 @@ export async function exportVideo({
   });
 
   if (customMediaElement && customMediaElement instanceof HTMLVideoElement) {
+    if (videoEndedHandler) {
+      customMediaElement.removeEventListener('ended', videoEndedHandler);
+    }
     try {
       customMediaElement.pause();
       customMediaElement.removeAttribute('src');

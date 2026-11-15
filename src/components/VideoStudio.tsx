@@ -6,6 +6,7 @@ import { VideoPreviewCanvas } from './VideoPreviewCanvas';
 import { VideoExportModal } from './VideoExportModal';
 import { ReciterModal } from './ReciterModal';
 import { ProjectsModal } from './ProjectsModal';
+import { VideoIntervalModal, formatIntervalTime } from './VideoIntervalModal';
 import { ProjectDraft } from '@/lib/storage-db';
 import { useBackButton } from '@/lib/back-button';
 import { BACKGROUND_PRESETS, POPULAR_RECITERS, DEFAULT_VIDEO_CONFIG } from '@/lib/constants';
@@ -29,6 +30,7 @@ import {
   Loader2,
   Save,
   Trash2,
+  Scissors,
 } from 'lucide-react';
 import { isAyahAudioCached, downloadVerseKeysAudio } from '@/lib/audio-cache';
 import { saveVideoConfig, clearSavedVideoConfig } from '@/lib/video-config-storage';
@@ -97,6 +99,14 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isReciterModalOpen, setIsReciterModalOpen] = useState(false);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
+  const [pendingVideoInterval, setPendingVideoInterval] = useState<{
+    file: File | null;
+    objectUrl: string;
+    fileName: string;
+    isNewUpload: boolean;
+    initialStartTime: number | null;
+    initialEndTime: number | null;
+  } | null>(null);
   const [isAudioCached, setIsAudioCached] = useState<boolean>(false);
   const [isDownloadingAudio, setIsDownloadingAudio] = useState<boolean>(false);
 
@@ -132,10 +142,20 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const handleCancelVideoInterval = () => {
+    if (pendingVideoInterval?.isNewUpload && pendingVideoInterval.objectUrl) {
+      try {
+        URL.revokeObjectURL(pendingVideoInterval.objectUrl);
+      } catch {}
+    }
+    setPendingVideoInterval(null);
+  };
+
   // Wire hardware back button for modals
   useBackButton(isExportModalOpen, () => setIsExportModalOpen(false), 25);
   useBackButton(isReciterModalOpen, () => setIsReciterModalOpen(false), 25);
   useBackButton(isProjectsModalOpen, () => setIsProjectsModalOpen(false), 25);
+  useBackButton(!!pendingVideoInterval, handleCancelVideoInterval, 25);
 
   const startAyah = verses[0]?.verse_number || 1;
   const endAyah = verses[verses.length - 1]?.verse_number || 1;
@@ -157,12 +177,56 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       ...DEFAULT_VIDEO_CONFIG,
       customMediaUrl: null,
       customMediaType: null,
+      customVideoStartTime: null,
+      customVideoEndTime: null,
+    });
+  };
+
+  const handleConfirmVideoInterval = async (startTime: number, endTime: number) => {
+    if (!pendingVideoInterval) return;
+    const { file, objectUrl, isNewUpload } = pendingVideoInterval;
+    const oldUrl = config.customMediaUrl;
+
+    setPendingVideoInterval(null);
+
+    onChangeConfig({
+      customMediaUrl: objectUrl,
+      customMediaType: 'video',
+      customVideoStartTime: startTime,
+      customVideoEndTime: endTime,
+    });
+
+    if (isNewUpload && oldUrl && oldUrl !== objectUrl && oldUrl.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(oldUrl);
+      } catch {}
+    }
+
+    if (file) {
+      try {
+        await storeCustomMedia(file);
+      } catch (err) {
+        console.error('Failed to store custom media', err);
+      }
+    }
+  };
+
+  const handleOpenEditVideoInterval = () => {
+    if (!config.customMediaUrl || config.customMediaType !== 'video') return;
+    setPendingVideoInterval({
+      file: null,
+      objectUrl: config.customMediaUrl,
+      fileName: 'Background Video',
+      isNewUpload: false,
+      initialStartTime: config.customVideoStartTime ?? null,
+      initialEndTime: config.customVideoEndTime ?? null,
     });
   };
 
   // Custom background file upload handler
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
     const isVideo = file.type.startsWith('video/');
@@ -170,10 +234,31 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
     if (!isVideo && !isImage) return;
 
     const objectUrl = URL.createObjectURL(file);
+
+    if (isVideo) {
+      setPendingVideoInterval({
+        file,
+        objectUrl,
+        fileName: file.name,
+        isNewUpload: true,
+        initialStartTime: null,
+        initialEndTime: null,
+      });
+      return;
+    }
+
+    const oldUrl = config.customMediaUrl;
     onChangeConfig({
       customMediaUrl: objectUrl,
-      customMediaType: isVideo ? 'video' : 'image',
+      customMediaType: 'image',
+      customVideoStartTime: null,
+      customVideoEndTime: null,
     });
+    if (oldUrl && oldUrl !== objectUrl && oldUrl.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(oldUrl);
+      } catch {}
+    }
 
     try {
       await storeCustomMedia(file);
@@ -568,7 +653,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         chapter={chapter}
         config={config}
         onChangeConfig={onChangeConfig}
-        isModalOpen={isReciterModalOpen || isExportModalOpen || isProjectsModalOpen}
+        isModalOpen={isReciterModalOpen || isExportModalOpen || isProjectsModalOpen || !!pendingVideoInterval}
         topBar={
           <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white/95 dark:bg-[#0E1626] border-b border-slate-200/90 dark:border-slate-800/80 transition-colors z-20">
             {/* Range of Ayahs Selector (Left) */}
@@ -753,7 +838,12 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                   Your Background
                 </span>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-2 sm:gap-2.5">
-                  <div className="relative flex flex-col justify-end p-2.5 rounded-2xl h-[78px] text-left transition-all overflow-hidden border-2 border-emerald-500 dark:border-emerald-400 ring-2 ring-emerald-500/25 dark:ring-emerald-400/25 shadow-[0_0_12px_rgba(16,185,129,0.25)]">
+                  <div
+                    onClick={config.customMediaType === 'video' ? handleOpenEditVideoInterval : undefined}
+                    className={`relative flex flex-col justify-end p-2.5 rounded-2xl h-[78px] text-left transition-all overflow-hidden border-2 border-emerald-500 dark:border-emerald-400 ring-2 ring-emerald-500/25 dark:ring-emerald-400/25 shadow-[0_0_12px_rgba(16,185,129,0.25)] ${
+                      config.customMediaType === 'video' ? 'cursor-pointer' : ''
+                    }`}
+                  >
                     {/* The Media Preview */}
                     {config.customMediaType === 'video' ? (
                       <video
@@ -763,6 +853,26 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                         playsInline
                         loop
                         autoPlay
+                        onLoadedMetadata={(e) => {
+                          const start = Math.max(0, config.customVideoStartTime ?? 0);
+                          if (start > 0) {
+                            try {
+                              e.currentTarget.currentTime = start;
+                            } catch {}
+                          }
+                        }}
+                        onTimeUpdate={(e) => {
+                          const vid = e.currentTarget;
+                          const start = Math.max(0, config.customVideoStartTime ?? 0);
+                          const end =
+                            typeof config.customVideoEndTime === 'number' &&
+                            config.customVideoEndTime > start
+                              ? config.customVideoEndTime
+                              : null;
+                          if (end != null && (vid.currentTime >= end || vid.currentTime < start - 0.1)) {
+                            vid.currentTime = start;
+                          }
+                        }}
                       />
                     ) : (
                       <div
@@ -772,7 +882,23 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                     )}
                     
                     {/* Dark Overlay so text is readable */}
-                    <div className="absolute inset-0 bg-black/30" />
+                    <div className="absolute inset-0 bg-black/35" />
+
+                    {/* Edit Interval Button top left for videos */}
+                    {config.customMediaType === 'video' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditVideoInterval();
+                        }}
+                        className="absolute top-1.5 left-1.5 px-1.5 h-6 rounded-full bg-slate-900/80 hover:bg-emerald-600 text-white flex items-center gap-1 text-[10px] font-bold shadow-md backdrop-blur-sm transition-all active:scale-95 z-10 border border-white/15"
+                        title="Change Video Interval"
+                      >
+                        <Scissors className="w-3 h-3" />
+                        <span>Trim</span>
+                      </button>
+                    )}
 
                     {/* Delete Button top right */}
                     <button
@@ -782,6 +908,8 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                         onChangeConfig({
                           customMediaUrl: null,
                           customMediaType: null,
+                          customVideoStartTime: null,
+                          customVideoEndTime: null,
                           backgroundPreset: config.backgroundPreset || 'midnight',
                         });
                         try {
@@ -794,10 +922,19 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
 
-                    {/* Title Bottom Left */}
-                    <span className="relative z-10 text-[11px] font-bold text-white drop-shadow-md truncate">
-                      Uploaded {config.customMediaType === 'video' ? 'Video' : 'Image'}
-                    </span>
+                    {/* Title & Selected Interval Bottom Left */}
+                    <div className="relative z-10 flex flex-col min-w-0">
+                      <span className="text-[11px] font-bold text-white drop-shadow-md truncate">
+                        Uploaded {config.customMediaType === 'video' ? 'Video' : 'Image'}
+                      </span>
+                      {config.customMediaType === 'video' &&
+                        typeof config.customVideoStartTime === 'number' &&
+                        typeof config.customVideoEndTime === 'number' && (
+                          <span className="text-[9.5px] font-mono font-semibold text-emerald-300 drop-shadow truncate">
+                            {formatIntervalTime(config.customVideoStartTime)}–{formatIntervalTime(config.customVideoEndTime)}
+                          </span>
+                        )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1538,6 +1675,20 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         onSelectReciter={onSelectReciter}
         currentChapter={chapter}
       />
+
+      {/* Video Interval Picker Modal */}
+      {pendingVideoInterval && (
+        <VideoIntervalModal
+          key={pendingVideoInterval.objectUrl}
+          isOpen={true}
+          videoUrl={pendingVideoInterval.objectUrl}
+          fileName={pendingVideoInterval.fileName}
+          initialStartTime={pendingVideoInterval.initialStartTime}
+          initialEndTime={pendingVideoInterval.initialEndTime}
+          onConfirm={handleConfirmVideoInterval}
+          onCancel={handleCancelVideoInterval}
+        />
+      )}
 
       {/* Projects & Drafts Modal */}
       {onLoadProject && onResetNewProject && (

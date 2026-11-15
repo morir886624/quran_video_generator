@@ -503,6 +503,8 @@ export const DEFAULT_VIDEO_CONFIG: VideoConfig = {
   backgroundPreset: 'midnight',
   customMediaUrl: null,
   customMediaType: null,
+  customVideoStartTime: null,
+  customVideoEndTime: null,
 
   arabicFontSize: 38,
   translationFontSize: 20,

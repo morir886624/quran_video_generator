@@ -19,6 +19,20 @@ export function loadSavedVideoConfig(): Partial<VideoConfig> | null {
     // Do not restore stale object URLs or temporary blobs across browser sessions
     delete parsed.customMediaUrl;
     delete parsed.customMediaType;
+    if (
+      typeof parsed.customVideoStartTime !== 'number' ||
+      !Number.isFinite(parsed.customVideoStartTime) ||
+      parsed.customVideoStartTime < 0
+    ) {
+      delete parsed.customVideoStartTime;
+    }
+    if (
+      typeof parsed.customVideoEndTime !== 'number' ||
+      !Number.isFinite(parsed.customVideoEndTime) ||
+      parsed.customVideoEndTime <= 0
+    ) {
+      delete parsed.customVideoEndTime;
+    }
 
     return parsed as Partial<VideoConfig>;
   } catch (err) {

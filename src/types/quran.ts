@@ -153,6 +153,8 @@ export interface VideoConfig {
   backgroundPreset: BackgroundPresetId;
   customMediaUrl: string | null;
   customMediaType: 'video' | 'image' | null;
+  customVideoStartTime?: number | null;
+  customVideoEndTime?: number | null;
   videoFilter?: string;
   cardBackgroundPreset?: string;
 

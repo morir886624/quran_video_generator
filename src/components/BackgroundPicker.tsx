@@ -41,6 +41,8 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
     onChangeConfig({
       customMediaUrl: null,
       customMediaType: null,
+      customVideoStartTime: null,
+      customVideoEndTime: null,
     });
   };
 
