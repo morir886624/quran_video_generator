@@ -11,7 +11,6 @@ import {
   Check,
   Palette,
   Image as ImageIcon,
-  Wand2,
 } from 'lucide-react';
 import { useToast } from '@/components/ToastProvider';
 
@@ -28,7 +27,7 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<BackgroundPresetCategory>(() => {
     const found = BACKGROUND_PRESETS.find((p) => p.id === config.backgroundPreset);
-    return found?.category || 'simple';
+    return found?.category || 'pictures';
   });
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,14 +109,14 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
         </div>
       </div>
 
-      {/* Preset Backgrounds Grid Separated into 3 Parts */}
+      {/* Preset Backgrounds Grid Separated into Simple & Pictures */}
       <div className="space-y-2.5">
         <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
           Theme Presets
         </label>
 
-        {/* 3-Part Switcher: Simple | Pictures | Interactives */}
-        <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+        {/* 2-Part Switcher: Simple | Pictures */}
+        <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
           <button
             type="button"
             onClick={() => setSelectedCategory('simple')}
@@ -142,19 +141,6 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
           >
             <ImageIcon className="w-3.5 h-3.5" />
             <span>Pictures</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('interactives')}
-            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all ${
-              selectedCategory === 'interactives'
-                ? 'bg-emerald-500 text-white dark:text-slate-950 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Wand2 className="w-3.5 h-3.5" />
-            <span>Interactives</span>
           </button>
         </div>
 
@@ -196,7 +182,7 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
                   )}
                 </div>
                 <p className="text-[10px] text-slate-200/90 line-clamp-2 drop-shadow">
-                  {preset.interactiveHook || preset.description}
+                  {preset.description}
                 </p>
               </button>
             );

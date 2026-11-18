@@ -9,10 +9,6 @@ import {
   renderVideoFrame,
 } from '@/lib/video-engine';
 import {
-  InteractivePointerState,
-  isInteractivePreset,
-} from '@/lib/interactive-backgrounds';
-import {
   StitchedAudioPlayer,
 } from '@/lib/audio-stitcher';
 import { BACKGROUND_PRESETS } from '@/lib/constants';
@@ -82,17 +78,6 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const playerRef = useRef<StitchedAudioPlayer | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const animFrameIdRef = useRef<number | null>(null);
-  const animStartTimeRef = useRef<number>(0);
-  const pointerRef = useRef<InteractivePointerState>({
-    x: 0.5,
-    y: 0.5,
-    active: false,
-    ripples: [],
-  });
-  const pointerTargetRef = useRef<{ x: number; y: number }>({ x: 0.5, y: 0.5 });
-  const dragDistanceRef = useRef<number>(0);
-  const downPosRef = useRef<{ x: number; y: number } | null>(null);
-
   const customMediaElRef = useRef<HTMLVideoElement | HTMLImageElement | null>(null);
   const hasActiveBackgroundSessionRef = useRef<boolean>(false);
   const videoIntervalRef = useRef<{ start: number; end: number | null }>({
@@ -396,65 +381,6 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
   }, [isPlaying]);
 
-  const updatePointerCoords = useCallback((clientX: number, clientY: number, spawnRipple = false) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
-
-    const nx = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const ny = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-    pointerTargetRef.current = { x: nx, y: ny };
-    pointerRef.current.active = true;
-
-    if (spawnRipple) {
-      const elapsed = performance.now() - animStartTimeRef.current;
-      const ripples = pointerRef.current.ripples || [];
-      ripples.push({ x: nx, y: ny, born: elapsed });
-      if (ripples.length > 8) ripples.shift();
-      pointerRef.current.ripples = ripples;
-    }
-  }, []);
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      downPosRef.current = { x: e.clientX, y: e.clientY };
-      dragDistanceRef.current = 0;
-      updatePointerCoords(e.clientX, e.clientY, true);
-    },
-    [updatePointerCoords]
-  );
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (downPosRef.current) {
-        const dx = e.clientX - downPosRef.current.x;
-        const dy = e.clientY - downPosRef.current.y;
-        dragDistanceRef.current = Math.max(dragDistanceRef.current, Math.hypot(dx, dy));
-      }
-      updatePointerCoords(e.clientX, e.clientY, false);
-    },
-    [updatePointerCoords]
-  );
-
-  const handlePointerUp = useCallback(() => {
-    downPosRef.current = null;
-  }, []);
-
-  const handlePointerLeave = useCallback(() => {
-    downPosRef.current = null;
-    pointerRef.current.active = false;
-  }, []);
-
-  const handleCanvasClick = useCallback(() => {
-    // If user dragged across the canvas to interact with the background, don't toggle play/pause
-    if (dragDistanceRef.current > 14) {
-      dragDistanceRef.current = 0;
-      return;
-    }
-    togglePlay();
-  }, [togglePlay]);
-
   const handleNext = useCallback(() => {
     if (!playerRef.current) return;
     if (currentAyahIndex < verses.length - 1) {
@@ -589,7 +515,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
   }, [playbackSpeed, onChangeConfig]);
 
-  // Main Canvas Render Loop (runs continuous 60fps when actively playing OR when an interactive nature background is active)
+  // Main Canvas Render Loop (runs continuous 60fps ONLY when actively playing & visible; otherwise renders single static frame on demand)
   useEffect(() => {
     if (isPageHidden) return;
 
@@ -606,35 +532,15 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
 
     const startTime = performance.now();
-    animStartTimeRef.current = startTime;
-
-    const isInteractive =
-      !config.customMediaUrl && isInteractivePreset(config.backgroundPreset);
 
     const drawFrame = (timestamp: number, animateParticles: boolean) => {
-      const elapsed = animateParticles ? timestamp - startTime : 0;
-
-      // Smoothly interpolate pointer position for fluid interactive parallax & wind
-      const ptr = pointerRef.current;
-      ptr.x += (pointerTargetRef.current.x - ptr.x) * 0.14;
-      ptr.y += (pointerTargetRef.current.y - ptr.y) * 0.14;
-      if (ptr.ripples && ptr.ripples.length > 0) {
-        ptr.ripples = ptr.ripples.filter((r) => elapsed - r.born < 1450);
-      }
-
       const live = isPlaying && playerRef.current ? playerRef.current.getProgress() : null;
-      const frameVerseProgress = live
-        ? live.verseProgress
-        : isInteractive && !isPlaying && currentTime === 0
-          ? 0.5 - 0.5 * Math.cos(elapsed * 0.0012)
-          : verseProgress;
+      const frameVerseProgress = live ? live.verseProgress : verseProgress;
       const frameTotalProgress = live
         ? live.totalProgress
-        : totalDuration > 0 && currentTime > 0
+        : totalDuration > 0
           ? Math.min(currentTime / totalDuration, 1)
-          : isInteractive && !isPlaying
-            ? 0.5 - 0.5 * Math.cos(elapsed * 0.00035)
-            : verseProgress;
+          : verseProgress;
       const activeVerseObj =
         live && verses[live.currentVerseIndex] ? verses[live.currentVerseIndex] : currentVerse;
 
@@ -671,14 +577,13 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         verseProgress: frameVerseProgress,
         totalProgress: frameTotalProgress,
         particles: animateParticles ? particlesRef.current : [],
-        time: elapsed,
+        time: animateParticles ? Math.max(0, timestamp - startTime) : 0,
         customMediaElement: customMediaElRef.current,
         persianTafsirText: activePersianText,
-        pointer: ptr,
       });
     };
 
-    const shouldAnimate = (isPlaying || isInteractive) && !isModalOpen && !isPageHidden;
+    const shouldAnimate = isPlaying && !isModalOpen && !isPageHidden;
 
     if (!shouldAnimate) {
       drawFrame(performance.now(), false);
@@ -738,12 +643,8 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
       {/* Video Canvas Container (Top Half) */}
       <div
-        className="relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 ease-in-out bg-slate-950 touch-none"
-        onClick={handleCanvasClick}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerLeave}
+        className="relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 ease-in-out bg-slate-950"
+        onClick={togglePlay}
       >
         <canvas
           ref={canvasRef}

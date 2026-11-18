@@ -81,7 +81,7 @@ export interface AyahAudioFile {
 
 export type AspectRatio = '9:16' | '1:1' | '16:9';
 
-export type BackgroundPresetCategory = 'simple' | 'pictures' | 'interactives';
+export type BackgroundPresetCategory = 'simple' | 'pictures';
 
 export type BackgroundPresetId =
   | 'parchment'
@@ -97,6 +97,26 @@ export type BackgroundPresetId =
   | 'persian-valley'
   | 'calm-sea'
   | 'sea-frameless'
+  | 'dawn-awakening'
+  | 'celestial-aurora'
+  | 'desert-miracle'
+  | 'moonlit-ocean'
+  | 'luminous-woods'
+  | 'eclipse-crown'
+  | 'sakura-breeze'
+  | 'cascading-waterfall'
+  | 'starry-oasis'
+  | 'crystal-cavern'
+  | 'autumn-stream'
+  | 'alpine-alpenglow'
+  | 'ocean-cathedral'
+  | 'moonlit-lotus'
+  | 'sacred-gorge'
+  | 'primordial-earth'
+  | 'nordic-fjord'
+  | 'rain-garden'
+  | 'cosmic-pillars'
+  | 'emerald-bamboo'
   | 'aurora'
   | 'dusk'
   | 'dawn'
@@ -120,27 +140,7 @@ export type BackgroundPresetId =
   | 'ruby'
   | 'amethyst'
   | 'forest'
-  | 'api-image'
-  | 'interactive-dawn-awakening'
-  | 'interactive-celestial-aurora'
-  | 'interactive-desert-miracle'
-  | 'interactive-storm-to-serenity'
-  | 'interactive-luminous-woods'
-  | 'interactive-eclipse-crown'
-  | 'interactive-sakura-breeze'
-  | 'interactive-cascading-light'
-  | 'interactive-falling-stars'
-  | 'interactive-crystal-cavern'
-  | 'interactive-autumn-stream'
-  | 'interactive-alpine-alpenglow'
-  | 'interactive-ocean-cathedral'
-  | 'interactive-moonlit-lotus'
-  | 'interactive-sacred-gorge'
-  | 'interactive-primordial-earth'
-  | 'interactive-nordic-fjord'
-  | 'interactive-rain-sanctuary'
-  | 'interactive-pillars-of-creation'
-  | 'interactive-emerald-bamboo';
+  | 'api-image';
 
 export interface BackgroundPreset {
   id: BackgroundPresetId;
@@ -152,7 +152,6 @@ export interface BackgroundPreset {
   accentColor: string;
   particleType: 'stars' | 'geometric' | 'dust' | 'rain' | 'minimal' | 'glow';
   imageUrl?: string;
-  interactiveHook?: string;
 }
 
 export type PersianTafsirPosition = 'under' | 'above';

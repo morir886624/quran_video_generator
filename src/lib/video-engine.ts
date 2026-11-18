@@ -1,11 +1,6 @@
-import { AspectRatio, BackgroundPresetId, Chapter, Verse, VideoConfig } from '@/types/quran';
+import { AspectRatio, Chapter, Verse, VideoConfig } from '@/types/quran';
 import { BACKGROUND_PRESETS } from './constants';
 import { cleanTranslationText } from './quran-api';
-import {
-  drawInteractiveBackground,
-  InteractivePointerState,
-  isInteractivePreset,
-} from './interactive-backgrounds';
 
 export interface Particle {
   x: number;
@@ -92,7 +87,6 @@ export function renderVideoFrame({
   time = 0,
   customMediaElement,
   persianTafsirText,
-  pointer,
 }: {
   ctx: CanvasRenderingContext2D;
   width: number;
@@ -106,7 +100,6 @@ export function renderVideoFrame({
   time?: number;
   customMediaElement?: HTMLVideoElement | HTMLImageElement | null;
   persianTafsirText?: string;
-  pointer?: InteractivePointerState;
 }) {
   ctx.save();
   ctx.clearRect(0, 0, width, height);
@@ -114,9 +107,6 @@ export function renderVideoFrame({
   const preset =
     BACKGROUND_PRESETS.find((p) => p.id === config.backgroundPreset) ||
     BACKGROUND_PRESETS[0];
-
-  const effectiveTotalProgress =
-    totalProgress !== undefined ? totalProgress : verseProgress;
 
   // 1. Draw Background
   ctx.save();
@@ -130,17 +120,6 @@ export function renderVideoFrame({
     } catch {
       drawPresetBackground(ctx, width, height, preset, time);
     }
-  } else if (isInteractivePreset(preset.id)) {
-    drawInteractiveBackground({
-      ctx,
-      width,
-      height,
-      presetId: preset.id,
-      time,
-      verseProgress,
-      totalProgress: effectiveTotalProgress,
-      pointer,
-    });
   } else {
     drawPresetBackground(ctx, width, height, preset, time);
   }
