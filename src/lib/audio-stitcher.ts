@@ -227,23 +227,52 @@ export class StitchedAudioPlayer {
 
     const currentSession = this.playSessionId;
 
-    // Preload audio metadata to record exact durations
-    this.metadataLoaders = audioUrls.map((url, i) => {
+    // Preload audio metadata with bounded concurrency and immediate cleanup to record exact durations
+    let nextIdx = 0;
+    const CONCURRENCY = 4;
+    const loadNextMetadata = () => {
+      if (currentSession !== this.playSessionId || nextIdx >= audioUrls.length) return;
+      const idx = nextIdx++;
+      const url = audioUrls[idx];
+      if (!url) {
+        loadNextMetadata();
+        return;
+      }
+
       const a = new Audio();
       a.preload = 'metadata';
-      a.src = url;
+      this.metadataLoaders.push(a);
+
+      const finish = () => {
+        const pos = this.metadataLoaders.indexOf(a);
+        if (pos !== -1) this.metadataLoaders.splice(pos, 1);
+        this.cleanupAudioElement(a);
+        if (currentSession === this.playSessionId) {
+          loadNextMetadata();
+        }
+      };
+
       a.onloadedmetadata = () => {
-        if (currentSession !== this.playSessionId) return;
-        if (a.duration && !isNaN(a.duration) && a.duration > 0) {
-          this.verseDurations[i] = a.duration;
+        if (currentSession === this.playSessionId && a.duration && !isNaN(a.duration) && isFinite(a.duration) && a.duration > 0) {
+          this.verseDurations[idx] = a.duration;
           this.recomputeSegments();
           if (!this.isPlaying) {
             this.emitCurrentTime();
           }
         }
+        finish();
       };
-      return a;
-    });
+
+      a.onerror = () => {
+        finish();
+      };
+
+      a.src = url;
+    };
+
+    for (let i = 0; i < Math.min(CONCURRENCY, audioUrls.length); i++) {
+      loadNextMetadata();
+    }
 
     this.emitCurrentTime();
   }
@@ -506,15 +535,36 @@ export class StitchedAudioPlayer {
     return this.segments;
   }
 
-  private startTracking() {
-    this.stopTracking();
-    const track = () => {
-      this.emitCurrentTime();
-      if (this.isPlaying) {
-        this.animFrameId = requestAnimationFrame(track);
-      }
+  /**
+   * Returns instantaneous progress for the 2D canvas animation loop without causing React state re-renders.
+   */
+  public getProgress(): {
+    currentTime: number;
+    totalDuration: number;
+    currentVerseIndex: number;
+    verseProgress: number;
+    totalProgress: number;
+  } {
+    const cur = this.getCurrentTime();
+    const seg = this.segments[this.currentAyahIndex];
+    const dur = seg?.duration || this.currentAudioEl?.duration || 1;
+    const ayahCurrent = this.currentAudioEl?.currentTime || 0;
+    const verseProgress = Math.min(1, Math.max(0, ayahCurrent / dur));
+    const totalProgress =
+      this.totalDuration > 0 ? Math.min(cur / this.totalDuration, 1) : verseProgress;
+    return {
+      currentTime: cur,
+      totalDuration: this.totalDuration,
+      currentVerseIndex: this.currentAyahIndex,
+      verseProgress,
+      totalProgress,
     };
-    this.animFrameId = requestAnimationFrame(track);
+  }
+
+  private startTracking() {
+    // Rely on native HTMLAudioElement.ontimeupdate (~4Hz) for UI state updates
+    // while the Canvas loop polls getProgress() directly when visible.
+    this.emitCurrentTime();
   }
 
   private stopTracking() {

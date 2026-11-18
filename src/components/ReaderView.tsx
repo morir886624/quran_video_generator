@@ -295,26 +295,43 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     [chapterAudioMap, chapter.id, currentReciter]
   );
 
-  // Preload audio metadata across the chapter to compute exact whole-chapter duration
+  // Initialize smart duration estimates immediately when chapter verses change
   useEffect(() => {
     if (!verses || verses.length === 0) {
       setVerseDurations([]);
       return;
     }
-
-    let isCancelled = false;
-    // Initial smart estimate based on Arabic text length so total duration is non-zero immediately
     const durations = verses.map((v) =>
       Math.max(3, Math.round((v.text_uthmani?.length || 45) * 0.12))
     );
-    setVerseDurations([...durations]);
+    setVerseDurations(durations);
+  }, [verses, getVerseAudioUrl]);
+
+  // Preload exact audio metadata across the chapter ONLY when audio playback is started
+  useEffect(() => {
+    if (!isPlaying || !verses || verses.length === 0) {
+      return;
+    }
+
+    let isCancelled = false;
+    const durations =
+      verseDurationsRef.current.length === verses.length
+        ? [...verseDurationsRef.current]
+        : verses.map((v) => Math.max(3, Math.round((v.text_uthmani?.length || 45) * 0.12)));
 
     let nextIdx = 0;
+    let pendingUpdates = 0;
     const activeLoaders: HTMLAudioElement[] = [];
-    const CONCURRENCY = 6;
+    const CONCURRENCY = 3;
 
     const loadNext = () => {
-      if (isCancelled || nextIdx >= verses.length) return;
+      if (isCancelled || nextIdx >= verses.length) {
+        if (!isCancelled && pendingUpdates > 0 && activeLoaders.length === 0) {
+          pendingUpdates = 0;
+          setVerseDurations([...durations]);
+        }
+        return;
+      }
       const idx = nextIdx++;
       const v = verses[idx];
       const url = getVerseAudioUrl(v.verse_key, v.verse_number);
@@ -328,8 +345,13 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       activeLoaders.push(a);
 
       const finish = () => {
-        a.onloadedmetadata = null;
-        a.onerror = null;
+        try {
+          a.onloadedmetadata = null;
+          a.onerror = null;
+          a.removeAttribute('src');
+          a.src = '';
+          a.load();
+        } catch {}
         const pos = activeLoaders.indexOf(a);
         if (pos !== -1) activeLoaders.splice(pos, 1);
         if (!isCancelled) {
@@ -340,7 +362,11 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       a.onloadedmetadata = () => {
         if (!isCancelled && a.duration && !isNaN(a.duration) && isFinite(a.duration) && a.duration > 0) {
           durations[idx] = a.duration;
-          setVerseDurations([...durations]);
+          pendingUpdates++;
+          if (pendingUpdates >= 8 || idx === verses.length - 1) {
+            pendingUpdates = 0;
+            setVerseDurations([...durations]);
+          }
         }
         finish();
       };
@@ -364,10 +390,11 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           a.onerror = null;
           a.removeAttribute('src');
           a.src = '';
+          a.load();
         } catch {}
       });
     };
-  }, [verses, getVerseAudioUrl]);
+  }, [isPlaying, verses, getVerseAudioUrl]);
 
   // Whole-chapter total duration and cumulative elapsed time
   const totalChapterDuration = useMemo(() => {

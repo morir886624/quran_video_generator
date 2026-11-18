@@ -87,6 +87,7 @@ public class AudioPlaybackService extends Service {
             sessionGeneration.incrementAndGet();
             isPlaybackActive = false;
             isServiceRunning = false;
+            MainActivity.syncWebViewWithPlaybackState(false);
             if (context != null) {
                 cancelNotificationCompat(context);
                 try {
@@ -179,6 +180,9 @@ public class AudioPlaybackService extends Service {
     }
 
     private void sendControlBroadcast(String command, long seekMs) {
+        if ("play".equals(command) || "next".equals(command) || "prev".equals(command) || "seek".equals(command)) {
+            MainActivity.syncWebViewWithPlaybackState(true);
+        }
         Intent intent = new Intent(ACTION_MEDIA_CONTROL);
         intent.setPackage(getPackageName());
         intent.putExtra("command", command);
@@ -246,6 +250,7 @@ public class AudioPlaybackService extends Service {
     private void stopServiceAndNotification(int startId) {
         isPlaybackActive = false;
         isPlaying = false;
+        MainActivity.syncWebViewWithPlaybackState(false);
         deactivateAndReleaseMediaSession();
         releaseLocks();
         removeForegroundAndCancelNotification();
@@ -331,8 +336,10 @@ public class AudioPlaybackService extends Service {
         if (isPlaying) {
             acquireLocks();
             startForegroundCompat(notification);
+            MainActivity.syncWebViewWithPlaybackState(true);
         } else {
             releaseLocks();
+            MainActivity.syncWebViewWithPlaybackState(false);
             // Satisfy Android O+ startForegroundService contract before detaching so paused card stays dismissible
             if (launchedViaForeground && !isInForeground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundCompat(notification);
@@ -496,8 +503,9 @@ public class AudioPlaybackService extends Service {
                     wakeLock.setReferenceCounted(false);
                 }
             }
-            if (wakeLock != null && !wakeLock.isHeld()) {
-                wakeLock.acquire(4 * 60 * 60 * 1000L);
+            if (wakeLock != null) {
+                // Acquire for 30 minutes at a time (refreshed on each ayah transition while playing)
+                wakeLock.acquire(30 * 60 * 1000L);
             }
         } catch (Exception e) {
             Log.w(TAG, "Failed to acquire WakeLock", e);
@@ -657,6 +665,7 @@ public class AudioPlaybackService extends Service {
         isServiceRunning = false;
         isPlaybackActive = false;
         isInForeground = false;
+        MainActivity.syncWebViewWithPlaybackState(false);
         if (dismissReceiver != null) {
             try {
                 unregisterReceiver(dismissReceiver);

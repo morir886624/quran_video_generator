@@ -10,7 +10,6 @@ import {
 } from '@/lib/video-engine';
 import {
   StitchedAudioPlayer,
-  stitchAudioBuffers,
 } from '@/lib/audio-stitcher';
 import { BACKGROUND_PRESETS } from '@/lib/constants';
 import { fetchPersianTafsirSurah } from '@/lib/quran-api';
@@ -115,7 +114,8 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   }, [config.customVideoStartTime, config.customVideoEndTime]);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [stitchedKey, setStitchedKey] = useState<string | null>(null);
+  const [isPageHidden, setIsPageHidden] = useState(false);
+  const [mediaRevision, setMediaRevision] = useState(0);
   const [currentAyahIndex, setCurrentAyahIndex] = useState(0);
   const [verseProgress, setVerseProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -126,11 +126,19 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const [persianTafsirMap, setPersianTafsirMap] = useState<Record<number, string>>({});
   const [isToolsOpen, setIsToolsOpen] = useState(false);
 
+  // Track page visibility to suspend 1080p canvas rendering & background video when screen is off or app minimized
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const handleVis = () => setIsPageHidden(document.hidden);
+    handleVis();
+    document.addEventListener('visibilitychange', handleVis);
+    return () => document.removeEventListener('visibilitychange', handleVis);
+  }, []);
+
   // Close editing drawer on back button if open
   useBackButton(isToolsOpen, () => setIsToolsOpen(false), 20);
 
   const currentStitchKey = `${audioUrls.join(',')}|${verses.map((v) => v.verse_key).join(',')}`;
-  const isStitchingAudio = audioUrls.length > 0 && verses.length > 0 && stitchedKey !== currentStitchKey;
 
   const currentVerse = verses[currentAyahIndex] || verses[0] || null;
 
@@ -164,8 +172,9 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   useEffect(() => {
     if (config.backgroundPreset === 'api-image' && currentVerse?.image_url) {
       const img = new Image();
-      img.src = `https:${currentVerse.image_url}`;
       img.crossOrigin = 'anonymous';
+      img.onload = () => setMediaRevision((r) => r + 1);
+      img.src = `https:${currentVerse.image_url}`;
       customMediaElRef.current = img;
       return;
     }
@@ -174,8 +183,9 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       const preset = BACKGROUND_PRESETS.find((p) => p.id === config.backgroundPreset);
       if (preset?.imageUrl) {
         const img = new Image();
-        img.src = preset.imageUrl;
         img.crossOrigin = 'anonymous';
+        img.onload = () => setMediaRevision((r) => r + 1);
+        img.src = preset.imageUrl;
         customMediaElRef.current = img;
       } else {
         customMediaElRef.current = null;
@@ -189,6 +199,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       vid.crossOrigin = 'anonymous';
       vid.muted = true;
       vid.playsInline = true;
+      vid.preload = 'metadata';
 
       const enforceInterval = () => {
         const { start, end } = videoIntervalRef.current;
@@ -214,13 +225,15 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
       const onLoadedMetadata = () => {
         const { start } = videoIntervalRef.current;
-        if (start > 0) {
-          try {
-            vid.currentTime = start;
-          } catch {}
-        }
+        try {
+          vid.currentTime = start > 0 ? start : 0.01;
+        } catch {}
         enforceInterval();
-        vid.play().catch(() => {});
+        setMediaRevision((r) => r + 1);
+      };
+
+      const onFrameReady = () => {
+        setMediaRevision((r) => r + 1);
       };
 
       const onEnded = () => {
@@ -228,17 +241,22 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         try {
           vid.currentTime = start;
         } catch {}
-        vid.play().catch(() => {});
+        if (!vid.paused) {
+          vid.play().catch(() => {});
+        }
       };
 
       vid.addEventListener('loadedmetadata', onLoadedMetadata);
+      vid.addEventListener('loadeddata', onFrameReady);
+      vid.addEventListener('seeked', onFrameReady);
       vid.addEventListener('timeupdate', enforceInterval);
       vid.addEventListener('ended', onEnded);
-      vid.play().catch(() => {});
       customMediaElRef.current = vid;
 
       return () => {
         vid.removeEventListener('loadedmetadata', onLoadedMetadata);
+        vid.removeEventListener('loadeddata', onFrameReady);
+        vid.removeEventListener('seeked', onFrameReady);
         vid.removeEventListener('timeupdate', enforceInterval);
         vid.removeEventListener('ended', onEnded);
         try {
@@ -252,11 +270,25 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       };
     } else {
       const img = new Image();
-      img.src = config.customMediaUrl;
       img.crossOrigin = 'anonymous';
+      img.onload = () => setMediaRevision((r) => r + 1);
+      img.src = config.customMediaUrl;
       customMediaElRef.current = img;
     }
   }, [config.customMediaUrl, config.customMediaType, config.backgroundPreset, currentVerse?.image_url]);
+
+  // Play background video ONLY when studio preview is actively playing and visible on screen
+  useEffect(() => {
+    const el = customMediaElRef.current;
+    if (!(el instanceof HTMLVideoElement)) return;
+    if (isPlaying && !isPageHidden && !isModalOpen) {
+      el.play().catch(() => {});
+    } else {
+      try {
+        el.pause();
+      } catch {}
+    }
+  }, [isPlaying, isPageHidden, isModalOpen, mediaRevision]);
 
   // Notify parent of active verse
   useEffect(() => {
@@ -311,21 +343,6 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         stopBackgroundAudioSession();
       }
     };
-
-    stitchAudioBuffers(audioUrls, verseKeys, player.getContext())
-      .then((stitchedResult) => {
-        if (!isCancelled) {
-          player.setStitchedAudio(stitchedResult);
-          setTotalDuration(stitchedResult.totalDuration);
-          setStitchedKey(currentStitchKey);
-        }
-      })
-      .catch((err) => {
-        if (!isCancelled) {
-          console.warn('Audio stitch warning (continuing with HTML5 streaming):', err);
-          setStitchedKey(currentStitchKey);
-        }
-      });
 
     return () => {
       isCancelled = true;
@@ -500,8 +517,10 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     }
   }, [playbackSpeed, onChangeConfig]);
 
-  // Main Canvas Render Loop
+  // Main Canvas Render Loop (runs continuous 60fps ONLY when actively playing & visible; otherwise renders single static frame on demand)
   useEffect(() => {
+    if (isPageHidden) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -509,14 +528,23 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     if (!ctx) return;
 
     const { width, height } = getCanvasDimensions(config.aspectRatio, 1080);
-    canvas.width = width;
-    canvas.height = height;
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
 
     const startTime = performance.now();
 
-    const loop = (timestamp: number) => {
-      const totalProgress =
-        totalDuration > 0 ? Math.min(currentTime / totalDuration, 1) : verseProgress;
+    const drawFrame = (timestamp: number, animateParticles: boolean) => {
+      const live = isPlaying && playerRef.current ? playerRef.current.getProgress() : null;
+      const frameVerseProgress = live ? live.verseProgress : verseProgress;
+      const frameTotalProgress = live
+        ? live.totalProgress
+        : totalDuration > 0
+          ? Math.min(currentTime / totalDuration, 1)
+          : verseProgress;
+      const activeVerseObj =
+        live && verses[live.currentVerseIndex] ? verses[live.currentVerseIndex] : currentVerse;
 
       const activeMedia = customMediaElRef.current;
       if (activeMedia instanceof HTMLVideoElement && activeMedia.readyState >= 1 && !activeMedia.seeking) {
@@ -537,8 +565,8 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         }
       }
 
-      const activePersianText = currentVerse
-        ? persianTafsirMap[currentVerse.verse_number] || currentVerse.persianTafsir
+      const activePersianText = activeVerseObj
+        ? persianTafsirMap[activeVerseObj.verse_number] || activeVerseObj.persianTafsir
         : undefined;
 
       renderVideoFrame({
@@ -547,15 +575,35 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
         height,
         config,
         chapter,
-        currentVerse,
-        verseProgress,
-        totalProgress,
-        particles: particlesRef.current,
-        time: timestamp - startTime,
+        currentVerse: activeVerseObj,
+        verseProgress: frameVerseProgress,
+        totalProgress: frameTotalProgress,
+        particles: animateParticles ? particlesRef.current : [],
+        time: animateParticles ? timestamp - startTime : 0,
         customMediaElement: customMediaElRef.current,
         persianTafsirText: activePersianText,
       });
+    };
 
+    const shouldAnimate = isPlaying && !isModalOpen && !isPageHidden;
+
+    if (!shouldAnimate) {
+      drawFrame(performance.now(), false);
+      let cancelled = false;
+      if (typeof document !== 'undefined' && document.fonts?.ready) {
+        document.fonts.ready.then(() => {
+          if (!cancelled) {
+            drawFrame(performance.now(), false);
+          }
+        }).catch(() => {});
+      }
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const loop = (timestamp: number) => {
+      drawFrame(timestamp, true);
       animFrameIdRef.current = requestAnimationFrame(loop);
     };
 
@@ -564,9 +612,23 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
     return () => {
       if (animFrameIdRef.current) {
         cancelAnimationFrame(animFrameIdRef.current);
+        animFrameIdRef.current = null;
       }
     };
-  }, [config, chapter, currentVerse, verseProgress, currentTime, totalDuration, persianTafsirMap]);
+  }, [
+    config,
+    chapter,
+    verses,
+    currentVerse,
+    verseProgress,
+    currentTime,
+    totalDuration,
+    persianTafsirMap,
+    isPlaying,
+    isPageHidden,
+    isModalOpen,
+    mediaRevision,
+  ]);
 
   const formatSeconds = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -601,14 +663,6 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
           ref={canvasRef}
           className="w-full h-full object-contain"
         />
-
-        {/* Loading / Audio Stitching Badge */}
-        {isStitchingAudio && (
-          <div className="absolute top-2 right-4 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-semibold text-emerald-400 shadow-md">
-            <Loader2 className="w-3 h-3 animate-spin" />
-            <span>Optimizing audio...</span>
-          </div>
-        )}
       </div>
 
       {/* Exterior Open/Close Button on Top Right of modal using relative positions */}

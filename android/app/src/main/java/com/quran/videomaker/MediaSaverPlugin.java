@@ -74,42 +74,6 @@ public class MediaSaverPlugin extends Plugin {
     public static final int PERMISSION_REQ_CODE = 9081;
     private BroadcastReceiver mediaControlReceiver;
 
-    public static boolean isBatteryOptimizationIgnored(Context context) {
-        if (context == null) return true;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            try {
-                android.os.PowerManager pm = (android.os.PowerManager) context.getSystemService(Context.POWER_SERVICE);
-                if (pm != null) {
-                    return pm.isIgnoringBatteryOptimizations(context.getPackageName());
-                }
-            } catch (Exception ignored) {}
-        }
-        return true;
-    }
-
-    public static void promptBatteryOptimizationIfNeeded(Context context) {
-        if (context == null) return;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            try {
-                if (!isBatteryOptimizationIgnored(context)) {
-                    Intent intent = new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                    intent.setData(Uri.parse("package:" + context.getPackageName()));
-                    if (!(context instanceof android.app.Activity)) {
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    }
-                    context.startActivity(intent);
-                }
-            } catch (Exception e) {
-                Log.w(TAG, "Direct battery optimization prompt failed, falling back to settings", e);
-                try {
-                    Intent fallback = new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
-                    fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(fallback);
-                } catch (Exception ignored) {}
-            }
-        }
-    }
-
     @Override
     public void load() {
         super.load();
@@ -120,6 +84,9 @@ public class MediaSaverPlugin extends Plugin {
                     if (intent == null) return;
                     String command = intent.getStringExtra("command");
                     if (command != null) {
+                        if ("play".equals(command) || "next".equals(command) || "prev".equals(command) || "seek".equals(command)) {
+                            MainActivity.syncWebViewWithPlaybackState(true);
+                        }
                         JSObject data = new JSObject();
                         data.put("command", command);
                         if (intent.hasExtra("seekMs")) {
@@ -277,8 +244,8 @@ public class MediaSaverPlugin extends Plugin {
             ) == PackageManager.PERMISSION_GRANTED;
         }
 
-        boolean batteryUnrestricted = isBatteryOptimizationIgnored(context);
-        boolean backgroundPlayGranted = batteryUnrestricted && notificationsGranted;
+        // Foreground service (mediaPlayback) operates cleanly under standard Optimized battery mode
+        boolean backgroundPlayGranted = notificationsGranted;
 
         JSObject ret = new JSObject();
         ret.put("audio", audioGranted);
@@ -290,7 +257,7 @@ public class MediaSaverPlugin extends Plugin {
 
     /**
      * Triggers standard Android system runtime permission dialog for Voice/Audio, Storage,
-     * Lock-screen Notifications, and Unrestricted Background Playback.
+     * and Lock-screen Media Notifications (using Optimized battery mode).
      */
     @PluginMethod
     public void requestAppPermissions(PluginCall call) {
@@ -337,13 +304,11 @@ public class MediaSaverPlugin extends Plugin {
                     permsToRequest.toArray(new String[0]),
                     PERMISSION_REQ_CODE
                 );
-            } else if (!isBatteryOptimizationIgnored(context)) {
-                promptBatteryOptimizationIfNeeded(getActivity() != null ? getActivity() : context);
             }
 
             JSObject ret = new JSObject();
             ret.put("requested", true);
-            ret.put("requestedCount", permsToRequest.size() + (isBatteryOptimizationIgnored(context) ? 0 : 1));
+            ret.put("requestedCount", permsToRequest.size());
             call.resolve(ret);
         } catch (Exception e) {
             Log.e(TAG, "Failed to request permissions", e);
@@ -352,7 +317,7 @@ public class MediaSaverPlugin extends Plugin {
     }
 
     /**
-     * Specifically requests Background Auto-Play permissions (Lock-screen Notification + Unrestricted Battery).
+     * Specifically requests Background Auto-Play notification permission (for Android 13+ MediaStyle player).
      */
     @PluginMethod
     public void requestBackgroundPlayPermission(PluginCall call) {
@@ -365,8 +330,6 @@ public class MediaSaverPlugin extends Plugin {
                     new String[]{Manifest.permission.POST_NOTIFICATIONS},
                     PERMISSION_REQ_CODE
                 );
-            } else if (!isBatteryOptimizationIgnored(context)) {
-                promptBatteryOptimizationIfNeeded(getActivity() != null ? getActivity() : context);
             }
 
             JSObject ret = new JSObject();
