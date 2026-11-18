@@ -45,6 +45,7 @@ import {
 import { OnboardingFlow } from '@/components/OnboardingFlow';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ToastProvider';
+import { stopBackgroundAudioSession } from '@/lib/background-audio';
 
 export default function Home() {
   const { showToast } = useToast();
@@ -112,6 +113,7 @@ export default function Home() {
       // 3. Double-tap to exit cleanly on Android
       const now = Date.now();
       if (now - lastBackPressRef.current < 2000) {
+        stopBackgroundAudioSession();
         App.exitApp();
       } else {
         lastBackPressRef.current = now;

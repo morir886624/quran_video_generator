@@ -82,6 +82,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   const particlesRef = useRef<Particle[]>([]);
   const animFrameIdRef = useRef<number | null>(null);
   const customMediaElRef = useRef<HTMLVideoElement | HTMLImageElement | null>(null);
+  const hasActiveBackgroundSessionRef = useRef<boolean>(false);
   const videoIntervalRef = useRef<{ start: number; end: number | null }>({
     start: Math.max(0, config.customVideoStartTime ?? 0),
     end:
@@ -305,6 +306,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
     player.onEnded = () => {
       if (!isCancelled) {
+        hasActiveBackgroundSessionRef.current = false;
         setIsPlaying(false);
         stopBackgroundAudioSession();
       }
@@ -330,6 +332,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
       if (playerRef.current) {
         playerRef.current.stop();
       }
+      hasActiveBackgroundSessionRef.current = false;
       setIsPlaying(false);
       stopBackgroundAudioSession();
     };
@@ -338,6 +341,7 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      hasActiveBackgroundSessionRef.current = false;
       stopBackgroundAudioSession();
       if (playerRef.current) {
         playerRef.current.destroy();
@@ -382,7 +386,11 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
 
   // Keep lock-screen MediaSession & Android Foreground Service synchronized during Studio playback
   useEffect(() => {
-    if (!isPlaying && currentTime === 0) return;
+    if (isPlaying) {
+      hasActiveBackgroundSessionRef.current = true;
+    } else if (!hasActiveBackgroundSessionRef.current) {
+      return;
+    }
     const surahName = chapter?.name_simple ? `Surah ${chapter.name_simple}` : 'Quran Recitation';
     const ayahLabel = currentVerse ? `Ayah ${currentVerse.verse_number}` : '';
     updateBackgroundAudioSession({
@@ -405,6 +413,14 @@ export const VideoPreviewCanvas: React.FC<VideoPreviewCanvasProps> = ({
             playerRef.current.pause();
             setIsPlaying(false);
           }
+        },
+        onStop: () => {
+          hasActiveBackgroundSessionRef.current = false;
+          if (playerRef.current && playerRef.current.getIsPlaying()) {
+            playerRef.current.pause();
+          }
+          setIsPlaying(false);
+          stopBackgroundAudioSession();
         },
         onNext: handleNext,
         onPrev: handlePrev,

@@ -14,6 +14,7 @@ import {
   updateBackgroundAudioSession,
   stopBackgroundAudioSession,
 } from '@/lib/background-audio';
+import { useBackButton } from '@/lib/back-button';
 import {
   Play,
   Pause,
@@ -38,7 +39,97 @@ import {
   Loader2,
   Compass,
   Image as ImageIcon,
+  MoreHorizontal,
+  ChevronRight,
+  Repeat,
+  Repeat1,
+  StepForward,
+  CircleOff,
+  ScrollText,
+  Gauge,
 } from 'lucide-react';
+
+type SurahPlaybackMode = 'off' | 'next-chapter' | 'repeat-chapter' | 'repeat-ayah';
+
+const PLAYER_SPEED_OPTIONS = [0.75, 1.0, 1.25, 1.5, 2.0] as const;
+const READER_PLAYER_SETTINGS_KEY = 'quran_reader_player_settings';
+
+const PLAYBACK_MODE_OPTIONS: Array<{
+  id: SurahPlaybackMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: 'off',
+    label: 'Off',
+    description: 'Stop playback when the Surah finishes',
+  },
+  {
+    id: 'next-chapter',
+    label: 'Next Surah',
+    description: 'Auto-switch to the next Surah when finished',
+  },
+  {
+    id: 'repeat-chapter',
+    label: 'Repeat Surah',
+    description: 'Loop the current Surah continuously',
+  },
+  {
+    id: 'repeat-ayah',
+    label: 'Repeat Ayah',
+    description: 'Loop the active Ayah continuously',
+  },
+];
+
+function formatPlaybackSpeed(speed: number): string {
+  return Number.isInteger(speed * 10) ? `${speed.toFixed(1)}x` : `${speed}x`;
+}
+
+function loadReaderPlayerSettings(): {
+  autoScroll: boolean;
+  playbackSpeed: number;
+  playbackMode: SurahPlaybackMode;
+} {
+  const defaults = {
+    autoScroll: true,
+    playbackSpeed: 1.0,
+    playbackMode: 'off' as SurahPlaybackMode,
+  };
+  if (typeof window === 'undefined') return defaults;
+  try {
+    const raw = localStorage.getItem(READER_PLAYER_SETTINGS_KEY);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw);
+    return {
+      autoScroll: typeof parsed.autoScroll === 'boolean' ? parsed.autoScroll : defaults.autoScroll,
+      playbackSpeed:
+        typeof parsed.playbackSpeed === 'number' &&
+        PLAYER_SPEED_OPTIONS.includes(parsed.playbackSpeed as (typeof PLAYER_SPEED_OPTIONS)[number])
+          ? parsed.playbackSpeed
+          : defaults.playbackSpeed,
+      playbackMode:
+        typeof parsed.playbackMode === 'string' &&
+        PLAYBACK_MODE_OPTIONS.some((m) => m.id === parsed.playbackMode)
+          ? (parsed.playbackMode as SurahPlaybackMode)
+          : defaults.playbackMode,
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+function applyAudioElementSettings(
+  audio: HTMLAudioElement,
+  volume: number,
+  isMuted: boolean,
+  playbackSpeed: number
+) {
+  audio.volume = isMuted ? 0 : volume;
+  audio.preservesPitch = true;
+  (audio as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = true;
+  (audio as HTMLAudioElement & { mozPreservesPitch?: boolean }).mozPreservesPitch = true;
+  audio.playbackRate = playbackSpeed;
+}
 
 interface ReaderViewProps {
   chapter: Chapter;
@@ -92,8 +183,16 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number>(0);
   const [volume, setVolume] = useState<number>(1.0);
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
-  const [autoScroll, setAutoScroll] = useState<boolean>(true);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(
+    () => loadReaderPlayerSettings().playbackSpeed
+  );
+  const [autoScroll, setAutoScroll] = useState<boolean>(
+    () => loadReaderPlayerSettings().autoScroll
+  );
+  const [playbackMode, setPlaybackMode] = useState<SurahPlaybackMode>(
+    () => loadReaderPlayerSettings().playbackMode
+  );
+  const [isPlayerMenuOpen, setIsPlayerMenuOpen] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [verseDurations, setVerseDurations] = useState<number[]>([]);
@@ -101,10 +200,72 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const preloadAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentPlayingIndexRef = useRef<number>(0);
+  const hasActiveBackgroundSessionRef = useRef<boolean>(false);
+  const pendingAutoPlayChapterRef = useRef<number | null>(null);
+  const playbackModeRef = useRef<SurahPlaybackMode>(playbackMode);
+  const autoScrollRef = useRef<boolean>(autoScroll);
+  const verseDurationsRef = useRef<number[]>([]);
+  const currentReciterRef = useRef<Reciter>(currentReciter || POPULAR_RECITERS[0]);
+  const handleNextChapterRef = useRef<() => void>(() => {});
+  const playerMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     currentPlayingIndexRef.current = currentPlayingIndex;
   }, [currentPlayingIndex]);
+
+  useEffect(() => {
+    playbackModeRef.current = playbackMode;
+  }, [playbackMode]);
+
+  useEffect(() => {
+    autoScrollRef.current = autoScroll;
+  }, [autoScroll]);
+
+  useEffect(() => {
+    verseDurationsRef.current = verseDurations;
+  }, [verseDurations]);
+
+  useEffect(() => {
+    currentReciterRef.current = currentReciter || POPULAR_RECITERS[0];
+  }, [currentReciter]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        READER_PLAYER_SETTINGS_KEY,
+        JSON.stringify({ autoScroll, playbackSpeed, playbackMode })
+      );
+    } catch {
+      // ignore storage write errors
+    }
+  }, [autoScroll, playbackSpeed, playbackMode]);
+
+  useBackButton(isPlayerMenuOpen, () => setIsPlayerMenuOpen(false), 15);
+
+  useEffect(() => {
+    if (!isPlayerMenuOpen) return;
+
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      if (playerMenuRef.current && !playerMenuRef.current.contains(e.target as Node)) {
+        setIsPlayerMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsPlayerMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isPlayerMenuOpen]);
 
   // Format seconds to mm:ss or hh:mm:ss
   const formatSeconds = (sec: number) => {
@@ -221,17 +382,21 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     return Math.min(totalChapterDuration, elapsedBefore + currentTime);
   }, [verseDurations, currentPlayingIndex, currentTime, totalChapterDuration]);
 
-  // Play a specific verse by index and sync audio
-  const playVerseByIndex = useCallback(
-    (index: number, initialSeekSeconds?: number) => {
-      if (!verses || verses.length === 0) return;
-      const targetIndex = Math.max(0, Math.min(index, verses.length - 1));
-      const targetVerse = verses[targetIndex];
-      if (!targetVerse) return;
+  const preloadAudioUrl = useCallback((url: string) => {
+    if (!url) return;
+    if (!preloadAudioRef.current) {
+      preloadAudioRef.current = new Audio();
+      preloadAudioRef.current.preload = 'auto';
+    }
+    if (preloadAudioRef.current.src !== url) {
+      preloadAudioRef.current.src = url;
+      preloadAudioRef.current.load();
+    }
+  }, []);
 
-      const url = getVerseAudioUrl(targetVerse.verse_key, targetVerse.verse_number);
+  const playDirectUrl = useCallback(
+    (url: string, targetIndex: number, initialSeekSeconds?: number, onPlaySuccess?: () => void) => {
       if (!url) return;
-
       currentPlayingIndexRef.current = targetIndex;
       setCurrentPlayingIndex(targetIndex);
 
@@ -245,52 +410,66 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       try {
         audio.currentTime = initialSeekSeconds || 0;
       } catch {}
-      audio.volume = isMuted ? 0 : volume;
-      audio.preservesPitch = true;
-      (audio as any).webkitPreservesPitch = true;
-      (audio as any).mozPreservesPitch = true;
-      audio.playbackRate = playbackSpeed;
-      audio.preservesPitch = true;
-      (audio as any).webkitPreservesPitch = true;
-      (audio as any).mozPreservesPitch = true;
+      applyAudioElementSettings(audio, volume, isMuted, playbackSpeed);
       setCurrentTime(initialSeekSeconds || 0);
-      setDuration(verseDurations[targetIndex] || 0);
-
-      // Preload next ayah audio in browser cache for gapless background transitions
-      if (targetIndex + 1 < verses.length) {
-        const nextVerse = verses[targetIndex + 1];
-        const nextUrl = getVerseAudioUrl(nextVerse.verse_key, nextVerse.verse_number);
-        if (nextUrl) {
-          if (!preloadAudioRef.current) {
-            preloadAudioRef.current = new Audio();
-            preloadAudioRef.current.preload = 'auto';
-          }
-          if (preloadAudioRef.current.src !== nextUrl) {
-            preloadAudioRef.current.src = nextUrl;
-            preloadAudioRef.current.load();
-          }
-        }
-      }
 
       audio
         .play()
         .then(() => {
           setIsPlaying(true);
-
-          // Auto-scroll to active ayah if enabled and screen is visible
-          if (autoScroll && typeof document !== 'undefined' && !document.hidden) {
-            const el = document.getElementById(`verse-${targetVerse.verse_key}`);
-            if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-          }
+          onPlaySuccess?.();
         })
         .catch((err) => {
-          console.warn('Playback error for verse:', targetVerse.verse_key, err);
+          console.warn('Playback error:', err);
           setIsPlaying(false);
         });
     },
-    [verses, getVerseAudioUrl, isMuted, volume, playbackSpeed, autoScroll]
+    [volume, isMuted, playbackSpeed]
+  );
+
+  // Play a specific verse by index and sync audio
+  const playVerseByIndex = useCallback(
+    (index: number, initialSeekSeconds?: number) => {
+      if (!verses || verses.length === 0) return;
+      const targetIndex = Math.max(0, Math.min(index, verses.length - 1));
+      const targetVerse = verses[targetIndex];
+      if (!targetVerse) return;
+
+      const url = getVerseAudioUrl(targetVerse.verse_key, targetVerse.verse_number);
+      if (!url) return;
+
+      const existingAudio = audioRef.current;
+      const resolvedDuration =
+        existingAudio &&
+        existingAudio.src === url &&
+        existingAudio.duration &&
+        isFinite(existingAudio.duration)
+          ? existingAudio.duration
+          : verseDurationsRef.current[targetIndex] || 0;
+      setDuration(resolvedDuration);
+
+      // Preload next ayah (or Ayah 1 of next Surah when Next Surah mode is active)
+      if (targetIndex + 1 < verses.length) {
+        const nextVerse = verses[targetIndex + 1];
+        const nextUrl = getVerseAudioUrl(nextVerse.verse_key, nextVerse.verse_number);
+        if (nextUrl) preloadAudioUrl(nextUrl);
+      } else if (playbackModeRef.current === 'next-chapter') {
+        const nextChapId = chapter.id < 114 ? chapter.id + 1 : 1;
+        const nextUrl = getReciterAyahUrl(currentReciterRef.current, nextChapId, 1);
+        if (nextUrl) preloadAudioUrl(nextUrl);
+      }
+
+      playDirectUrl(url, targetIndex, initialSeekSeconds, () => {
+        // Auto-scroll to active ayah if enabled and screen is visible
+        if (autoScrollRef.current && typeof document !== 'undefined' && !document.hidden) {
+          const el = document.getElementById(`verse-${targetVerse.verse_key}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      });
+    },
+    [verses, getVerseAudioUrl, chapter.id, preloadAudioUrl, playDirectUrl]
   );
 
   // Wire HTMLAudioElement events for seamless sequential recitation (including when screen is locked)
@@ -300,17 +479,60 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     }
     const audio = audioRef.current;
 
+    const stopAtSurahEnd = () => {
+      hasActiveBackgroundSessionRef.current = false;
+      currentPlayingIndexRef.current = 0;
+      setCurrentPlayingIndex(0);
+      setIsPlaying(false);
+      setCurrentTime(0);
+      stopBackgroundAudioSession();
+    };
+
     const handleEnded = () => {
+      const mode = playbackModeRef.current;
+      const expectedChapterId = pendingAutoPlayChapterRef.current ?? chapter.id;
+      const areVersesSynced =
+        verses.length > 0 && verses[0]?.verse_key.startsWith(`${expectedChapterId}:`);
+
+      // Guard against verse finish before newly switched chapter verses finish fetching
+      if (!areVersesSynced) {
+        const currentIdx = currentPlayingIndexRef.current;
+        if (mode === 'repeat-ayah') {
+          const url = getReciterAyahUrl(currentReciterRef.current, expectedChapterId, currentIdx + 1);
+          playDirectUrl(url, currentIdx, 0);
+          return;
+        }
+        const nextIdx = currentIdx + 1;
+        if (nextIdx < chapter.verses_count) {
+          const url = getReciterAyahUrl(currentReciterRef.current, expectedChapterId, nextIdx + 1);
+          playDirectUrl(url, nextIdx, 0);
+          return;
+        }
+        if (mode === 'next-chapter') {
+          handleNextChapterRef.current();
+        } else if (mode === 'repeat-chapter') {
+          const url = getReciterAyahUrl(currentReciterRef.current, expectedChapterId, 1);
+          playDirectUrl(url, 0, 0);
+        } else {
+          stopAtSurahEnd();
+        }
+        return;
+      }
+
+      if (mode === 'repeat-ayah') {
+        playVerseByIndex(currentPlayingIndexRef.current, 0);
+        return;
+      }
+
       const nextIndex = currentPlayingIndexRef.current + 1;
       if (nextIndex < verses.length) {
         playVerseByIndex(nextIndex);
+      } else if (mode === 'next-chapter') {
+        handleNextChapterRef.current();
+      } else if (mode === 'repeat-chapter') {
+        playVerseByIndex(0, 0);
       } else {
-        // Finished entire Surah
-        currentPlayingIndexRef.current = 0;
-        setCurrentPlayingIndex(0);
-        setIsPlaying(false);
-        setCurrentTime(0);
-        stopBackgroundAudioSession();
+        stopAtSurahEnd();
       }
     };
 
@@ -320,11 +542,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       if (nextIndex < verses.length) {
         playVerseByIndex(nextIndex);
       } else {
-        currentPlayingIndexRef.current = 0;
-        setCurrentPlayingIndex(0);
-        setIsPlaying(false);
-        setCurrentTime(0);
-        stopBackgroundAudioSession();
+        stopAtSurahEnd();
       }
     };
 
@@ -344,32 +562,28 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
           return next;
         });
       }
-      audio.preservesPitch = true;
-      (audio as any).webkitPreservesPitch = true;
-      (audio as any).mozPreservesPitch = true;
-      audio.playbackRate = playbackSpeed;
-      audio.preservesPitch = true;
-      (audio as any).webkitPreservesPitch = true;
-      (audio as any).mozPreservesPitch = true;
-      audio.volume = isMuted ? 0 : volume;
+      applyAudioElementSettings(audio, volume, isMuted, playbackSpeed);
     };
 
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
     audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('emptied', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
 
     return () => {
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('emptied', handleTimeUpdate);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
     };
-  }, [verses, playVerseByIndex, playbackSpeed, isMuted, volume]);
+  }, [verses, chapter.id, chapter.verses_count, playVerseByIndex, playDirectUrl, playbackSpeed, isMuted, volume]);
 
   // Stop audio and release background session on unmount
   useEffect(() => {
     return () => {
+      hasActiveBackgroundSessionRef.current = false;
       if (audioRef.current) {
         audioRef.current.pause();
       }
@@ -394,60 +608,28 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isPlaying, autoScroll, verses]);
 
-  const pendingAutoPlayChapterRef = useRef<number | null>(null);
-
   // Switch to previous or next chapter and automatically play from Ayah 1 (for background controls)
   const switchAndPlayChapter = useCallback(
     (targetChapterId: number) => {
       pendingAutoPlayChapterRef.current = targetChapterId;
-      currentPlayingIndexRef.current = 0;
-      setCurrentPlayingIndex(0);
-      setCurrentTime(0);
-
-      // Start playing Ayah 1 of the target chapter immediately so background audio never drops
-      const reciter = currentReciter || POPULAR_RECITERS[0];
+      const reciter = currentReciterRef.current;
       const firstAyahUrl = getReciterAyahUrl(reciter, targetChapterId, 1);
-      if (!audioRef.current) {
-        audioRef.current = new Audio();
-      }
-      const audio = audioRef.current;
-      audio.src = firstAyahUrl;
-      try {
-        audio.currentTime = 0;
-      } catch {}
-      audio.volume = isMuted ? 0 : volume;
-      audio.preservesPitch = true;
-      (audio as any).webkitPreservesPitch = true;
-      (audio as any).mozPreservesPitch = true;
-      audio.playbackRate = playbackSpeed;
-
-      // Preload Ayah 2 of the target chapter right away
       const secondAyahUrl = getReciterAyahUrl(reciter, targetChapterId, 2);
-      if (!preloadAudioRef.current) {
-        preloadAudioRef.current = new Audio();
-        preloadAudioRef.current.preload = 'auto';
-      }
-      preloadAudioRef.current.src = secondAyahUrl;
-      preloadAudioRef.current.load();
-
-      audio
-        .play()
-        .then(() => {
-          setIsPlaying(true);
-        })
-        .catch((err) => {
-          console.warn('Background chapter switch playback error:', err);
-        });
-
+      preloadAudioUrl(secondAyahUrl);
+      playDirectUrl(firstAyahUrl, 0, 0);
       onSwitchChapter?.(targetChapterId);
     },
-    [currentReciter, isMuted, volume, playbackSpeed, onSwitchChapter]
+    [preloadAudioUrl, playDirectUrl, onSwitchChapter]
   );
 
   const handleNextChapter = useCallback(() => {
     const nextId = chapter.id < 114 ? chapter.id + 1 : 1;
     switchAndPlayChapter(nextId);
   }, [chapter.id, switchAndPlayChapter]);
+
+  useEffect(() => {
+    handleNextChapterRef.current = handleNextChapter;
+  }, [handleNextChapter]);
 
   const handlePrevChapter = useCallback(() => {
     const prevId = chapter.id > 1 ? chapter.id - 1 : 114;
@@ -463,6 +645,7 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       setRangeEnd(Math.min(chapter.verses_count, 5));
       return;
     }
+    hasActiveBackgroundSessionRef.current = false;
     if (audioRef.current) {
       audioRef.current.pause();
     }
@@ -486,9 +669,38 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
       pendingAutoPlayChapterRef.current = null;
       if (!audioRef.current || audioRef.current.paused) {
         playVerseByIndex(0);
+      } else if (autoScrollRef.current && typeof document !== 'undefined' && !document.hidden) {
+        const activeV = verses[currentPlayingIndexRef.current] || verses[0];
+        const el = activeV ? document.getElementById(`verse-${activeV.verse_key}`) : null;
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
     }
   }, [chapter.id, verses, playVerseByIndex]);
+
+  // Immediately apply newly selected reciter to current audio stream
+  const prevReciterIdRef = useRef<number | undefined>(currentReciter?.id);
+  useEffect(() => {
+    const newId = currentReciter?.id;
+    if (prevReciterIdRef.current !== newId) {
+      prevReciterIdRef.current = newId;
+      if (isPlaying) {
+        playVerseByIndex(currentPlayingIndexRef.current, 0);
+      } else if (audioRef.current) {
+        const currentV = verses[currentPlayingIndexRef.current];
+        if (currentV) {
+          const newUrl = getVerseAudioUrl(currentV.verse_key, currentV.verse_number);
+          if (newUrl && audioRef.current.src !== newUrl) {
+            audioRef.current.src = newUrl;
+          }
+        }
+        try {
+          audioRef.current.currentTime = 0;
+        } catch {}
+      }
+    }
+  }, [currentReciter?.id, isPlaying, playVerseByIndex, verses, getVerseAudioUrl]);
 
   // Update volume & muted on existing audio element
   useEffect(() => {
@@ -500,15 +712,9 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
   // Update playback speed on existing audio element
   useEffect(() => {
     if (audioRef.current) {
-      audioRef.current.preservesPitch = true;
-      (audioRef.current as any).webkitPreservesPitch = true;
-      (audioRef.current as any).mozPreservesPitch = true;
-      audioRef.current.playbackRate = playbackSpeed;
-      audioRef.current.preservesPitch = true;
-      (audioRef.current as any).webkitPreservesPitch = true;
-      (audioRef.current as any).mozPreservesPitch = true;
+      applyAudioElementSettings(audioRef.current, volume, isMuted, playbackSpeed);
     }
-  }, [playbackSpeed]);
+  }, [playbackSpeed, volume, isMuted]);
 
   // Handle Full Surah Play / Pause Toggle
   const handleTogglePlaySurah = useCallback(() => {
@@ -587,7 +793,11 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
   // Sync MediaSession & Android Foreground Service for lock-screen playback
   useEffect(() => {
-    if (!isPlaying && currentTime === 0) return;
+    if (isPlaying) {
+      hasActiveBackgroundSessionRef.current = true;
+    } else if (!hasActiveBackgroundSessionRef.current) {
+      return;
+    }
     const v = verses[currentPlayingIndex] || verses[0];
     const surahName = `Surah ${chapter.name_simple}`;
     const isVersesSynced = v && v.verse_key.startsWith(`${chapter.id}:`);
@@ -608,6 +818,12 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
         onPause: () => {
           audioRef.current?.pause();
           setIsPlaying(false);
+        },
+        onStop: () => {
+          hasActiveBackgroundSessionRef.current = false;
+          audioRef.current?.pause();
+          setIsPlaying(false);
+          stopBackgroundAudioSession();
         },
         onNext: handleNextChapter,
         onPrev: handlePrevChapter,
@@ -653,16 +869,46 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
     seekToChapterTime(targetChapterTime);
   };
 
-  // Toggle speed
-  const handleCycleSpeed = useCallback(() => {
-    const speeds = [1.0, 1.25, 1.5, 2.0, 0.75];
-    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
-    const nextSpeed = speeds[nextIdx];
-    setPlaybackSpeed(nextSpeed);
-    if (audioRef.current) {
-      audioRef.current.playbackRate = nextSpeed;
+  // Select playback speed
+  const handleSelectSpeed = useCallback(
+    (nextSpeed: number) => {
+      setPlaybackSpeed(nextSpeed);
+      if (audioRef.current) {
+        applyAudioElementSettings(audioRef.current, volume, isMuted, nextSpeed);
+      }
+    },
+    [volume, isMuted]
+  );
+
+  // Toggle auto-scroll and snap to active verse when re-enabled mid-recitation
+  const handleToggleAutoScroll = useCallback(() => {
+    const next = !autoScroll;
+    setAutoScroll(next);
+    autoScrollRef.current = next;
+    if (next && isPlaying && typeof document !== 'undefined' && !document.hidden) {
+      const activeV = verses[currentPlayingIndexRef.current];
+      if (activeV) {
+        const el = document.getElementById(`verse-${activeV.verse_key}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
     }
-  }, [playbackSpeed]);
+  }, [autoScroll, isPlaying, verses]);
+
+  // Select end-of-playback / repeat mode
+  const handleSelectPlaybackMode = useCallback(
+    (mode: SurahPlaybackMode) => {
+      setPlaybackMode(mode);
+      playbackModeRef.current = mode;
+      if (mode === 'next-chapter' && currentPlayingIndexRef.current === verses.length - 1) {
+        const nextChapId = chapter.id < 114 ? chapter.id + 1 : 1;
+        const nextUrl = getReciterAyahUrl(currentReciterRef.current, nextChapId, 1);
+        if (nextUrl) preloadAudioUrl(nextUrl);
+      }
+    },
+    [verses.length, chapter.id, preloadAudioUrl]
+  );
 
   // Toggle Mute
   const handleToggleMute = useCallback(() => {
@@ -861,10 +1107,10 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
 
         {/* Integrated Gapless Audio Player & Recitation Controller matching Studio page */}
         <div className="rounded-3xl bg-white dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800/80 shadow-md dark:shadow-xl p-4 sm:p-5 mb-6 transition-colors">
-          {/* Top Bar inside Player: Reciter & Status */}
+          {/* Top Bar inside Player: Status & Three-Point Options Menu */}
           <div className="flex items-center justify-between gap-2 pb-3 mb-2 border-b border-slate-100 dark:border-slate-800/80">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2.5 w-2.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
                 {isPlaying ? (
                   <>
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -874,23 +1120,181 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-300 dark:bg-slate-600" />
                 )}
               </span>
-              <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider truncate">
                 {isPlaying ? `Reciting Surah ${chapter.name_simple}` : 'Surah Audio Player'}
               </span>
             </div>
 
-            {/* Reciter Selector Button */}
-            {onOpenReciters && (
+            {/* Three-Point (...) Options Menu Button */}
+            <div className="relative shrink-0" ref={playerMenuRef}>
               <button
-                onClick={onOpenReciters}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700/80 transition-all shadow-xs"
+                type="button"
+                onClick={() => setIsPlayerMenuOpen((prev) => !prev)}
+                aria-label="Player options"
+                aria-expanded={isPlayerMenuOpen}
+                aria-haspopup="menu"
+                title="Player options"
+                className={`relative flex items-center justify-center w-8 h-8 rounded-full border transition-all active:scale-95 cursor-pointer ${
+                  isPlayerMenuOpen
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/80'
+                }`}
               >
-                <Mic2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="truncate max-w-[150px]">
-                  {currentReciterName || currentReciter?.name || 'Reciter'}
-                </span>
+                <MoreHorizontal className="w-4 h-4" />
+                {(playbackMode !== 'off' || playbackSpeed !== 1.0 || !autoScroll) && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 ring-2 ring-white dark:ring-[#0E1626]"
+                    aria-hidden="true"
+                  />
+                )}
               </button>
-            )}
+
+              {isPlayerMenuOpen && (
+                <div
+                  role="menu"
+                  aria-label="Surah audio player options"
+                  className="absolute right-0 top-full mt-2 w-[min(calc(100vw-2.5rem),19rem)] max-h-[75vh] overflow-y-auto rounded-2xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-700/80 shadow-2xl shadow-slate-900/15 dark:shadow-black/70 p-3 z-[35] space-y-3 animate-in fade-in zoom-in-95 duration-150 origin-top-right"
+                >
+                  {/* 1. Change Reciter */}
+                  {onOpenReciters && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsPlayerMenuOpen(false);
+                        onOpenReciters();
+                      }}
+                      className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/60 transition-colors text-left cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          <Mic2 className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block text-xs font-bold text-slate-900 dark:text-white">
+                            Change Reciter
+                          </span>
+                          <span className="block text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                            {currentReciterName || currentReciter?.name || 'Select Reciter'}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-transform group-hover:translate-x-0.5 shrink-0" />
+                    </button>
+                  )}
+
+                  {/* 2. Auto-scroll Toggle */}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={autoScroll}
+                    onClick={handleToggleAutoScroll}
+                    className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-left cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                        <ScrollText className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <span className="block text-xs font-bold text-slate-900 dark:text-white">
+                          Auto-scroll
+                        </span>
+                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">
+                          Follow active ayah
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors ${
+                        autoScroll ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform mt-0.5 ${
+                          autoScroll ? 'translate-x-4.5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </span>
+                  </button>
+
+                  <div className="border-t border-slate-100 dark:border-slate-800" />
+
+                  {/* 3. Auto-switch Next Chapter or Repeat */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        <Repeat className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
+                        After Surah &amp; Repeat
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {PLAYBACK_MODE_OPTIONS.map((opt) => {
+                        const isSelected = playbackMode === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            role="menuitemradio"
+                            aria-checked={isSelected}
+                            onClick={() => handleSelectPlaybackMode(opt.id)}
+                            className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 shadow-2xs'
+                                : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 border-slate-200/70 dark:border-slate-700/60 text-slate-600 dark:text-slate-300'
+                            }`}
+                          >
+                            {opt.id === 'off' && <CircleOff className="w-3.5 h-3.5 shrink-0" />}
+                            {opt.id === 'next-chapter' && <StepForward className="w-3.5 h-3.5 shrink-0" />}
+                            {opt.id === 'repeat-chapter' && <Repeat className="w-3.5 h-3.5 shrink-0" />}
+                            {opt.id === 'repeat-ayah' && <Repeat1 className="w-3.5 h-3.5 shrink-0" />}
+                            <span>{opt.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="px-1 text-[10.5px] text-slate-500 dark:text-slate-400">
+                      {PLAYBACK_MODE_OPTIONS.find((m) => m.id === playbackMode)?.description}
+                    </p>
+                  </div>
+
+                  <div className="border-t border-slate-100 dark:border-slate-800" />
+
+                  {/* 4. Playback Speed */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        <Gauge className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
+                        Playback Speed
+                      </span>
+                      <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                        {formatPlaybackSpeed(playbackSpeed)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1">
+                      {PLAYER_SPEED_OPTIONS.map((speed) => {
+                        const isSelected = playbackSpeed === speed;
+                        return (
+                          <button
+                            key={speed}
+                            type="button"
+                            role="menuitemradio"
+                            aria-checked={isSelected}
+                            onClick={() => handleSelectSpeed(speed)}
+                            className={`py-1.5 rounded-lg text-[11px] font-mono font-bold border transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-emerald-500 text-white dark:bg-emerald-400 dark:text-slate-950 border-emerald-500 dark:border-emerald-400 shadow-xs'
+                                : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 border-slate-200/70 dark:border-slate-700/60 text-slate-600 dark:text-slate-300'
+                            }`}
+                          >
+                            {formatPlaybackSpeed(speed)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Integrated Gapless Audio Player & Scrubber */}
@@ -1000,29 +1404,32 @@ export const ReaderView: React.FC<ReaderViewProps> = ({
             </div>
 
             {/* Status line */}
-            <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 dark:text-slate-500 px-3 -mt-0.5">
-              {/* Auto scroll toggle on left */}
-              <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={autoScroll}
-                  onChange={(e) => setAutoScroll(e.target.checked)}
-                  className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 h-3 w-3"
-                />
-                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  Auto-scroll
+            <div className="flex items-center justify-between gap-2 text-[11px] font-mono text-slate-400 dark:text-slate-500 px-3 -mt-0.5">
+              {/* Current Reciter Label */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Mic2 className="w-3 h-3 text-emerald-500 dark:text-emerald-400 shrink-0" />
+                <span className="truncate font-sans text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  {currentReciterName || currentReciter?.name || 'Reciter'}
                 </span>
-              </label>
+              </div>
 
-              {/* Speed & Ayah count on right */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleCycleSpeed}
-                  className="hover:text-emerald-500 dark:hover:text-emerald-400 font-bold transition-colors cursor-pointer"
-                  title="Playback speed"
-                >
-                  {playbackSpeed.toFixed(1)}x
-                </button>
+              {/* Active Mode/Speed Badges & Ayah Count */}
+              <div className="flex items-center gap-2 shrink-0">
+                {playbackMode !== 'off' && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-sans text-[10px] font-semibold">
+                    {playbackMode === 'next-chapter' && <StepForward className="w-2.5 h-2.5" />}
+                    {playbackMode === 'repeat-chapter' && <Repeat className="w-2.5 h-2.5" />}
+                    {playbackMode === 'repeat-ayah' && <Repeat1 className="w-2.5 h-2.5" />}
+                    <span>
+                      {PLAYBACK_MODE_OPTIONS.find((m) => m.id === playbackMode)?.label}
+                    </span>
+                  </span>
+                )}
+                {playbackSpeed !== 1.0 && (
+                  <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-[10px]">
+                    {formatPlaybackSpeed(playbackSpeed)}
+                  </span>
+                )}
                 <span>
                   {currentPlayingIndex + 1}:{verses.length}
                 </span>

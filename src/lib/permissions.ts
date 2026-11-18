@@ -43,7 +43,7 @@ interface MediaSaverNativePlugin {
   stopBackgroundAudio(): Promise<{ success: boolean }>;
   addListener(
     eventName: 'mediaControlAction',
-    listenerFunc: (data: { command: 'play' | 'pause' | 'prev' | 'next' | 'seek'; seekMs?: number }) => void
+    listenerFunc: (data: { command: 'play' | 'pause' | 'stop' | 'prev' | 'next' | 'seek'; seekMs?: number }) => void
   ): Promise<{ remove: () => Promise<void> }>;
 }
 

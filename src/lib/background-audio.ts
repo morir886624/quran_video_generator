@@ -4,6 +4,7 @@ import { MediaSaver, checkAppPermissions, requestBackgroundPlayPermission } from
 export interface BackgroundMediaControls {
   onPlay?: () => void;
   onPause?: () => void;
+  onStop?: () => void;
   onNext?: () => void;
   onPrev?: () => void;
   onSeek?: (seconds: number) => void;
@@ -22,6 +23,7 @@ export interface BackgroundMediaInfo {
 
 let activeControls: BackgroundMediaControls | null = null;
 let nativeListenerInitialized = false;
+let lifecycleCleanupInitialized = false;
 let backgroundPermissionCheckedThisSession = false;
 
 let lastNativeTitle = '';
@@ -33,29 +35,45 @@ let lastNativeSpeed = 1.0;
 let lastNativeUpdateTimestamp = 0;
 let lastNativePositionMs = 0;
 
+function ensureLifecycleCleanup() {
+  if (lifecycleCleanupInitialized || typeof window === 'undefined') return;
+  lifecycleCleanupInitialized = true;
+
+  const handleUnload = () => {
+    if (lastNativePlaying !== null || activeControls !== null) {
+      stopBackgroundAudioSession();
+    }
+  };
+  window.addEventListener('pagehide', handleUnload);
+  window.addEventListener('beforeunload', handleUnload);
+}
+
 function ensureNativeListener() {
   if (nativeListenerInitialized) return;
   if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
 
   nativeListenerInitialized = true;
   MediaSaver.addListener('mediaControlAction', (data) => {
-    if (!activeControls || !data?.command) return;
+    if (!data?.command) return;
     switch (data.command) {
       case 'play':
-        activeControls.onPlay?.();
+        activeControls?.onPlay?.();
         break;
       case 'pause':
-        activeControls.onPause?.();
+        activeControls?.onPause?.();
+        break;
+      case 'stop':
+        activeControls?.onStop?.();
         break;
       case 'next':
-        activeControls.onNext?.();
+        activeControls?.onNext?.();
         break;
       case 'prev':
-        activeControls.onPrev?.();
+        activeControls?.onPrev?.();
         break;
       case 'seek':
         if (typeof data.seekMs === 'number') {
-          activeControls.onSeek?.(Math.max(0, data.seekMs / 1000));
+          activeControls?.onSeek?.(Math.max(0, data.seekMs / 1000));
         }
         break;
     }
@@ -73,6 +91,7 @@ export function updateBackgroundAudioSession(info: BackgroundMediaInfo) {
     activeControls = info.controls;
   }
 
+  ensureLifecycleCleanup();
   ensureNativeListener();
 
   const album = info.album || 'Quran Video Studio';
@@ -110,6 +129,12 @@ export function updateBackgroundAudioSession(info: BackgroundMediaInfo) {
       navigator.mediaSession.setActionHandler('pause', () => {
         activeControls?.onPause?.();
       });
+      try {
+        navigator.mediaSession.setActionHandler(
+          'stop',
+          activeControls?.onStop ? () => activeControls?.onStop?.() : null
+        );
+      } catch {}
       navigator.mediaSession.setActionHandler(
         'previoustrack',
         activeControls?.onPrev ? () => activeControls?.onPrev?.() : null
@@ -195,11 +220,31 @@ export function stopBackgroundAudioSession() {
 
   activeControls = null;
   lastNativeTitle = '';
+  lastNativeArtist = '';
+  lastNativeAlbum = '';
   lastNativePlaying = null;
+  lastNativeDurationMs = 0;
+  lastNativeSpeed = 1.0;
+  lastNativePositionMs = 0;
+  lastNativeUpdateTimestamp = 0;
 
   if ('mediaSession' in navigator) {
     try {
       navigator.mediaSession.playbackState = 'none';
+      navigator.mediaSession.metadata = null;
+      const actions: MediaSessionAction[] = [
+        'play',
+        'pause',
+        'stop',
+        'previoustrack',
+        'nexttrack',
+        'seekto',
+      ];
+      actions.forEach((action) => {
+        try {
+          navigator.mediaSession.setActionHandler(action, null);
+        } catch {}
+      });
     } catch {}
   }
 

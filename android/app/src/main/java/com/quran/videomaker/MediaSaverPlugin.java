@@ -1,6 +1,7 @@
 package com.quran.videomaker;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.ContentValues;
@@ -147,41 +148,78 @@ public class MediaSaverPlugin extends Plugin {
                 mediaControlReceiver = null;
             }
         } catch (Exception ignored) {}
+        try {
+            Activity activity = getActivity();
+            if (activity == null || !activity.isChangingConfigurations()) {
+                AudioPlaybackService.stopFromAppLifecycle(getContext());
+            }
+        } catch (Exception ignored) {}
         super.handleOnDestroy();
     }
 
     @PluginMethod
     public void startBackgroundAudio(PluginCall call) {
         try {
+            Activity activity = getActivity();
+            if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+                JSObject ret = new JSObject();
+                ret.put("success", false);
+                call.resolve(ret);
+                return;
+            }
+
             Context context = getContext();
             String title = call.getString("title", "Quran Recitation");
             String artist = call.getString("artist", "Quran Video Studio");
             String album = call.getString("album", "Quran Video Studio");
-            Boolean isPlaying = call.getBoolean("isPlaying", true);
+            Boolean isPlayingArg = call.getBoolean("isPlaying", true);
+            boolean playing = isPlayingArg != null ? isPlayingArg : true;
             Long durationMs = call.getLong("durationMs", 0L);
             Long positionMs = call.getLong("positionMs", 0L);
             Double playbackSpeed = call.getDouble("playbackSpeed", 1.0);
 
-            Intent serviceIntent = new Intent(context, AudioPlaybackService.class);
-            serviceIntent.setAction(AudioPlaybackService.ACTION_START_OR_UPDATE);
-            serviceIntent.putExtra("title", title);
-            serviceIntent.putExtra("artist", artist);
-            serviceIntent.putExtra("album", album);
-            serviceIntent.putExtra("isPlaying", isPlaying != null ? isPlaying : true);
-            if (durationMs != null) {
-                serviceIntent.putExtra("durationMs", durationMs);
-            }
-            if (positionMs != null) {
-                serviceIntent.putExtra("positionMs", positionMs);
-            }
-            if (playbackSpeed != null) {
-                serviceIntent.putExtra("playbackSpeed", playbackSpeed.floatValue());
-            }
+            synchronized (AudioPlaybackService.CONTROL_LOCK) {
+                if (!playing && !AudioPlaybackService.isServiceRunning) {
+                    JSObject ret = new JSObject();
+                    ret.put("success", true);
+                    call.resolve(ret);
+                    return;
+                }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent);
-            } else {
-                context.startService(serviceIntent);
+                long gen = AudioPlaybackService.sessionGeneration.get();
+                boolean useForegroundService = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O;
+
+                Intent serviceIntent = new Intent(context, AudioPlaybackService.class);
+                serviceIntent.setAction(AudioPlaybackService.ACTION_START_OR_UPDATE);
+                serviceIntent.putExtra("title", title);
+                serviceIntent.putExtra("artist", artist);
+                serviceIntent.putExtra("album", album);
+                serviceIntent.putExtra("isPlaying", playing);
+                serviceIntent.putExtra("generation", gen);
+                serviceIntent.putExtra("startedForeground", useForegroundService);
+                if (durationMs != null) {
+                    serviceIntent.putExtra("durationMs", durationMs);
+                }
+                if (positionMs != null) {
+                    serviceIntent.putExtra("positionMs", positionMs);
+                }
+                if (playbackSpeed != null) {
+                    serviceIntent.putExtra("playbackSpeed", playbackSpeed.floatValue());
+                }
+
+                try {
+                    if (useForegroundService) {
+                        context.startForegroundService(serviceIntent);
+                    } else {
+                        context.startService(serviceIntent);
+                    }
+                } catch (IllegalStateException fgEx) {
+                    Log.w(TAG, "Foreground service start blocked from background", fgEx);
+                    JSObject ret = new JSObject();
+                    ret.put("success", false);
+                    call.resolve(ret);
+                    return;
+                }
             }
 
             JSObject ret = new JSObject();
@@ -196,11 +234,7 @@ public class MediaSaverPlugin extends Plugin {
     @PluginMethod
     public void stopBackgroundAudio(PluginCall call) {
         try {
-            Context context = getContext();
-            Intent serviceIntent = new Intent(context, AudioPlaybackService.class);
-            serviceIntent.setAction(AudioPlaybackService.ACTION_STOP);
-            context.stopService(serviceIntent);
-            AudioPlaybackService.isPlaybackActive = false;
+            AudioPlaybackService.stopFromAppLifecycle(getContext());
 
             JSObject ret = new JSObject();
             ret.put("success", true);

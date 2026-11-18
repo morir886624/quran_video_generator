@@ -25,26 +25,38 @@ public class MainActivity extends BridgeActivity {
     public void onPause() {
         super.onPause();
         // Prevent Android WebView from pausing HTML5 recitation audio and JS timers when screen locks
-        try {
-            if (getBridge() != null && getBridge().getWebView() != null) {
-                WebView webView = getBridge().getWebView();
-                webView.onResume();
-                webView.resumeTimers();
-            }
-        } catch (Exception ignored) {}
+        if (!isFinishing() && !isChangingConfigurations()) {
+            try {
+                if (getBridge() != null && getBridge().getWebView() != null) {
+                    WebView webView = getBridge().getWebView();
+                    webView.onResume();
+                    webView.resumeTimers();
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
     @Override
     public void onStop() {
         super.onStop();
         // Keep WebView audio and timers active when the phone is locked or in background
-        try {
-            if (getBridge() != null && getBridge().getWebView() != null) {
-                WebView webView = getBridge().getWebView();
-                webView.onResume();
-                webView.resumeTimers();
-            }
-        } catch (Exception ignored) {}
+        if (!isFinishing() && !isChangingConfigurations()) {
+            try {
+                if (getBridge() != null && getBridge().getWebView() != null) {
+                    WebView webView = getBridge().getWebView();
+                    webView.onResume();
+                    webView.resumeTimers();
+                }
+            } catch (Exception ignored) {}
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        if (!isChangingConfigurations()) {
+            AudioPlaybackService.stopFromAppLifecycle(this);
+        }
+        super.onDestroy();
     }
 
     @Override

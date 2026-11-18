@@ -5,8 +5,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -29,6 +31,8 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * Rich Native Android Media Player Service with MediaSession, Notification.MediaStyle,
  * interactive seekbar, custom Surah artwork, and lock-screen / Bluetooth controls.
@@ -40,18 +44,24 @@ public class AudioPlaybackService extends Service {
 
     public static final String ACTION_START_OR_UPDATE = "com.quran.videomaker.ACTION_START_OR_UPDATE";
     public static final String ACTION_STOP = "com.quran.videomaker.ACTION_STOP";
+    public static final String ACTION_DISMISS = "com.quran.videomaker.ACTION_DISMISS";
     public static final String ACTION_MEDIA_CONTROL = "com.quran.videomaker.ACTION_MEDIA_CONTROL";
 
+    public static final Object CONTROL_LOCK = new Object();
+    public static final AtomicLong sessionGeneration = new AtomicLong(0L);
     public static volatile boolean isPlaybackActive = false;
+    public static volatile boolean isServiceRunning = false;
 
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
     private MediaSession mediaSession;
+    private BroadcastReceiver dismissReceiver;
 
     private String currentTitle = "Quran Recitation";
     private String currentArtist = "Mishari Rashid Al-Afasy";
     private String currentAlbum = "Quran Video Studio";
-    private boolean isPlaying = true;
+    private boolean isPlaying = false;
+    private boolean isInForeground = false;
     private long currentDurationMs = 0L;
     private long currentPositionMs = 0L;
     private float currentPlaybackSpeed = 1.0f;
@@ -59,12 +69,64 @@ public class AudioPlaybackService extends Service {
     private String cachedArtKey = null;
     private Bitmap cachedArtwork = null;
 
+    public static void cancelNotificationCompat(Context context) {
+        if (context == null) return;
+        try {
+            NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null) {
+                manager.cancel(NOTIFICATION_ID);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    /**
+     * Stops playback notification and service synchronously when the app exits or task closes.
+     */
+    public static void stopFromAppLifecycle(Context context) {
+        synchronized (CONTROL_LOCK) {
+            sessionGeneration.incrementAndGet();
+            isPlaybackActive = false;
+            isServiceRunning = false;
+            if (context != null) {
+                cancelNotificationCompat(context);
+                try {
+                    Intent stopIntent = new Intent(context, AudioPlaybackService.class);
+                    context.stopService(stopIntent);
+                } catch (Exception ignored) {}
+            }
+        }
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
+        isServiceRunning = true;
         createNotificationChannel();
         initMediaSession();
-        acquireLocks();
+        registerDismissReceiver();
+    }
+
+    private void registerDismissReceiver() {
+        try {
+            dismissReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    synchronized (CONTROL_LOCK) {
+                        sessionGeneration.incrementAndGet();
+                    }
+                    sendControlBroadcast("stop", -1L);
+                    stopServiceAndNotification(-1);
+                }
+            };
+            IntentFilter filter = new IntentFilter(ACTION_DISMISS);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(dismissReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(dismissReceiver, filter);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to register dismissReceiver", e);
+        }
     }
 
     private void initMediaSession() {
@@ -97,6 +159,15 @@ public class AudioPlaybackService extends Service {
                     updateMediaSessionState();
                     sendControlBroadcast("seek", currentPositionMs);
                 }
+
+                @Override
+                public void onStop() {
+                    synchronized (CONTROL_LOCK) {
+                        sessionGeneration.incrementAndGet();
+                    }
+                    sendControlBroadcast("stop", -1L);
+                    stopServiceAndNotification(-1);
+                }
             });
             mediaSession.setFlags(
                 MediaSession.FLAG_HANDLES_MEDIA_BUTTONS | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS
@@ -117,52 +188,134 @@ public class AudioPlaybackService extends Service {
         sendBroadcast(intent);
     }
 
+    private void deactivateAndReleaseMediaSession() {
+        if (mediaSession != null) {
+            try {
+                PlaybackState stoppedState = new PlaybackState.Builder()
+                    .setActions(0L)
+                    .setState(PlaybackState.STATE_NONE, 0L, 0f, SystemClock.elapsedRealtime())
+                    .build();
+                mediaSession.setPlaybackState(stoppedState);
+                mediaSession.setActive(false);
+                mediaSession.release();
+            } catch (Exception ignored) {}
+            mediaSession = null;
+        }
+    }
+
+    private void startForegroundCompat(Notification notification) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                );
+            } else {
+                startForeground(NOTIFICATION_ID, notification);
+            }
+            isInForeground = true;
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to start foreground service", e);
+        }
+    }
+
+    private void detachForegroundCompat() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(Service.STOP_FOREGROUND_DETACH);
+            } else {
+                stopForeground(false);
+            }
+        } catch (Exception ignored) {}
+        isInForeground = false;
+    }
+
+    private void removeForegroundAndCancelNotification() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(Service.STOP_FOREGROUND_REMOVE);
+            } else {
+                stopForeground(true);
+            }
+        } catch (Exception ignored) {}
+        isInForeground = false;
+        cancelNotificationCompat(this);
+    }
+
+    private void stopServiceAndNotification(int startId) {
+        isPlaybackActive = false;
+        isPlaying = false;
+        deactivateAndReleaseMediaSession();
+        releaseLocks();
+        removeForegroundAndCancelNotification();
+        if (startId > 0) {
+            stopSelfResult(startId);
+        } else {
+            stopSelf();
+        }
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null) {
-            String action = intent.getAction();
-            if (ACTION_STOP.equals(action)) {
-                isPlaybackActive = false;
-                if (mediaSession != null) {
-                    try {
-                        mediaSession.setActive(false);
-                    } catch (Exception ignored) {}
-                }
-                releaseLocks();
-                stopForeground(true);
-                stopSelf();
-                return START_NOT_STICKY;
-            }
+        isServiceRunning = true;
 
-            String title = intent.getStringExtra("title");
-            String artist = intent.getStringExtra("artist");
-            String album = intent.getStringExtra("album");
-            if (title != null && !title.isEmpty()) {
-                currentTitle = title;
+        // Never resurrect an orphan notification if Android delivers a null intent
+        if (intent == null) {
+            stopServiceAndNotification(startId);
+            return START_NOT_STICKY;
+        }
+
+        String action = intent.getAction();
+        boolean launchedViaForeground = intent.getBooleanExtra("startedForeground", false);
+
+        if (ACTION_STOP.equals(action)) {
+            synchronized (CONTROL_LOCK) {
+                sessionGeneration.incrementAndGet();
             }
-            if (artist != null && !artist.isEmpty()) {
-                currentArtist = artist;
+            if (launchedViaForeground && !isInForeground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundCompat(buildNotification(currentTitle, currentArtist, currentAlbum, false));
             }
-            if (album != null && !album.isEmpty()) {
-                currentAlbum = album;
+            stopServiceAndNotification(startId);
+            return START_NOT_STICKY;
+        }
+
+        long intentGen = intent.getLongExtra("generation", -1L);
+        long activeGen = sessionGeneration.get();
+        if (intentGen != -1L && intentGen != activeGen) {
+            // A stop/close event happened after this start Intent was queued
+            if (launchedViaForeground && !isInForeground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundCompat(buildNotification(currentTitle, currentArtist, currentAlbum, false));
             }
-            isPlaying = intent.getBooleanExtra("isPlaying", true);
-            if (intent.hasExtra("durationMs")) {
-                currentDurationMs = Math.max(0L, intent.getLongExtra("durationMs", 0L));
-            }
-            if (intent.hasExtra("positionMs")) {
-                currentPositionMs = Math.max(0L, intent.getLongExtra("positionMs", 0L));
-            }
-            if (intent.hasExtra("playbackSpeed")) {
-                float spd = intent.getFloatExtra("playbackSpeed", 1.0f);
-                if (spd > 0f) currentPlaybackSpeed = spd;
-            }
+            stopServiceAndNotification(startId);
+            return START_NOT_STICKY;
+        }
+
+        String title = intent.getStringExtra("title");
+        String artist = intent.getStringExtra("artist");
+        String album = intent.getStringExtra("album");
+        if (title != null && !title.isEmpty()) {
+            currentTitle = title;
+        }
+        if (artist != null && !artist.isEmpty()) {
+            currentArtist = artist;
+        }
+        if (album != null && !album.isEmpty()) {
+            currentAlbum = album;
+        }
+        isPlaying = intent.getBooleanExtra("isPlaying", true);
+        if (intent.hasExtra("durationMs")) {
+            currentDurationMs = Math.max(0L, intent.getLongExtra("durationMs", 0L));
+        }
+        if (intent.hasExtra("positionMs")) {
+            currentPositionMs = Math.max(0L, intent.getLongExtra("positionMs", 0L));
+        }
+        if (intent.hasExtra("playbackSpeed")) {
+            float spd = intent.getFloatExtra("playbackSpeed", 1.0f);
+            if (spd > 0f) currentPlaybackSpeed = spd;
         }
 
         isPlaybackActive = isPlaying;
-        if (isPlaying) {
-            acquireLocks();
-        }
 
         if (mediaSession == null) {
             initMediaSession();
@@ -175,21 +328,27 @@ public class AudioPlaybackService extends Service {
         updateMediaSessionState();
         Notification notification = buildNotification(currentTitle, currentArtist, currentAlbum, isPlaying);
 
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(
-                    NOTIFICATION_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                );
-            } else {
-                startForeground(NOTIFICATION_ID, notification);
+        if (isPlaying) {
+            acquireLocks();
+            startForegroundCompat(notification);
+        } else {
+            releaseLocks();
+            // Satisfy Android O+ startForegroundService contract before detaching so paused card stays dismissible
+            if (launchedViaForeground && !isInForeground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundCompat(notification);
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to start foreground service", e);
+            detachForegroundCompat();
+            try {
+                NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                if (manager != null) {
+                    manager.notify(NOTIFICATION_ID, notification);
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to update paused notification", e);
+            }
         }
 
-        return START_STICKY;
+        return START_NOT_STICKY;
     }
 
     private void updateMediaSessionState() {
@@ -215,6 +374,7 @@ public class AudioPlaybackService extends Service {
             long actions = PlaybackState.ACTION_PLAY
                 | PlaybackState.ACTION_PAUSE
                 | PlaybackState.ACTION_PLAY_PAUSE
+                | PlaybackState.ACTION_STOP
                 | PlaybackState.ACTION_SKIP_TO_PREVIOUS
                 | PlaybackState.ACTION_SKIP_TO_NEXT
                 | PlaybackState.ACTION_SEEK_TO;
@@ -417,6 +577,10 @@ public class AudioPlaybackService extends Service {
         PendingIntent playPauseIntent = createControlPendingIntent(playing ? "pause" : "play", 102);
         PendingIntent nextIntent = createControlPendingIntent("next", 103);
 
+        Intent dismissIntent = new Intent(ACTION_DISMISS);
+        dismissIntent.setPackage(getPackageName());
+        PendingIntent deletePendingIntent = PendingIntent.getBroadcast(this, 104, dismissIntent, flags);
+
         Bitmap artwork = getOrCreateArtwork(album, artist);
         int smallIconRes = getApplicationInfo().icon != 0
             ? getApplicationInfo().icon
@@ -463,6 +627,7 @@ public class AudioPlaybackService extends Service {
             .setSmallIcon(smallIconRes)
             .setLargeIcon(artwork)
             .setContentIntent(contentIntent)
+            .setDeleteIntent(deletePendingIntent)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setOngoing(playing)
             .setOnlyAlertOnce(true)
@@ -478,16 +643,29 @@ public class AudioPlaybackService extends Service {
     }
 
     @Override
-    public void onDestroy() {
-        isPlaybackActive = false;
-        if (mediaSession != null) {
-            try {
-                mediaSession.setActive(false);
-                mediaSession.release();
-            } catch (Exception ignored) {}
-            mediaSession = null;
+    public void onTaskRemoved(Intent rootIntent) {
+        synchronized (CONTROL_LOCK) {
+            sessionGeneration.incrementAndGet();
+            isPlaybackActive = false;
         }
+        stopServiceAndNotification(-1);
+        super.onTaskRemoved(rootIntent);
+    }
+
+    @Override
+    public void onDestroy() {
+        isServiceRunning = false;
+        isPlaybackActive = false;
+        isInForeground = false;
+        if (dismissReceiver != null) {
+            try {
+                unregisterReceiver(dismissReceiver);
+            } catch (Exception ignored) {}
+            dismissReceiver = null;
+        }
+        deactivateAndReleaseMediaSession();
         releaseLocks();
+        removeForegroundAndCancelNotification();
         super.onDestroy();
     }
 
