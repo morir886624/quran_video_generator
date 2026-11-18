@@ -1,7 +1,14 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Chapter, Reciter, Verse, VideoConfig, BackgroundPresetId } from '@/types/quran';
+import {
+  Chapter,
+  Reciter,
+  Verse,
+  VideoConfig,
+  BackgroundPresetId,
+  BackgroundPresetCategory,
+} from '@/types/quran';
 import { VideoPreviewCanvas } from './VideoPreviewCanvas';
 import { VideoExportModal } from './VideoExportModal';
 import { ReciterModal } from './ReciterModal';
@@ -9,7 +16,7 @@ import { ProjectsModal } from './ProjectsModal';
 import { VideoIntervalModal, formatIntervalTime } from './VideoIntervalModal';
 import { ProjectDraft } from '@/lib/storage-db';
 import { useBackButton } from '@/lib/back-button';
-import { BACKGROUND_PRESETS, POPULAR_RECITERS, DEFAULT_VIDEO_CONFIG } from '@/lib/constants';
+import { BACKGROUND_PRESETS, DEFAULT_VIDEO_CONFIG } from '@/lib/constants';
 import {
   Download,
   Mic2,
@@ -31,6 +38,8 @@ import {
   Save,
   Trash2,
   Scissors,
+  Image as ImageIcon,
+  Wand2,
 } from 'lucide-react';
 import { isAyahAudioCached, downloadVerseKeysAudio } from '@/lib/audio-cache';
 import { saveVideoConfig, clearSavedVideoConfig } from '@/lib/video-config-storage';
@@ -88,11 +97,24 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
   onResetNewProject,
   onViewInCreations,
   onExportComplete,
-  theme,
-  onToggleTheme,
 }) => {
   // Main Tabs matching mockup: 'background' | 'typography' | 'color' | 'more'
   const [activeTab, setActiveTab] = useState<'background' | 'typography' | 'color' | 'more'>('background');
+
+  // 3-Part Theme Preset Category: 'simple' | 'pictures' | 'interactives'
+  const getCategoryForPreset = (presetId: BackgroundPresetId): BackgroundPresetCategory => {
+    const found = BACKGROUND_PRESETS.find((p) => p.id === presetId);
+    return found?.category || 'simple';
+  };
+  const [themeCategory, setThemeCategory] = useState<BackgroundPresetCategory>(() =>
+    getCategoryForPreset(config.backgroundPreset)
+  );
+
+  // Keep category tab in sync if preset changes from outside (e.g. loading a saved project)
+  React.useEffect(() => {
+    const cat = getCategoryForPreset(config.backgroundPreset);
+    setThemeCategory(cat);
+  }, [config.backgroundPreset]);
 
   // Sub-sections
   const [colorTarget, setColorTarget] = useState<'arabic' | 'translation' | 'accent'>('arabic');
@@ -290,21 +312,240 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
     }
   }, []); // Run only on mount
 
-  // Six visual themes matching screenshot
+  // Theme Presets separated into three parts: 'simple' | 'pictures' | 'interactives'
   const THEMES: {
     id: BackgroundPresetId;
     title: string;
     subtitle: string;
+    category: BackgroundPresetCategory;
     particleType: 'stars' | 'geometric' | 'dust' | 'rain' | 'glow' | 'minimal';
     cardStyle: React.CSSProperties;
     hasWhiteDots?: boolean;
     hasGoldDots?: boolean;
+    interactiveHook?: string;
   }[] = [
-    // 13 Image Presets
+    // =========================================================================
+    // PART 1: SIMPLE (23 Gradient & Atmospheric Themes)
+    // =========================================================================
+    {
+      id: 'midnight',
+      title: 'Midnight',
+      subtitle: 'Stars',
+      category: 'simple',
+      particleType: 'stars',
+      cardStyle: {
+        background: 'radial-gradient(circle at 50% 50%, #13224B 0%, #080D1D 100%)',
+      },
+      hasWhiteDots: true,
+    },
+    {
+      id: 'emerald',
+      title: 'Emerald',
+      subtitle: 'Geometric',
+      category: 'simple',
+      particleType: 'geometric',
+      cardStyle: {
+        background:
+          'linear-gradient(135deg, #04382B 0%, #021C16 100%), repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.06) 6px, rgba(255,255,255,0.06) 12px)',
+      },
+    },
+    {
+      id: 'gold',
+      title: 'Golden',
+      subtitle: 'Dust',
+      category: 'simple',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'radial-gradient(circle at 60% 40%, #4D2605 0%, #1A0B02 100%)',
+      },
+      hasGoldDots: true,
+    },
+    {
+      id: 'rain',
+      title: 'Rain',
+      subtitle: 'Solitude',
+      category: 'simple',
+      particleType: 'rain',
+      cardStyle: {
+        background:
+          'linear-gradient(180deg, #062835 0%, #03141B 100%), repeating-linear-gradient(105deg, transparent, transparent 7px, rgba(56,189,248,0.12) 7px, rgba(56,189,248,0.12) 9px)',
+      },
+    },
+    {
+      id: 'desert',
+      title: 'Desert',
+      subtitle: 'Mirage',
+      category: 'simple',
+      particleType: 'glow',
+      cardStyle: {
+        background: 'radial-gradient(circle at 50% 50%, #3B234A 0%, #140C1A 85%)',
+      },
+    },
+    {
+      id: 'sapphire',
+      title: 'Sapphire',
+      subtitle: 'Oceanic',
+      category: 'simple',
+      particleType: 'glow',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #061E3E 0%, #020B16 100%)',
+      },
+    },
+    {
+      id: 'ruby',
+      title: 'Ruby',
+      subtitle: 'Dusk',
+      category: 'simple',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #2E060E 0%, #140104 100%)',
+      },
+      hasGoldDots: true,
+    },
+    {
+      id: 'amethyst',
+      title: 'Amethyst',
+      subtitle: 'Sky',
+      category: 'simple',
+      particleType: 'stars',
+      cardStyle: {
+        background: 'radial-gradient(circle at 50% 50%, #18062B 0%, #0A0214 100%)',
+      },
+      hasWhiteDots: true,
+    },
+    {
+      id: 'forest',
+      title: 'Ancient',
+      subtitle: 'Forest',
+      category: 'simple',
+      particleType: 'rain',
+      cardStyle: {
+        background: 'linear-gradient(180deg, #032211 0%, #011209 100%)',
+      },
+    },
+    {
+      id: 'oled',
+      title: 'Minimal',
+      subtitle: 'Plain',
+      category: 'simple',
+      particleType: 'minimal',
+      cardStyle: {
+        background: '#121829',
+      },
+    },
+    {
+      id: 'aurora',
+      title: 'Aurora',
+      subtitle: 'Borealis',
+      category: 'simple',
+      particleType: 'glow',
+      cardStyle: { background: 'linear-gradient(135deg, #0B1B3D 0%, #061325 100%)' },
+    },
+    {
+      id: 'dusk',
+      title: 'Violet',
+      subtitle: 'Dusk',
+      category: 'simple',
+      particleType: 'stars',
+      cardStyle: { background: 'linear-gradient(135deg, #2A1625 0%, #160B12 100%)' },
+    },
+    {
+      id: 'dawn',
+      title: 'Soft',
+      subtitle: 'Dawn',
+      category: 'simple',
+      particleType: 'dust',
+      cardStyle: { background: 'linear-gradient(135deg, #30303A 0%, #181B21 100%)' },
+    },
+    {
+      id: 'nebula',
+      title: 'Cosmic',
+      subtitle: 'Nebula',
+      category: 'simple',
+      particleType: 'stars',
+      cardStyle: { background: 'linear-gradient(135deg, #1A0B2E 0%, #0D0516 100%)' },
+    },
+    {
+      id: 'abyss',
+      title: 'Ocean',
+      subtitle: 'Abyss',
+      category: 'simple',
+      particleType: 'dust',
+      cardStyle: { background: 'linear-gradient(135deg, #040812 0%, #020409 100%)' },
+    },
+    {
+      id: 'twilight',
+      title: 'Blue',
+      subtitle: 'Twilight',
+      category: 'simple',
+      particleType: 'minimal',
+      cardStyle: { background: 'linear-gradient(135deg, #1E213A 0%, #0F111C 100%)' },
+    },
+    {
+      id: 'crimson-sky',
+      title: 'Crimson',
+      subtitle: 'Sky',
+      category: 'simple',
+      particleType: 'dust',
+      cardStyle: { background: 'linear-gradient(135deg, #3D1418 0%, #1F0A0C 100%)' },
+    },
+    {
+      id: 'sandstorm',
+      title: 'Desert',
+      subtitle: 'Sandstorm',
+      category: 'simple',
+      particleType: 'dust',
+      cardStyle: { background: 'linear-gradient(135deg, #3A2818 0%, #1D140C 100%)' },
+    },
+    {
+      id: 'ocean-deep',
+      title: 'Deep',
+      subtitle: 'Blue Sea',
+      category: 'simple',
+      particleType: 'glow',
+      cardStyle: { background: 'linear-gradient(135deg, #061A2B 0%, #030D15 100%)' },
+    },
+    {
+      id: 'forest-mist',
+      title: 'Forest',
+      subtitle: 'Mist',
+      category: 'simple',
+      particleType: 'rain',
+      cardStyle: { background: 'linear-gradient(135deg, #10241A 0%, #08120D 100%)' },
+    },
+    {
+      id: 'golden-hour',
+      title: 'Golden',
+      subtitle: 'Hour',
+      category: 'simple',
+      particleType: 'glow',
+      cardStyle: { background: 'linear-gradient(135deg, #3D2B14 0%, #1F150A 100%)' },
+    },
+    {
+      id: 'moonlight',
+      title: 'Moonlight',
+      subtitle: 'Shadow',
+      category: 'simple',
+      particleType: 'stars',
+      cardStyle: { background: 'linear-gradient(135deg, #121A2F 0%, #090D17 100%)' },
+    },
+    {
+      id: 'starlight',
+      title: 'Starlight',
+      subtitle: 'Void',
+      category: 'simple',
+      particleType: 'stars',
+      cardStyle: { background: 'linear-gradient(135deg, #0B0D17 0%, #05060B 100%)' },
+    },
+
+    // =========================================================================
+    // PART 2: PICTURES (14 Scenic Image & Verse Art Presets)
+    // =========================================================================
     {
       id: 'parchment',
       title: 'Parchment',
       subtitle: 'Classic',
+      category: 'pictures',
       particleType: 'dust',
       cardStyle: {
         background: 'linear-gradient(135deg, #D7C8A9 0%, #BFA67D 100%)',
@@ -316,6 +557,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       id: 'dark-paper',
       title: 'Charcoal',
       subtitle: 'Paper',
+      category: 'pictures',
       particleType: 'dust',
       cardStyle: {
         background: 'linear-gradient(135deg, #2c2c2e 0%, #121214 100%)',
@@ -327,6 +569,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       id: 'terracotta',
       title: 'Terracotta',
       subtitle: 'Plaster',
+      category: 'pictures',
       particleType: 'dust',
       cardStyle: {
         background: 'linear-gradient(135deg, #B5654C 0%, #592D1F 100%)',
@@ -338,6 +581,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       id: 'canyon',
       title: 'Desert Canyon',
       subtitle: 'Gorge',
+      category: 'pictures',
       particleType: 'dust',
       cardStyle: {
         background: 'linear-gradient(135deg, #d97d4c 0%, #591a0c 100%)',
@@ -349,6 +593,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       id: 'city-gate',
       title: 'City Gate',
       subtitle: 'Ancient',
+      category: 'pictures',
       particleType: 'stars',
       cardStyle: {
         background: 'linear-gradient(135deg, #263b52 0%, #08101a 100%)',
@@ -360,6 +605,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       id: 'arch-garden',
       title: 'Arch Garden',
       subtitle: 'Islamic',
+      category: 'pictures',
       particleType: 'dust',
       cardStyle: {
         background: 'linear-gradient(135deg, #385947 0%, #0d1a12 100%)',
@@ -371,6 +617,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       id: 'mountain-sunrise',
       title: 'Mountain',
       subtitle: 'Sunrise',
+      category: 'pictures',
       particleType: 'dust',
       cardStyle: {
         background: 'linear-gradient(135deg, #c96452 0%, #331016 100%)',
@@ -382,6 +629,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       id: 'village',
       title: 'Village',
       subtitle: 'Sunset',
+      category: 'pictures',
       particleType: 'dust',
       cardStyle: {
         background: 'linear-gradient(135deg, #d99a77 0%, #663b26 100%)',
@@ -393,6 +641,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       id: 'olive-valley',
       title: 'Olive Valley',
       subtitle: 'River',
+      category: 'pictures',
       particleType: 'dust',
       cardStyle: {
         background: 'linear-gradient(135deg, #4a6b51 0%, #141f16 100%)',
@@ -404,6 +653,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       id: 'oasis',
       title: 'Peaceful',
       subtitle: 'Oasis',
+      category: 'pictures',
       particleType: 'dust',
       cardStyle: {
         background: 'linear-gradient(135deg, #336e6a 0%, #0d2422 100%)',
@@ -415,6 +665,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       id: 'persian-valley',
       title: 'Persian',
       subtitle: 'Valley',
+      category: 'pictures',
       particleType: 'dust',
       cardStyle: {
         background: 'linear-gradient(135deg, #6d8c4c 0%, #1c2e11 100%)',
@@ -426,6 +677,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       id: 'calm-sea',
       title: 'Calm Sea',
       subtitle: 'Diorama',
+      category: 'pictures',
       particleType: 'stars',
       cardStyle: {
         background: 'linear-gradient(135deg, #1a3c63 0%, #06101c 100%)',
@@ -437,6 +689,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
       id: 'sea-frameless',
       title: 'Calm Sea',
       subtitle: 'Frameless',
+      category: 'pictures',
       particleType: 'stars',
       cardStyle: {
         background: 'linear-gradient(135deg, #1a3c63 0%, #06101c 100%)',
@@ -444,205 +697,261 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
         backgroundSize: 'cover',
       },
     },
-    // 13 CSS Themes
-    {
-      id: 'aurora',
-      title: 'Aurora',
-      subtitle: 'Borealis',
-      particleType: 'glow',
-      cardStyle: { background: 'linear-gradient(135deg, #0B1B3D 0%, #061325 100%)' },
-    },
-    {
-      id: 'dusk',
-      title: 'Violet',
-      subtitle: 'Dusk',
-      particleType: 'stars',
-      cardStyle: { background: 'linear-gradient(135deg, #2A1625 0%, #160B12 100%)' },
-    },
-    {
-      id: 'dawn',
-      title: 'Soft',
-      subtitle: 'Dawn',
-      particleType: 'dust',
-      cardStyle: { background: 'linear-gradient(135deg, #30303A 0%, #181B21 100%)' },
-    },
-    {
-      id: 'nebula',
-      title: 'Cosmic',
-      subtitle: 'Nebula',
-      particleType: 'stars',
-      cardStyle: { background: 'linear-gradient(135deg, #1A0B2E 0%, #0D0516 100%)' },
-    },
-    {
-      id: 'abyss',
-      title: 'Ocean',
-      subtitle: 'Abyss',
-      particleType: 'dust',
-      cardStyle: { background: 'linear-gradient(135deg, #040812 0%, #020409 100%)' },
-    },
-    {
-      id: 'twilight',
-      title: 'Blue',
-      subtitle: 'Twilight',
-      particleType: 'minimal',
-      cardStyle: { background: 'linear-gradient(135deg, #1E213A 0%, #0F111C 100%)' },
-    },
-    {
-      id: 'crimson-sky',
-      title: 'Crimson',
-      subtitle: 'Sky',
-      particleType: 'dust',
-      cardStyle: { background: 'linear-gradient(135deg, #3D1418 0%, #1F0A0C 100%)' },
-    },
-    {
-      id: 'sandstorm',
-      title: 'Desert',
-      subtitle: 'Sandstorm',
-      particleType: 'dust',
-      cardStyle: { background: 'linear-gradient(135deg, #3A2818 0%, #1D140C 100%)' },
-    },
-    {
-      id: 'ocean-deep',
-      title: 'Deep',
-      subtitle: 'Blue Sea',
-      particleType: 'glow',
-      cardStyle: { background: 'linear-gradient(135deg, #061A2B 0%, #030D15 100%)' },
-    },
-    {
-      id: 'forest-mist',
-      title: 'Forest',
-      subtitle: 'Mist',
-      particleType: 'rain',
-      cardStyle: { background: 'linear-gradient(135deg, #10241A 0%, #08120D 100%)' },
-    },
-    {
-      id: 'golden-hour',
-      title: 'Golden',
-      subtitle: 'Hour',
-      particleType: 'glow',
-      cardStyle: { background: 'linear-gradient(135deg, #3D2B14 0%, #1F150A 100%)' },
-    },
-    {
-      id: 'moonlight',
-      title: 'Moonlight',
-      subtitle: 'Shadow',
-      particleType: 'stars',
-      cardStyle: { background: 'linear-gradient(135deg, #121A2F 0%, #090D17 100%)' },
-    },
-    {
-      id: 'starlight',
-      title: 'Starlight',
-      subtitle: 'Void',
-      particleType: 'stars',
-      cardStyle: { background: 'linear-gradient(135deg, #0B0D17 0%, #05060B 100%)' },
-    },
-    // Default Themes
     {
       id: 'api-image',
       title: 'API Image',
       subtitle: 'Verse Art',
+      category: 'pictures',
       particleType: 'minimal',
       cardStyle: {
         background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
       },
     },
+
+    // =========================================================================
+    // PART 3: INTERACTIVES (20 Living Nature Worlds • Zero Humans/Birds • Retention-Engineered)
+    // =========================================================================
     {
-      id: 'midnight',
-      title: 'Midnight',
-      subtitle: 'Stars',
-      particleType: 'stars',
+      id: 'interactive-dawn-awakening',
+      title: 'Dawn Awakening',
+      subtitle: 'Sunrise Journey',
+      category: 'interactives',
+      particleType: 'glow',
       cardStyle: {
-        background: 'radial-gradient(circle at 50% 50%, #13224B 0%, #080D1D 100%)',
+        background: 'linear-gradient(180deg, #1E1B4B 0%, #9A3412 55%, #F59E0B 100%)',
       },
-      hasWhiteDots: true,
+      hasGoldDots: true,
+      interactiveHook: 'Sun rises from starry darkness into full golden god-rays as the recitation finishes',
     },
     {
-      id: 'emerald',
-      title: 'Emerald',
-      subtitle: 'Geometric',
+      id: 'interactive-celestial-aurora',
+      title: 'Celestial Aurora',
+      subtitle: 'Polar Curtains',
+      category: 'interactives',
+      particleType: 'stars',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #020617 0%, #065F46 48%, #7E22CE 100%)',
+      },
+      hasWhiteDots: true,
+      interactiveHook: 'Aurora ribbons unfurl from a single green arc into a full-sky violet & emerald crown',
+    },
+    {
+      id: 'interactive-desert-miracle',
+      title: 'Desert Miracle',
+      subtitle: 'Rain to Bloom',
+      category: 'interactives',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(160deg, #451A03 0%, #78350F 50%, #059669 100%)',
+      },
+      hasGoldDots: true,
+      interactiveHook: 'Parched dunes receive rain mid-recitation and bloom into a glowing emerald garden at the end',
+    },
+    {
+      id: 'interactive-storm-to-serenity',
+      title: 'Storm to Serenity',
+      subtitle: 'Ocean Peace',
+      category: 'interactives',
+      particleType: 'rain',
+      cardStyle: {
+        background: 'linear-gradient(180deg, #0F172A 0%, #1E3A8A 55%, #38BDF8 100%)',
+      },
+      hasWhiteDots: true,
+      interactiveHook: 'Storm clouds and high waves gradually calm into a mirror-like moonlit ocean',
+    },
+    {
+      id: 'interactive-luminous-woods',
+      title: 'Luminous Woods',
+      subtitle: 'Sacred Forest',
+      category: 'interactives',
+      particleType: 'glow',
+      cardStyle: {
+        background: 'radial-gradient(circle at 50% 60%, #0D9488 0%, #064E3B 50%, #022C22 100%)',
+      },
+      hasGoldDots: true,
+      interactiveHook: 'Bioluminescent forest ferns and light spores progressively illuminate the dark woods',
+    },
+    {
+      id: 'interactive-eclipse-crown',
+      title: 'Eclipse Crown',
+      subtitle: 'Cosmic Alignment',
+      category: 'interactives',
+      particleType: 'stars',
+      cardStyle: {
+        background: 'radial-gradient(circle at 50% 42%, #000000 18%, #F59E0B 34%, #090A10 75%)',
+      },
+      hasWhiteDots: true,
+      interactiveHook: 'Lunar disc aligns to trigger the breathtaking diamond-ring flare at the recitation climax',
+    },
+    {
+      id: 'interactive-sakura-breeze',
+      title: 'Spring Breeze',
+      subtitle: 'Blossom Valley',
+      category: 'interactives',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #1E1B4B 0%, #831843 55%, #F472B6 100%)',
+      },
+      hasWhiteDots: true,
+      interactiveHook: 'Branches bloom verse by verse, releasing a hypnotic vortex of swirling petals',
+    },
+    {
+      id: 'interactive-cascading-light',
+      title: 'Cascading Light',
+      subtitle: 'Misty Waterfall',
+      category: 'interactives',
+      particleType: 'rain',
+      cardStyle: {
+        background: 'linear-gradient(180deg, #042F2E 0%, #0D9488 55%, #5EEAD4 100%)',
+      },
+      interactiveHook: 'Sunbeams pierce the waterfall mist to form a vivid glowing rainbow arc by the end',
+    },
+    {
+      id: 'interactive-falling-stars',
+      title: 'Falling Stars',
+      subtitle: 'Meteor Oasis',
+      category: 'interactives',
+      particleType: 'stars',
+      cardStyle: {
+        background: 'linear-gradient(145deg, #020617 0%, #1E1B4B 50%, #4338CA 100%)',
+      },
+      hasWhiteDots: true,
+      interactiveHook: 'Single shooting stars intensify into a grand celestial meteor shower reflected in the lagoon',
+    },
+    {
+      id: 'interactive-crystal-cavern',
+      title: 'Crystal Cavern',
+      subtitle: 'Prismatic Geode',
+      category: 'interactives',
       particleType: 'geometric',
       cardStyle: {
-        background:
-          'linear-gradient(135deg, #04382B 0%, #021C16 100%), repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.06) 6px, rgba(255,255,255,0.06) 12px)',
-      },
-    },
-    {
-      id: 'gold',
-      title: 'Golden',
-      subtitle: 'Dust',
-      particleType: 'dust',
-      cardStyle: {
-        background: 'radial-gradient(circle at 60% 40%, #4D2605 0%, #1A0B02 100%)',
-      },
-      hasGoldDots: true,
-    },
-    {
-      id: 'rain',
-      title: 'Rain',
-      subtitle: 'Rain',
-      particleType: 'rain',
-      cardStyle: {
-        background:
-          'linear-gradient(180deg, #062835 0%, #03141B 100%), repeating-linear-gradient(105deg, transparent, transparent 7px, rgba(56,189,248,0.12) 7px, rgba(56,189,248,0.12) 9px)',
-      },
-    },
-    {
-      id: 'desert',
-      title: 'Glow',
-      subtitle: 'Ambient',
-      particleType: 'glow',
-      cardStyle: {
-        background: 'radial-gradient(circle at 50% 50%, #3B234A 0%, #140C1A 85%)',
-      },
-    },
-    {
-      id: 'sapphire',
-      title: 'Sapphire',
-      subtitle: 'Oceanic',
-      particleType: 'glow',
-      cardStyle: {
-        background: 'linear-gradient(135deg, #061E3E 0%, #020B16 100%)',
-      },
-    },
-    {
-      id: 'ruby',
-      title: 'Ruby',
-      subtitle: 'Dusk',
-      particleType: 'dust',
-      cardStyle: {
-        background: 'linear-gradient(135deg, #2E060E 0%, #140104 100%)',
-      },
-      hasGoldDots: true,
-    },
-    {
-      id: 'amethyst',
-      title: 'Amethyst',
-      subtitle: 'Sky',
-      particleType: 'stars',
-      cardStyle: {
-        background: 'radial-gradient(circle at 50% 50%, #18062B 0%, #0A0214 100%)',
+        background: 'linear-gradient(135deg, #090514 0%, #4C1D95 50%, #C084FC 100%)',
       },
       hasWhiteDots: true,
+      interactiveHook: 'Crystals awaken one by one, linking prismatic light beams across the underground lake',
     },
     {
-      id: 'forest',
-      title: 'Ancient',
-      subtitle: 'Forest',
-      particleType: 'rain',
+      id: 'interactive-autumn-stream',
+      title: 'Autumn Stream',
+      subtitle: 'Golden River',
+      category: 'interactives',
+      particleType: 'dust',
       cardStyle: {
-        background: 'linear-gradient(180deg, #032211 0%, #011209 100%)',
+        background: 'linear-gradient(160deg, #270E05 0%, #9A3412 50%, #F59E0B 100%)',
       },
+      hasGoldDots: true,
+      interactiveHook: 'River water turns to liquid gold as drifting amber leaves ripple down the current',
     },
     {
-      id: 'oled',
-      title: 'Minimal',
-      subtitle: 'Plain',
+      id: 'interactive-alpine-alpenglow',
+      title: 'Silent Snowfall',
+      subtitle: 'Alpine Alpenglow',
+      category: 'interactives',
       particleType: 'minimal',
       cardStyle: {
-        background: '#121829',
+        background: 'linear-gradient(180deg, #0F172A 0%, #4C1D95 55%, #F43F5E 100%)',
       },
-    }
+      hasWhiteDots: true,
+      interactiveHook: 'Snowy twilight peaks gradually catch a radiant rose-gold summit alpenglow',
+    },
+    {
+      id: 'interactive-ocean-cathedral',
+      title: 'Ocean Cathedral',
+      subtitle: 'Sunlit Reef',
+      category: 'interactives',
+      particleType: 'glow',
+      cardStyle: {
+        background: 'linear-gradient(180deg, #22D3EE 0%, #0369A1 45%, #082F49 100%)',
+      },
+      interactiveHook: 'Underwater light shafts converge into a brilliant golden-cyan column from surface to floor',
+    },
+    {
+      id: 'interactive-moonlit-lotus',
+      title: 'Moonlit Pond',
+      subtitle: 'Blooming Lotus',
+      category: 'interactives',
+      particleType: 'glow',
+      cardStyle: {
+        background: 'radial-gradient(circle at 50% 65%, #F59E0B 0%, #065F46 42%, #022C22 100%)',
+      },
+      hasGoldDots: true,
+      interactiveHook: 'Closed water lily buds slowly unfold their petals to reveal a warm golden core',
+    },
+    {
+      id: 'interactive-sacred-gorge',
+      title: 'Sacred Gorge',
+      subtitle: 'Canyon Sunbeams',
+      category: 'interactives',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #1A0802 0%, #7C2D12 52%, #FB923C 100%)',
+      },
+      hasGoldDots: true,
+      interactiveHook: 'Volumetric sunbeams pivot across red canyon walls, igniting thousands of golden dust motes',
+    },
+    {
+      id: 'interactive-primordial-earth',
+      title: 'Primordial Earth',
+      subtitle: 'Embers to Stars',
+      category: 'interactives',
+      particleType: 'dust',
+      cardStyle: {
+        background: 'linear-gradient(180deg, #020617 0%, #450A0A 55%, #EA580C 100%)',
+      },
+      hasGoldDots: true,
+      interactiveHook: 'Fiery mountain embers ascend into the sky and transform into peaceful constellations',
+    },
+    {
+      id: 'interactive-nordic-fjord',
+      title: 'Misty Fjord',
+      subtitle: 'Parting Veil',
+      category: 'interactives',
+      particleType: 'minimal',
+      cardStyle: {
+        background: 'linear-gradient(160deg, #042F2E 0%, #115E59 55%, #5EEAD4 100%)',
+      },
+      interactiveHook: 'Dense atmospheric fog layers part outward to reveal a hidden sunlit waterfall valley',
+    },
+    {
+      id: 'interactive-rain-sanctuary',
+      title: 'Rain on Glass',
+      subtitle: 'Botanical Window',
+      category: 'interactives',
+      particleType: 'rain',
+      cardStyle: {
+        background: 'linear-gradient(135deg, #052E16 0%, #15803D 55%, #86EFAC 100%)',
+      },
+      hasGoldDots: true,
+      interactiveHook: 'Refractive raindrops slide down the glass while warm golden sunlight bokeh blooms behind',
+    },
+    {
+      id: 'interactive-pillars-of-creation',
+      title: 'Cosmic Pillars',
+      subtitle: 'Nebula Genesis',
+      category: 'interactives',
+      particleType: 'stars',
+      cardStyle: {
+        background: 'radial-gradient(circle at 50% 45%, #A855F7 0%, #1E1B4B 55%, #030712 100%)',
+      },
+      hasWhiteDots: true,
+      interactiveHook: 'Continuous 3D starfield flight where brilliant star clusters ignite inside cosmic gas pillars',
+    },
+    {
+      id: 'interactive-emerald-bamboo',
+      title: 'Emerald Bamboo',
+      subtitle: 'Swaying Grove',
+      category: 'interactives',
+      particleType: 'glow',
+      cardStyle: {
+        background: 'linear-gradient(180deg, #022C22 0%, #047857 60%, #34D399 100%)',
+      },
+      hasGoldDots: true,
+      interactiveHook: 'Bamboo grove sways with touch wind physics while morning mist turns to golden light',
+    },
   ];
+
+  const filteredThemes = THEMES.filter((t) => t.category === themeCategory);
+  const activeThemeObj = THEMES.find((t) => t.id === config.backgroundPreset);
 
   return (
     <div className="w-full max-w-4xl lg:max-w-5xl mx-auto px-2 sm:px-4 py-2 sm:py-3 transition-colors pb-16 sm:pb-20">
@@ -831,6 +1140,69 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
             </div>
 
+            {/* 3-Part Theme Presets Selector: Simple | Pictures | Interactives */}
+            <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-[#08101E] border border-slate-200/80 dark:border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => setThemeCategory('simple')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  themeCategory === 'simple'
+                    ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs border border-slate-200/70 dark:border-slate-700'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Palette className="w-3.5 h-3.5 shrink-0" />
+                <span>Simple</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setThemeCategory('pictures')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  themeCategory === 'pictures'
+                    ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs border border-slate-200/70 dark:border-slate-700'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <ImageIcon className="w-3.5 h-3.5 shrink-0" />
+                <span>Pictures</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setThemeCategory('interactives')}
+                className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  themeCategory === 'interactives'
+                    ? 'bg-emerald-500 text-white dark:text-slate-950 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Wand2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Interactives</span>
+                <span
+                  className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-mono ${
+                    themeCategory === 'interactives'
+                      ? 'bg-black/20 text-white dark:text-slate-950'
+                      : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                  }`}
+                >
+                  20
+                </span>
+              </button>
+            </div>
+
+            {/* Retention / Interactive Story Hook Banner when viewing Interactives */}
+            {themeCategory === 'interactives' && (
+              <div className="px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center gap-2 text-[10.5px] text-emerald-800 dark:text-emerald-300">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0 animate-pulse" />
+                <span className="truncate font-medium">
+                  {activeThemeObj?.category === 'interactives' && activeThemeObj.interactiveHook
+                    ? activeThemeObj.interactiveHook
+                    : 'Pure nature scenes that evolve until the final ayah to keep viewers watching. Touch preview to interact!'}
+                </span>
+              </div>
+            )}
+
             {/* Custom Media active banner -> Replaced with "Your Background" section */}
             {config.customMediaUrl && (
               <div className="mb-4">
@@ -914,7 +1286,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                         });
                         try {
                           await clearCustomMedia();
-                        } catch (err) {}
+                        } catch {}
                       }}
                       className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-rose-500/90 text-white flex items-center justify-center hover:bg-rose-600 shadow-md backdrop-blur-sm transition-transform active:scale-95 z-10"
                       title="Delete Background"
@@ -940,11 +1312,11 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
               </div>
             )}
 
-            {/* Smoothly Scrollable Theme Grid */}
+            {/* Smoothly Scrollable Theme Grid for Active Part (Simple / Pictures / Interactives) */}
             <div className="max-h-[164px] sm:max-h-[220px] overflow-y-auto scroll-smooth pr-0.5 custom-scrollbar">
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-2 sm:gap-2.5">
-                {THEMES.map((th, index) => {
-                  const isSelected = config.backgroundPreset === th.id;
+                {filteredThemes.map((th, index) => {
+                  const isSelected = !config.customMediaUrl && config.backgroundPreset === th.id;
                   return (
                     <button
                       key={`${th.id}-${index}`}
@@ -956,13 +1328,22 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                           overlayOpacity: 0.48, // Reset vignette
                         })
                       }
-                      className={`relative flex flex-col justify-end p-2.5 rounded-2xl h-[78px] text-left transition-all overflow-hidden border ${
+                      title={th.interactiveHook || `${th.title} (${th.subtitle})`}
+                      className={`relative flex flex-col justify-end p-2.5 rounded-2xl h-[78px] text-left transition-all overflow-hidden border cursor-pointer ${
                         isSelected
                           ? 'border-2 border-emerald-500 dark:border-emerald-400 ring-2 ring-emerald-500/25 dark:ring-emerald-400/25 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
                           : 'border-slate-200 dark:border-slate-800/80 shadow-xs hover:border-slate-300 dark:hover:border-slate-700'
                       }`}
                       style={th.cardStyle}
                     >
+                      {/* Interactive Live Nature Badge */}
+                      {th.category === 'interactives' && (
+                        <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-black/45 backdrop-blur-xs border border-white/15 text-[8.5px] font-bold text-emerald-300 flex items-center gap-1 z-10">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span>LIVE</span>
+                        </span>
+                      )}
+
                       {/* Decorative star specks for Midnight / Galaxy */}
                       {th.hasWhiteDots && (
                         <div className="absolute inset-0 pointer-events-none">
@@ -982,16 +1363,16 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
 
                       {/* Selected green circle with checkmark badge on top right */}
                       {isSelected && (
-                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-emerald-500 dark:bg-emerald-400 text-white dark:text-slate-950 flex items-center justify-center font-bold shadow-sm">
+                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-emerald-500 dark:bg-emerald-400 text-white dark:text-slate-950 flex items-center justify-center font-bold shadow-sm z-10">
                           <Check className="w-2.5 h-2.5 stroke-[3]" />
                         </div>
                       )}
 
                       {/* Labels with drop shadow for guaranteed readability */}
-                      <span className="text-xs font-bold text-white leading-tight z-10 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      <span className="text-xs font-bold text-white leading-tight z-10 truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                         {th.title}
                       </span>
-                      <span className="text-[10px] text-slate-300 dark:text-slate-400 z-10 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      <span className="text-[10px] text-slate-200 dark:text-slate-300 z-10 leading-tight truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                         {th.subtitle}
                       </span>
                     </button>
@@ -1230,9 +1611,25 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                     <option value="solid">Dark Card</option>
                     <option value="pitch-black">Pitch Black</option>
                   </optgroup>
-                  <optgroup label="Color / Gradient Effects">
-                    {THEMES.map(th => (
-                      <option key={`card-${th.id}`} value={th.id}>{th.title}</option>
+                  <optgroup label="Simple Themes">
+                    {THEMES.filter((t) => t.category === 'simple').map((th) => (
+                      <option key={`card-${th.id}`} value={th.id}>
+                        {th.title} ({th.subtitle})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Picture Themes">
+                    {THEMES.filter((t) => t.category === 'pictures').map((th) => (
+                      <option key={`card-${th.id}`} value={th.id}>
+                        {th.title} ({th.subtitle})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Interactive Themes">
+                    {THEMES.filter((t) => t.category === 'interactives').map((th) => (
+                      <option key={`card-${th.id}`} value={th.id}>
+                        {th.title} ({th.subtitle})
+                      </option>
                     ))}
                   </optgroup>
                 </select>
@@ -1285,7 +1682,7 @@ export const VideoStudio: React.FC<VideoStudioProps> = ({
                 </select>
                 {config.arabicScriptType === 'text_uthmani_tajweed' && (
                   <p className="text-[9px] text-amber-600 dark:text-amber-400 mt-1 leading-tight">
-                    *Tajweed colors require HTML/CSS which isn't supported by the canvas video exporter. Text will render in plain color.
+                    *Tajweed colors require HTML/CSS which isn&apos;t supported by the canvas video exporter. Text will render in plain color.
                   </p>
                 )}
               </div>

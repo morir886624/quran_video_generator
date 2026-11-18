@@ -1,9 +1,18 @@
 'use client';
 
-import React, { useRef } from 'react';
-import { VideoConfig } from '@/types/quran';
+import React, { useRef, useState } from 'react';
+import { BackgroundPresetCategory, VideoConfig } from '@/types/quran';
 import { BACKGROUND_PRESETS } from '@/lib/constants';
-import { Upload, Smartphone, Square, Monitor, Check } from 'lucide-react';
+import {
+  Upload,
+  Smartphone,
+  Square,
+  Monitor,
+  Check,
+  Palette,
+  Image as ImageIcon,
+  Wand2,
+} from 'lucide-react';
 import { useToast } from '@/components/ToastProvider';
 
 interface BackgroundPickerProps {
@@ -17,6 +26,10 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
 }) => {
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<BackgroundPresetCategory>(() => {
+    const found = BACKGROUND_PRESETS.find((p) => p.id === config.backgroundPreset);
+    return found?.category || 'simple';
+  });
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -45,6 +58,8 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
       customVideoEndTime: null,
     });
   };
+
+  const filteredPresets = BACKGROUND_PRESETS.filter((p) => p.category === selectedCategory);
 
   return (
     <div className="space-y-5">
@@ -95,13 +110,56 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
         </div>
       </div>
 
-      {/* Preset Backgrounds Grid */}
-      <div>
-        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
-          Aesthetic Motion Background
+      {/* Preset Backgrounds Grid Separated into 3 Parts */}
+      <div className="space-y-2.5">
+        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+          Theme Presets
         </label>
+
+        {/* 3-Part Switcher: Simple | Pictures | Interactives */}
+        <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('simple')}
+            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all ${
+              selectedCategory === 'simple'
+                ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Palette className="w-3.5 h-3.5" />
+            <span>Simple</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('pictures')}
+            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all ${
+              selectedCategory === 'pictures'
+                ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+            <span>Pictures</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('interactives')}
+            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all ${
+              selectedCategory === 'interactives'
+                ? 'bg-emerald-500 text-white dark:text-slate-950 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Wand2 className="w-3.5 h-3.5" />
+            <span>Interactives</span>
+          </button>
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-          {BACKGROUND_PRESETS.map((preset) => {
+          {filteredPresets.map((preset) => {
             const isSelected =
               !config.customMediaUrl && config.backgroundPreset === preset.id;
             return (
@@ -109,7 +167,11 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
                 key={preset.id}
                 onClick={() => {
                   clearCustomMedia();
-                  onChangeConfig({ backgroundPreset: preset.id });
+                  onChangeConfig({
+                    backgroundPreset: preset.id,
+                    particleType: preset.particleType,
+                    enableParticles: true,
+                  });
                 }}
                 className={`relative overflow-hidden p-3 rounded-xl border text-left transition-all ${
                   isSelected
@@ -117,8 +179,10 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
                 style={{
-                  background: `linear-gradient(135deg, ${preset.gradientColors[0]}, ${preset.gradientColors[1]})`,
-                  minHeight: '80px',
+                  background: preset.imageUrl
+                    ? `linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.55)), url(${preset.imageUrl}) center/cover`
+                    : `linear-gradient(135deg, ${preset.gradientColors[0]}, ${preset.gradientColors[1]})`,
+                  minHeight: '84px',
                 }}
               >
                 <div className="flex items-center justify-between mb-1">
@@ -131,8 +195,8 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-slate-300/90 line-clamp-2">
-                  {preset.description}
+                <p className="text-[10px] text-slate-200/90 line-clamp-2 drop-shadow">
+                  {preset.interactiveHook || preset.description}
                 </p>
               </button>
             );
@@ -205,4 +269,3 @@ export const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
     </div>
   );
 };
-
